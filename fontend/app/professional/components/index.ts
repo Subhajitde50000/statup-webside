@@ -6,3 +6,4 @@ export { default as QuickStats } from './QuickStats';
 export { default as WeeklyChart } from './WeeklyChart';
 export { default as QuickActions } from './QuickActions';
 export { default as RecentReviews } from './RecentReviews';
+export { default as ProfessionalNavbar } from './ProfessionalNavbar';
