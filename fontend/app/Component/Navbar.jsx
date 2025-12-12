@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { ChevronDown, MapPin, Search, Bell, Bookmark, Menu } from 'lucide-react';
+import { ChevronDown, MapPin, Search, Bell, Bookmark, Menu, Home, Briefcase, Calendar, User } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 
@@ -22,13 +22,15 @@ export default function Navbar({ onNotificationClick, isNotificationsOpen }) {
   }, []);
 
   return (
-    <nav className={`fixed top-0 left-0 right-0 h-[70px] bg-white/95 backdrop-blur-md z-50 transition-all duration-300 ${
-      isScrolled ? 'shadow-lg border-b border-gray-200' : 'shadow-sm border-b border-gray-100'
-    }`}>
-      <div className="max-w-[1400px] mx-auto px-4 md:px-6 h-full flex items-center justify-between">
+    <>
+      {/* Top Bar - Minimal on Mobile, Full on Desktop */}
+      <nav className={`fixed top-0 left-0 right-0 h-[70px] bg-white/95 backdrop-blur-md z-50 transition-all duration-300 ${
+        isScrolled ? 'shadow-lg border-b border-gray-200' : 'shadow-sm border-b border-gray-100'
+      }`}>
+        <div className="max-w-[1400px] mx-auto px-4 md:px-6 h-full flex items-center justify-between">
         {/* Left Section */}
         <div className="flex items-center gap-4 md:gap-8">
-          {/* Logo */}
+          {/* Logo - Always Visible */}
           <Link href="/" className="flex items-center gap-2.5 cursor-pointer group">
             <div className="w-10 h-10 md:w-11 md:h-11 bg-gradient-to-br from-blue-600 via-blue-500 to-purple-600 rounded-xl flex items-center justify-center group-hover:scale-110 group-hover:rotate-3 transition-all duration-300 shadow-lg group-hover:shadow-xl">
               <span className="text-white font-extrabold text-lg md:text-xl tracking-tight">HE</span>
@@ -111,12 +113,15 @@ export default function Navbar({ onNotificationClick, isNotificationsOpen }) {
 
         {/* Right Section */}
         <div className="flex items-center gap-2 md:gap-3">
+          {/* Desktop Only Items */}
           <Link href="/auth" className="hidden md:block text-sm font-bold text-gray-700 hover:text-transparent hover:bg-clip-text hover:bg-gradient-to-r hover:from-blue-600 hover:to-purple-600 transition-all px-3 py-2 rounded-lg hover:bg-gradient-to-br hover:from-blue-50 hover:to-purple-50">
             Login/Sign Up
           </Link>
           <button className="hidden md:block p-2.5 hover:bg-gradient-to-br hover:from-blue-50 hover:to-purple-50 rounded-xl transition-all group border border-transparent hover:border-blue-200">
             <Bookmark className="w-5 h-5 text-gray-600 group-hover:text-blue-600 transition-colors group-hover:scale-110" />
           </button>
+          
+          {/* Notification - Always Visible */}
           <button 
             onClick={onNotificationClick}
             className="p-2 md:p-2.5 hover:bg-gradient-to-br hover:from-blue-50 hover:to-purple-50 rounded-xl relative transition-all group border border-transparent hover:border-blue-200"
@@ -124,74 +129,81 @@ export default function Navbar({ onNotificationClick, isNotificationsOpen }) {
             <Bell className="w-5 h-5 text-gray-600 group-hover:text-blue-600 transition-colors group-hover:scale-110 group-hover:rotate-12" />
             <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full animate-pulse shadow-lg"></span>
           </button>
+          
+          {/* Desktop Only Partner Button */}
           <button className="hidden lg:block px-4 lg:px-6 py-2.5 border-2 border-blue-600 text-blue-600 rounded-full font-bold hover:bg-gradient-to-r hover:from-blue-600 hover:to-purple-600 hover:text-white hover:border-transparent transition-all shadow-md hover:shadow-xl hover:scale-105 text-sm">
             Become a Partner
           </button>
-          {/* Mobile Menu Button */}
-          <button 
-            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-            className="md:hidden p-2 hover:bg-gray-100 rounded-lg transition-all"
-          >
-            <Menu className="w-6 h-6 text-gray-700" />
-          </button>
+          
+          {/* Mobile Menu Button - Removed */}
         </div>
       </div>
-
-      {/* Mobile Menu */}
-      {isMobileMenuOpen && (
-        <div className="md:hidden absolute top-[70px] left-0 right-0 bg-white border-b border-gray-200 shadow-lg">
-          <div className="px-4 py-4 space-y-4">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Search services..."
-                className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-            <Link 
-              href="/"
-              className={`w-full px-4 py-3 rounded-lg font-bold transition-colors ${
-                pathname === '/' 
-                  ? 'bg-blue-600 text-white' 
-                  : 'bg-gray-100 text-gray-900 hover:bg-gray-200'
-              }`}
-            >
-              Home
-            </Link>
-            <Link 
-              href="/service"
-              className={`w-full px-4 py-3 rounded-lg font-bold transition-colors ${
-                pathname === '/service' 
-                  ? 'bg-blue-600 text-white' 
-                  : 'bg-gray-100 text-gray-900 hover:bg-gray-200'
-              }`}
-            >
-              Services
-            </Link>
-            <Link 
-              href="/about"
-              className={`w-full px-4 py-3 rounded-lg font-bold transition-colors ${
-                pathname === '/about' 
-                  ? 'bg-blue-600 text-white' 
-                  : 'bg-gray-100 text-gray-900 hover:bg-gray-200'
-              }`}
-            >
-              About
-            </Link>
-            <button className="w-full flex items-center gap-2 px-4 py-3 hover:bg-gray-50 rounded-lg transition-colors">
-              <MapPin className="w-5 h-5 text-blue-600" />
-              <span className="font-semibold text-gray-900">Salt Lake, Kolkata</span>
-            </button>
-            <Link href="/auth" className="w-full py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl font-bold text-center block">
-              Login/Sign Up
-            </Link>
-            <button className="w-full py-3 border-2 border-blue-600 text-blue-600 rounded-xl font-bold">
-              Become a Partner
-            </button>
-          </div>
-        </div>
-      )}
+      
+      {/* Mobile Menu - Removed */}
     </nav>
+
+    {/* Mobile Bottom Navigation */}
+    <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t-2 border-gray-200 shadow-2xl z-50 pb-safe">
+      <div className="grid grid-cols-5 h-16">
+        <Link 
+          href="/"
+          className={`flex flex-col items-center justify-center gap-1 transition-all ${
+            pathname === '/' 
+              ? 'text-blue-600' 
+              : 'text-gray-600'
+          }`}
+        >
+          <Home className={`w-5 h-5 ${pathname === '/' ? 'fill-blue-600' : ''}`} />
+          <span className="text-[10px] font-bold">Home</span>
+        </Link>
+
+        <Link 
+          href="/service"
+          className={`flex flex-col items-center justify-center gap-1 transition-all ${
+            pathname === '/service' 
+              ? 'text-blue-600' 
+              : 'text-gray-600'
+          }`}
+        >
+          <Briefcase className={`w-5 h-5 ${pathname === '/service' ? 'fill-blue-600' : ''}`} />
+          <span className="text-[10px] font-bold">Services</span>
+        </Link>
+
+        <button 
+          onClick={() => router.push('/search')}
+          className="flex flex-col items-center justify-center gap-1 text-white relative"
+        >
+          <div className="absolute -top-4 w-14 h-14 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full flex items-center justify-center shadow-xl">
+            <Search className="w-6 h-6" />
+          </div>
+          <span className="text-[10px] font-bold text-gray-600 mt-6">Search</span>
+        </button>
+
+        <Link 
+          href="/bookings"
+          className={`flex flex-col items-center justify-center gap-1 transition-all ${
+            pathname === '/bookings' 
+              ? 'text-blue-600' 
+              : 'text-gray-600'
+          }`}
+        >
+          <Calendar className={`w-5 h-5 ${pathname === '/bookings' ? 'fill-blue-600' : ''}`} />
+          <span className="text-[10px] font-bold">Bookings</span>
+        </Link>
+
+        <Link 
+          href="/profile"
+          className={`flex flex-col items-center justify-center gap-1 transition-all ${
+            pathname === '/profile' 
+              ? 'text-blue-600' 
+              : 'text-gray-600'
+          }`}
+        >
+          <User className={`w-5 h-5 ${pathname === '/profile' ? 'fill-blue-600' : ''}`} />
+          <span className="text-[10px] font-bold">Profile</span>
+        </Link>
+      </div>
+    </div>
+    </>
   );
 }
