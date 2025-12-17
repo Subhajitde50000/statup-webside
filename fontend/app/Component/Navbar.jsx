@@ -1,17 +1,21 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { ChevronDown, MapPin, Search, Bell, Bookmark, Menu, Home, Briefcase, Calendar, User } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { ChevronDown, MapPin, Search, Bell, Bookmark, Menu, Home, Briefcase, Calendar, User, LogOut, Settings } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
+import { useAuth } from '@/utils/AuthContext';
 
 export default function Navbar({ onNotificationClick, isNotificationsOpen }) {
   const pathname = usePathname();
   const router = useRouter();
+  const { user, isAuthenticated, isLoading, logout } = useAuth();
   const [isLocationOpen, setIsLocationOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
+  const profileDropdownRef = useRef(null);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -20,6 +24,27 @@ export default function Navbar({ onNotificationClick, isNotificationsOpen }) {
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (profileDropdownRef.current && !profileDropdownRef.current.contains(event.target)) {
+        setIsProfileDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+      setIsProfileDropdownOpen(false);
+      router.push('/');
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
+  };
 
   return (
     <>
@@ -114,9 +139,81 @@ export default function Navbar({ onNotificationClick, isNotificationsOpen }) {
         {/* Right Section */}
         <div className="flex items-center gap-2 md:gap-3">
           {/* Desktop Only Items */}
-          <Link href="/auth" className="hidden md:block text-sm font-bold text-gray-700 hover:text-transparent hover:bg-clip-text hover:bg-gradient-to-r hover:from-blue-600 hover:to-purple-600 transition-all px-3 py-2 rounded-lg hover:bg-gradient-to-br hover:from-blue-50 hover:to-purple-50">
-            Login/Sign Up
-          </Link>
+          {isLoading ? (
+            <div className="hidden md:block w-24 h-8 bg-gray-200 rounded-lg animate-pulse"></div>
+          ) : isAuthenticated && user ? (
+            /* Profile Dropdown for Logged In Users */
+            <div className="hidden md:block relative" ref={profileDropdownRef}>
+              <button
+                onClick={() => setIsProfileDropdownOpen(!isProfileDropdownOpen)}
+                className="flex items-center gap-2 p-2 hover:bg-gradient-to-br hover:from-blue-50 hover:to-purple-50 rounded-xl transition-all group border border-transparent hover:border-blue-200"
+              >
+                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-600 to-purple-600 flex items-center justify-center text-white font-bold text-sm">
+                  {user.name?.charAt(0).toUpperCase() || 'U'}
+                </div>
+                <span className="text-sm font-semibold text-gray-700 group-hover:text-blue-600 max-w-[100px] truncate">
+                  {user.name?.split(' ')[0] || 'User'}
+                </span>
+                <ChevronDown className={`w-4 h-4 text-gray-500 transition-transform ${isProfileDropdownOpen ? 'rotate-180' : ''}`} />
+              </button>
+              
+              {/* Dropdown Menu */}
+              {isProfileDropdownOpen && (
+                <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-lg border border-gray-100 py-2 z-50">
+                  <div className="px-4 py-3 border-b border-gray-100">
+                    <p className="text-sm font-semibold text-gray-900">{user.name}</p>
+                    <p className="text-xs text-gray-500 truncate">{user.email || user.phone}</p>
+                    <span className={`inline-block mt-1 px-2 py-0.5 rounded-full text-xs font-medium capitalize ${
+                      user.role === 'admin' ? 'bg-purple-100 text-purple-700' :
+                      user.role === 'professional' ? 'bg-green-100 text-green-700' :
+                      user.role === 'shopkeeper' ? 'bg-orange-100 text-orange-700' :
+                      'bg-gray-100 text-gray-700'
+                    }`}>
+                      {user.role}
+                    </span>
+                  </div>
+                  <Link
+                    href="/profile"
+                    onClick={() => setIsProfileDropdownOpen(false)}
+                    className="flex items-center gap-3 px-4 py-2.5 text-gray-700 hover:bg-gray-50 transition-colors"
+                  >
+                    <User className="w-4 h-4" />
+                    <span className="text-sm font-medium">My Profile</span>
+                  </Link>
+                  <Link
+                    href="/bookings"
+                    onClick={() => setIsProfileDropdownOpen(false)}
+                    className="flex items-center gap-3 px-4 py-2.5 text-gray-700 hover:bg-gray-50 transition-colors"
+                  >
+                    <Calendar className="w-4 h-4" />
+                    <span className="text-sm font-medium">My Bookings</span>
+                  </Link>
+                  <Link
+                    href="/profile"
+                    onClick={() => setIsProfileDropdownOpen(false)}
+                    className="flex items-center gap-3 px-4 py-2.5 text-gray-700 hover:bg-gray-50 transition-colors"
+                  >
+                    <Settings className="w-4 h-4" />
+                    <span className="text-sm font-medium">Settings</span>
+                  </Link>
+                  <div className="border-t border-gray-100 mt-2 pt-2">
+                    <button
+                      onClick={handleLogout}
+                      className="flex items-center gap-3 px-4 py-2.5 text-red-600 hover:bg-red-50 transition-colors w-full"
+                    >
+                      <LogOut className="w-4 h-4" />
+                      <span className="text-sm font-medium">Log Out</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : (
+            /* Login/Sign Up for Non-Logged In Users */
+            <Link href="/auth" className="hidden md:block text-sm font-bold text-gray-700 hover:text-transparent hover:bg-clip-text hover:bg-gradient-to-r hover:from-blue-600 hover:to-purple-600 transition-all px-3 py-2 rounded-lg hover:bg-gradient-to-br hover:from-blue-50 hover:to-purple-50">
+              Login/Sign Up
+            </Link>
+          )}
           <button className="hidden md:block p-2.5 hover:bg-gradient-to-br hover:from-blue-50 hover:to-purple-50 rounded-xl transition-all group border border-transparent hover:border-blue-200">
             <Bookmark className="w-5 h-5 text-gray-600 group-hover:text-blue-600 transition-colors group-hover:scale-110" />
           </button>
@@ -192,15 +289,21 @@ export default function Navbar({ onNotificationClick, isNotificationsOpen }) {
         </Link>
 
         <Link 
-          href="/profile"
+          href={isAuthenticated ? "/profile" : "/auth"}
           className={`flex flex-col items-center justify-center gap-1 transition-all ${
             pathname === '/profile' 
               ? 'text-blue-600' 
               : 'text-gray-600'
           }`}
         >
-          <User className={`w-5 h-5 ${pathname === '/profile' ? 'fill-blue-600' : ''}`} />
-          <span className="text-[10px] font-bold">Profile</span>
+          {isAuthenticated && user ? (
+            <div className="w-5 h-5 rounded-full bg-gradient-to-br from-blue-600 to-purple-600 flex items-center justify-center text-white text-xs font-bold">
+              {user.name?.charAt(0).toUpperCase() || 'U'}
+            </div>
+          ) : (
+            <User className={`w-5 h-5 ${pathname === '/profile' ? 'fill-blue-600' : ''}`} />
+          )}
+          <span className="text-[10px] font-bold">{isAuthenticated ? 'Profile' : 'Login'}</span>
         </Link>
       </div>
     </div>

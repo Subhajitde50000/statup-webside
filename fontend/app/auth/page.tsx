@@ -2,19 +2,34 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { 
   Mail, Phone, Lock, User, Eye, EyeOff, CheckCircle, AlertCircle,
   Loader2, ArrowRight, Shield, Zap, Star, Chrome, Facebook,
   Apple, MessageSquare, X
 } from 'lucide-react';
+import {
+  signup,
+  verifySignup,
+  login,
+  sendLoginOTP,
+  verifyLoginOTP,
+  getGoogleAuthUrl,
+  getFacebookAuthUrl,
+  APIError
+} from '@/utils/auth';
 
 export default function AuthPage() {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<'login' | 'signup'>('login');
   const [loginMethod, setLoginMethod] = useState<'email' | 'phone'>('phone');
+  const [verifyMethod, setVerifyMethod] = useState<'email' | 'phone'>('phone');
   const [showPassword, setShowPassword] = useState(false);
   const [showOTP, setShowOTP] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
+  const [otpPurpose, setOtpPurpose] = useState<'login' | 'signup'>('login');
+  const [successMessage, setSuccessMessage] = useState('');
 
   const [formData, setFormData] = useState({
     name: '',
@@ -100,53 +115,157 @@ export default function AuthPage() {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSendOTP = () => {
-    const isValid = activeTab === 'login' ? validateLogin() : validateSignup();
-    if (!isValid) return;
-
-    setIsLoading(true);
-    setTimeout(() => {
-      setIsLoading(false);
-      setShowOTP(true);
-    }, 1500);
+  const handleSendOTP = async () => {
+    if (activeTab === 'login') {
+      if (!validateLogin()) return;
+      
+      setIsLoading(true);
+      setErrors({});
+      
+      try {
+        const identifier = loginMethod === 'email' ? formData.email : formData.phone;
+        await sendLoginOTP(identifier, loginMethod);
+        setShowOTP(true);
+        setOtpPurpose('login');
+        setSuccessMessage('OTP sent successfully!');
+      } catch (err) {
+        if (err instanceof APIError) {
+          setErrors({ general: err.message });
+        } else {
+          setErrors({ general: 'Failed to send OTP. Please try again.' });
+        }
+      } finally {
+        setIsLoading(false);
+      }
+    } else {
+      if (!validateSignup()) return;
+      
+      setIsLoading(true);
+      setErrors({});
+      
+      try {
+        await signup({
+          name: formData.name,
+          email: formData.email,
+          phone: formData.phone,
+          password: formData.password,
+        });
+        setShowOTP(true);
+        setOtpPurpose('signup');
+        setSuccessMessage('OTP sent to your phone and email!');
+      } catch (err) {
+        if (err instanceof APIError) {
+          setErrors({ general: err.message });
+        } else {
+          setErrors({ general: 'Failed to signup. Please try again.' });
+        }
+      } finally {
+        setIsLoading(false);
+      }
+    }
   };
 
-  const handleVerifyOTP = () => {
+  const handleVerifyOTP = async () => {
     if (otp.join('').length !== 6) {
       setErrors({ otp: 'Please enter complete OTP' });
       return;
     }
 
     setIsLoading(true);
-    setTimeout(() => {
+    setErrors({});
+
+    try {
+      const otpCode = otp.join('');
+      
+      if (otpPurpose === 'signup') {
+        // For signup, user can choose to verify with email or phone
+        const identifier = verifyMethod === 'email' ? formData.email : formData.phone;
+        await verifySignup({
+          identifier,
+          otp_code: otpCode,
+          purpose: 'signup'
+        });
+      } else {
+        const identifier = loginMethod === 'email' ? formData.email : formData.phone;
+        await verifyLoginOTP({
+          identifier,
+          otp_code: otpCode,
+          purpose: 'login'
+        });
+      }
+      
+      // Redirect to home
+      router.push('/');
+    } catch (err) {
+      if (err instanceof APIError) {
+        setErrors({ otp: err.message });
+      } else {
+        setErrors({ otp: 'Invalid OTP. Please try again.' });
+      }
+    } finally {
       setIsLoading(false);
-      // Redirect to dashboard or home
-      window.location.href = '/';
-    }, 1500);
+    }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (showOTP) {
       handleVerifyOTP();
-    } else {
-      const isValid = activeTab === 'login' ? validateLogin() : validateSignup();
-      if (isValid) {
-        // Direct login without OTP
-        setIsLoading(true);
-        setTimeout(() => {
-          setIsLoading(false);
-          window.location.href = '/';
-        }, 1500);
+      return;
+    }
+
+    if (activeTab === 'login') {
+      if (!validateLogin()) return;
+      
+      setIsLoading(true);
+      setErrors({});
+      
+      try {
+        const identifier = loginMethod === 'email' ? formData.email : formData.phone;
+        await login({
+          identifier,
+          password: formData.password,
+          login_method: loginMethod
+        });
+        router.push('/');
+      } catch (err) {
+        if (err instanceof APIError) {
+          setErrors({ general: err.message });
+        } else {
+          setErrors({ general: 'Login failed. Please try again.' });
+        }
+      } finally {
+        setIsLoading(false);
       }
+    } else {
+      // For signup, always send OTP first
+      handleSendOTP();
+    }
+  };
+
+  const handleGoogleLogin = async () => {
+    try {
+      const authUrl = await getGoogleAuthUrl();
+      window.location.href = authUrl;
+    } catch (err) {
+      setErrors({ general: 'Google login not available. Please try another method.' });
+    }
+  };
+
+  const handleFacebookLogin = async () => {
+    try {
+      const authUrl = await getFacebookAuthUrl();
+      window.location.href = authUrl;
+    } catch (err) {
+      setErrors({ general: 'Facebook login not available. Please try another method.' });
     }
   };
 
   const socialLogins = [
-    { name: 'Google', icon: Chrome, color: 'hover:bg-red-50 hover:border-red-500' },
-    { name: 'Facebook', icon: Facebook, color: 'hover:bg-blue-50 hover:border-blue-500' },
-    { name: 'Apple', icon: Apple, color: 'hover:bg-gray-50 hover:border-gray-700' }
+    { name: 'Google', icon: Chrome, color: 'hover:bg-red-50 hover:border-red-500', onClick: handleGoogleLogin },
+    { name: 'Facebook', icon: Facebook, color: 'hover:bg-blue-50 hover:border-blue-500', onClick: handleFacebookLogin },
+    { name: 'Apple', icon: Apple, color: 'hover:bg-gray-50 hover:border-gray-700', onClick: () => {} }
   ];
 
   return (
@@ -196,6 +315,7 @@ export default function AuthPage() {
                   setActiveTab('login');
                   setShowOTP(false);
                   setErrors({});
+                  setSuccessMessage('');
                 }}
                 className={`flex-1 py-3 rounded-lg font-semibold transition-all ${
                   activeTab === 'login'
@@ -210,6 +330,7 @@ export default function AuthPage() {
                   setActiveTab('signup');
                   setShowOTP(false);
                   setErrors({});
+                  setSuccessMessage('');
                 }}
                 className={`flex-1 py-3 rounded-lg font-semibold transition-all ${
                   activeTab === 'signup'
@@ -221,6 +342,22 @@ export default function AuthPage() {
               </button>
             </div>
 
+            {/* Success Message */}
+            {successMessage && (
+              <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg flex items-center gap-2 text-green-700">
+                <CheckCircle className="w-5 h-5" />
+                {successMessage}
+              </div>
+            )}
+
+            {/* Error Message */}
+            {errors.general && (
+              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2 text-red-700">
+                <AlertCircle className="w-5 h-5" />
+                {errors.general}
+              </div>
+            )}
+
             {!showOTP ? (
               <>
                 {/* Social Login */}
@@ -229,6 +366,7 @@ export default function AuthPage() {
                     {socialLogins.map((social) => (
                       <button
                         key={social.name}
+                        onClick={social.onClick}
                         className={`flex items-center justify-center gap-2 p-3 border-2 border-gray-200 rounded-lg transition-all ${social.color}`}
                       >
                         <social.icon className="w-5 h-5" />
@@ -288,7 +426,7 @@ export default function AuthPage() {
                           name="name"
                           value={formData.name}
                           onChange={handleInputChange}
-                          className={`w-full pl-11 pr-4 py-3 border-2 rounded-xl focus:ring-2 focus:ring-[#0057D9] focus:border-transparent outline-none transition-all ${
+                          className={`w-full pl-11 pr-4 py-3 text-gray-900 border-2 rounded-xl focus:ring-2 focus:ring-[#0057D9] focus:border-transparent outline-none transition-all ${
                             errors.name ? 'border-red-500' : 'border-gray-200'
                           }`}
                           placeholder="John Doe"
@@ -316,7 +454,7 @@ export default function AuthPage() {
                           name="email"
                           value={formData.email}
                           onChange={handleInputChange}
-                          className={`w-full pl-11 pr-4 py-3 border-2 rounded-xl focus:ring-2 focus:ring-[#0057D9] focus:border-transparent outline-none transition-all ${
+                          className={`w-full pl-11 pr-4 py-3 text-gray-900 border-2 rounded-xl focus:ring-2 focus:ring-[#0057D9] focus:border-transparent outline-none transition-all ${
                             errors.email ? 'border-red-500' : 'border-gray-200'
                           }`}
                           placeholder="john@example.com"
@@ -344,7 +482,7 @@ export default function AuthPage() {
                           name="phone"
                           value={formData.phone}
                           onChange={handleInputChange}
-                          className={`w-full pl-11 pr-4 py-3 border-2 rounded-xl focus:ring-2 focus:ring-[#0057D9] focus:border-transparent outline-none transition-all ${
+                          className={`w-full pl-11 pr-4 py-3 text-gray-900 border-2 rounded-xl focus:ring-2 focus:ring-[#0057D9] focus:border-transparent outline-none transition-all ${
                             errors.phone ? 'border-red-500' : 'border-gray-200'
                           }`}
                           placeholder="+91 9876543210"
@@ -371,7 +509,7 @@ export default function AuthPage() {
                         name="password"
                         value={formData.password}
                         onChange={handleInputChange}
-                        className={`w-full pl-11 pr-12 py-3 border-2 rounded-xl focus:ring-2 focus:ring-[#0057D9] focus:border-transparent outline-none transition-all ${
+                        className={`w-full pl-11 pr-12 py-3 text-gray-900 border-2 rounded-xl focus:ring-2 focus:ring-[#0057D9] focus:border-transparent outline-none transition-all ${
                           errors.password ? 'border-red-500' : 'border-gray-200'
                         }`}
                         placeholder="••••••••"
@@ -405,7 +543,7 @@ export default function AuthPage() {
                           name="confirmPassword"
                           value={formData.confirmPassword}
                           onChange={handleInputChange}
-                          className={`w-full pl-11 pr-4 py-3 border-2 rounded-xl focus:ring-2 focus:ring-[#0057D9] focus:border-transparent outline-none transition-all ${
+                          className={`w-full pl-11 pr-4 py-3 text-gray-900 border-2 rounded-xl focus:ring-2 focus:ring-[#0057D9] focus:border-transparent outline-none transition-all ${
                             errors.confirmPassword ? 'border-red-500' : 'border-gray-200'
                           }`}
                           placeholder="••••••••"
@@ -463,7 +601,7 @@ export default function AuthPage() {
                         />
                         <label className="text-sm text-gray-600">Remember me</label>
                       </div>
-                      <Link href="/forgot-password" className="text-sm text-[#0057D9] font-semibold hover:underline">
+                      <Link href="/auth/forgot-password" className="text-sm text-[#0057D9] font-semibold hover:underline">
                         Forgot Password?
                       </Link>
                     </div>
@@ -510,12 +648,50 @@ export default function AuthPage() {
                   </div>
                   <h2 className="text-2xl font-bold text-gray-800 mb-2">Verify OTP</h2>
                   <p className="text-gray-600">
-                    We've sent a 6-digit code to{' '}
-                    <span className="font-semibold text-gray-800">
-                      {loginMethod === 'phone' || activeTab === 'signup' ? formData.phone : formData.email}
-                    </span>
+                    {otpPurpose === 'signup' ? (
+                      <>We've sent a 6-digit code to your phone and email</>
+                    ) : (
+                      <>
+                        We've sent a 6-digit code to{' '}
+                        <span className="font-semibold text-gray-800">
+                          {loginMethod === 'phone' 
+                            ? `***${formData.phone.slice(-4)}` 
+                            : formData.email.replace(/(.{2})(.*)(@.*)/, '$1***$3')}
+                        </span>
+                      </>
+                    )}
                   </p>
                 </div>
+
+                {/* Verification Method Selection (Signup only) */}
+                {otpPurpose === 'signup' && (
+                  <div className="flex gap-2 mb-4">
+                    <button
+                      type="button"
+                      onClick={() => setVerifyMethod('phone')}
+                      className={`flex-1 py-2 px-4 rounded-lg font-semibold transition-all ${
+                        verifyMethod === 'phone'
+                          ? 'bg-[#0057D9] text-white'
+                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                      }`}
+                    >
+                      <Phone className="w-4 h-4 inline mr-2" />
+                      Verify with Phone
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setVerifyMethod('email')}
+                      className={`flex-1 py-2 px-4 rounded-lg font-semibold transition-all ${
+                        verifyMethod === 'email'
+                          ? 'bg-[#0057D9] text-white'
+                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                      }`}
+                    >
+                      <Mail className="w-4 h-4 inline mr-2" />
+                      Verify with Email
+                    </button>
+                  </div>
+                )}
 
                 <div className="flex gap-3 justify-center mb-6">
                   {otp.map((digit, index) => (
@@ -527,7 +703,7 @@ export default function AuthPage() {
                       value={digit}
                       onChange={(e) => handleOTPChange(index, e.target.value)}
                       onKeyDown={(e) => handleOTPKeyDown(index, e)}
-                      className="w-14 h-14 text-center text-2xl font-bold border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-[#0057D9] focus:border-transparent outline-none transition-all"
+                      className="w-14 h-14 text-center text-2xl font-bold text-gray-900 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-[#0057D9] focus:border-transparent outline-none transition-all"
                     />
                   ))}
                 </div>
@@ -560,12 +736,20 @@ export default function AuthPage() {
                 <div className="text-center space-y-2">
                   <p className="text-sm text-gray-600">
                     Didn't receive the code?{' '}
-                    <button className="text-[#0057D9] font-semibold hover:underline">
+                    <button 
+                      onClick={handleSendOTP}
+                      disabled={isLoading}
+                      className="text-[#0057D9] font-semibold hover:underline disabled:opacity-50"
+                    >
                       Resend OTP
                     </button>
                   </p>
                   <button
-                    onClick={() => setShowOTP(false)}
+                    onClick={() => {
+                      setShowOTP(false);
+                      setOtp(['', '', '', '', '', '']);
+                      setErrors({});
+                    }}
                     className="text-sm text-gray-600 hover:text-gray-800 flex items-center justify-center gap-1 mx-auto"
                   >
                     <X className="w-4 h-4" />
