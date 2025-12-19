@@ -300,6 +300,39 @@ export async function updateProfile(data: { name?: string; profile_image?: strin
   });
 }
 
+export async function uploadProfileImage(file: File): Promise<{ message: string; image_url: string; user: User }> {
+  const formData = new FormData();
+  formData.append('file', file);
+  
+  const token = getAccessToken();
+  const response = await fetch(`${API_BASE_URL}/users/upload-profile-image`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+    },
+    body: formData,
+  });
+
+  const data = await response.json();
+  
+  if (!response.ok) {
+    throw new APIError(data.detail || 'Failed to upload image', response.status);
+  }
+
+  // Update stored user data
+  if (data.user) {
+    localStorage.setItem(USER_KEY, JSON.stringify(data.user));
+  }
+
+  return data;
+}
+
+export async function deleteProfileImage(): Promise<{ message: string }> {
+  return apiRequest('/users/profile-image', {
+    method: 'DELETE',
+  });
+}
+
 export async function changePassword(data: { 
   current_password: string; 
   new_password: string; 

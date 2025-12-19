@@ -1,11 +1,14 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Settings, Edit2, MapPin, CreditCard, Star, Clock, Shield, HelpCircle, Phone, MessageCircle, AlertCircle, LogOut, Plus, ChevronRight, Home, Briefcase, Check, Circle, Loader2, Mail, User as UserIcon, X, Eye, EyeOff, Camera } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { ArrowLeft, Settings, Edit2, MapPin, CreditCard, Star, Clock, Shield, HelpCircle, Phone, MessageCircle, AlertCircle, LogOut, Plus, ChevronRight, Home, Briefcase, Check, Circle, Loader2, Mail, User as UserIcon, X, Eye, EyeOff, Camera, Trash2, ImageIcon } from 'lucide-react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/utils/AuthContext';
-import { updateProfile, changePassword, APIError } from '@/utils/auth';
+import { updateProfile, changePassword, uploadProfileImage, deleteProfileImage, APIError } from '@/utils/auth';
+
+// API base URL for serving images
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL?.replace('/api/v1', '') || 'http://localhost:8000';
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -18,13 +21,20 @@ export default function ProfilePage() {
   // Edit modal states
   const [showEditProfileModal, setShowEditProfileModal] = useState(false);
   const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
+  const [showImageOptionsModal, setShowImageOptionsModal] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
   const [updateError, setUpdateError] = useState('');
   const [updateSuccess, setUpdateSuccess] = useState('');
   
   // Edit form states
   const [editName, setEditName] = useState('');
-  const [editProfileImage, setEditProfileImage] = useState('');
+  
+  // Image upload states
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const editModalFileInputRef = useRef<HTMLInputElement>(null);
   
   // Password form states
   const [currentPassword, setCurrentPassword] = useState('');
@@ -44,9 +54,15 @@ export default function ProfilePage() {
   useEffect(() => {
     if (user) {
       setEditName(user.name || '');
-      setEditProfileImage(user.profile_image || '');
     }
   }, [user]);
+
+  // Helper to get full image URL
+  const getProfileImageUrl = (imageUrl: string | null | undefined): string => {
+    if (!imageUrl) return '';
+    if (imageUrl.startsWith('http')) return imageUrl;
+    return `${API_BASE_URL}${imageUrl}`;
+  };
 
   const handleLogout = async () => {
     setIsLoggingOut(true);
@@ -60,20 +76,160 @@ export default function ProfilePage() {
     }
   };
 
+  // Handle file selection - for direct upload from Image Options Modal
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+    if (!allowedTypes.includes(file.type)) {
+      setUpdateError('Please select a valid image file (JPG, PNG, GIF, or WebP)');
+      return;
+    }
+
+    // Validate file size (5MB max)
+    if (file.size > 5 * 1024 * 1024) {
+      setUpdateError('Image size should be less than 5MB');
+      return;
+    }
+
+    setUpdateError('');
+
+    // Create preview
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setImagePreview(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+
+    // Direct upload from Image Options Modal (like Zomato/Urban Company)
+    setIsUploadingImage(true);
+    try {
+      await uploadProfileImage(file);
+      await refreshUser();
+      setUpdateSuccess('Profile photo updated successfully!');
+      setShowImageOptionsModal(false);
+      setImagePreview(null);
+      
+      setTimeout(() => {
+        setUpdateSuccess('');
+      }, 2000);
+    } catch (error) {
+      if (error instanceof APIError) {
+        setUpdateError(error.message);
+      } else {
+        setUpdateError('Failed to upload image. Please try again.');
+      }
+    } finally {
+      setIsUploadingImage(false);
+    }
+
+    // Reset file input
+    e.target.value = '';
+  };
+
+  // Handle file selection for Edit Profile Modal (shows preview first)
+  const handleFileSelectForEdit = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+    if (!allowedTypes.includes(file.type)) {
+      setUpdateError('Please select a valid image file (JPG, PNG, GIF, or WebP)');
+      return;
+    }
+
+    // Validate file size (5MB max)
+    if (file.size > 5 * 1024 * 1024) {
+      setUpdateError('Image size should be less than 5MB');
+      return;
+    }
+
+    setSelectedFile(file);
+    setUpdateError('');
+
+    // Create preview
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setImagePreview(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  // Upload image
+  const handleUploadImage = async () => {
+    if (!selectedFile) return;
+
+    setIsUploadingImage(true);
+    setUpdateError('');
+
+    try {
+      await uploadProfileImage(selectedFile);
+      await refreshUser();
+      setUpdateSuccess('Profile photo updated successfully!');
+      setSelectedFile(null);
+      setImagePreview(null);
+      
+      setTimeout(() => {
+        setShowEditProfileModal(false);
+        setUpdateSuccess('');
+      }, 1500);
+    } catch (error) {
+      if (error instanceof APIError) {
+        setUpdateError(error.message);
+      } else {
+        setUpdateError('Failed to upload image. Please try again.');
+      }
+    } finally {
+      setIsUploadingImage(false);
+    }
+  };
+
+  // Remove profile image
+  const handleRemoveImage = async () => {
+    setIsUploadingImage(true);
+    setUpdateError('');
+
+    try {
+      await deleteProfileImage();
+      await refreshUser();
+      setUpdateSuccess('Profile photo removed!');
+      setShowImageOptionsModal(false);
+      
+      setTimeout(() => {
+        setUpdateSuccess('');
+      }, 1500);
+    } catch (error) {
+      if (error instanceof APIError) {
+        setUpdateError(error.message);
+      } else {
+        setUpdateError('Failed to remove image. Please try again.');
+      }
+    } finally {
+      setIsUploadingImage(false);
+    }
+  };
+
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // If there's a selected file, upload it first
+    if (selectedFile) {
+      await handleUploadImage();
+      return;
+    }
+
     setIsUpdating(true);
     setUpdateError('');
     setUpdateSuccess('');
 
     try {
-      const updateData: { name?: string; profile_image?: string } = {};
+      const updateData: { name?: string } = {};
       
       if (editName && editName !== user?.name) {
         updateData.name = editName;
-      }
-      if (editProfileImage !== user?.profile_image) {
-        updateData.profile_image = editProfileImage || undefined;
       }
 
       if (Object.keys(updateData).length === 0) {
@@ -149,10 +305,16 @@ export default function ProfilePage() {
 
   const openEditProfileModal = () => {
     setEditName(user?.name || '');
-    setEditProfileImage(user?.profile_image || '');
+    setSelectedFile(null);
+    setImagePreview(null);
     setUpdateError('');
     setUpdateSuccess('');
     setShowEditProfileModal(true);
+  };
+
+  const openImageOptionsModal = () => {
+    setUpdateError('');
+    setShowImageOptionsModal(true);
   };
 
   const openChangePasswordModal = () => {
@@ -239,11 +401,12 @@ export default function ProfilePage() {
                   <div className="w-28 h-28 rounded-full overflow-hidden border-4 border-white shadow-lg bg-gradient-to-br from-[#0066FF] to-[#0052CC] flex items-center justify-center">
                     {user.profile_image ? (
                       <Image 
-                        src={user.profile_image} 
+                        src={getProfileImageUrl(user.profile_image)} 
                         alt="Profile"
                         width={112}
                         height={112}
                         className="w-full h-full object-cover"
+                        unoptimized
                       />
                     ) : (
                       <span className="text-white text-4xl font-bold">
@@ -252,10 +415,10 @@ export default function ProfilePage() {
                     )}
                   </div>
                   <button 
-                    onClick={openEditProfileModal}
+                    onClick={openImageOptionsModal}
                     className="absolute bottom-0 right-0 bg-[#0066FF] text-white p-2 rounded-full shadow-lg hover:bg-[#0052CC] transition-colors"
                   >
-                    <Edit2 className="w-4 h-4" />
+                    <Camera className="w-4 h-4" />
                   </button>
                 </div>
 
@@ -626,7 +789,11 @@ export default function ProfilePage() {
             <div className="flex items-center justify-between p-6 border-b border-gray-100">
               <h2 className="text-xl font-bold text-gray-900">Edit Profile</h2>
               <button 
-                onClick={() => setShowEditProfileModal(false)}
+                onClick={() => {
+                  setShowEditProfileModal(false);
+                  setImagePreview(null);
+                  setSelectedFile(null);
+                }}
                 className="p-2 hover:bg-gray-100 rounded-full transition-colors"
               >
                 <X className="w-5 h-5 text-gray-500" />
@@ -634,39 +801,84 @@ export default function ProfilePage() {
             </div>
             
             <form onSubmit={handleUpdateProfile} className="p-6 space-y-6">
-              {/* Profile Image Preview */}
+              {/* Profile Image Preview with Upload */}
               <div className="flex flex-col items-center">
-                <div className="w-24 h-24 rounded-full overflow-hidden border-4 border-white shadow-lg bg-gradient-to-br from-[#0066FF] to-[#0052CC] flex items-center justify-center mb-4">
-                  {editProfileImage ? (
-                    <Image 
-                      src={editProfileImage} 
-                      alt="Profile"
-                      width={96}
-                      height={96}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <span className="text-white text-3xl font-bold">
-                      {editName?.charAt(0).toUpperCase() || user?.name?.charAt(0).toUpperCase() || 'U'}
-                    </span>
-                  )}
+                <div className="relative">
+                  <div className="w-24 h-24 rounded-full overflow-hidden border-4 border-white shadow-lg bg-gradient-to-br from-[#0066FF] to-[#0052CC] flex items-center justify-center mb-2">
+                    {imagePreview ? (
+                      <Image 
+                        src={imagePreview} 
+                        alt="Profile Preview"
+                        width={96}
+                        height={96}
+                        className="w-full h-full object-cover"
+                        unoptimized
+                      />
+                    ) : user?.profile_image ? (
+                      <Image 
+                        src={getProfileImageUrl(user.profile_image)} 
+                        alt="Profile"
+                        width={96}
+                        height={96}
+                        className="w-full h-full object-cover"
+                        unoptimized
+                      />
+                    ) : (
+                      <span className="text-white text-3xl font-bold">
+                        {editName?.charAt(0).toUpperCase() || user?.name?.charAt(0).toUpperCase() || 'U'}
+                      </span>
+                    )}
+                  </div>
+                  {/* Camera button on image */}
+                  <button
+                    type="button"
+                    onClick={() => editModalFileInputRef.current?.click()}
+                    className="absolute bottom-1 right-1 bg-[#0066FF] text-white p-1.5 rounded-full shadow-lg hover:bg-[#0052CC] transition-colors"
+                  >
+                    <Camera className="w-3 h-3" />
+                  </button>
                 </div>
-                <label className="text-sm text-gray-500">Profile Image URL (optional)</label>
-              </div>
-
-              {/* Profile Image URL Input */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Profile Image URL
-                </label>
+                
+                {/* Hidden File Input for Edit Modal */}
                 <input
-                  type="url"
-                  value={editProfileImage}
-                  onChange={(e) => setEditProfileImage(e.target.value)}
-                  placeholder="https://example.com/your-image.jpg"
-                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-[#0066FF] focus:border-transparent outline-none transition-all text-gray-900"
+                  ref={editModalFileInputRef}
+                  type="file"
+                  accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
+                  onChange={handleFileSelectForEdit}
+                  className="hidden"
                 />
-                <p className="text-xs text-gray-500 mt-1">Enter a URL to an image, or leave blank to use initials</p>
+                
+                {/* Upload/Change Photo Button */}
+                <button
+                  type="button"
+                  onClick={() => editModalFileInputRef.current?.click()}
+                  className="text-[#0066FF] text-sm font-medium hover:underline flex items-center gap-1 mt-2"
+                >
+                  <ImageIcon className="w-4 h-4" />
+                  {user?.profile_image || imagePreview ? 'Change Photo' : 'Add Photo'}
+                </button>
+                
+                {/* Selected file info */}
+                {selectedFile && (
+                  <div className="mt-2 flex items-center gap-2 bg-blue-50 px-3 py-2 rounded-lg">
+                    <Check className="w-4 h-4 text-green-500" />
+                    <span className="text-sm text-gray-700 truncate max-w-[200px]">{selectedFile.name}</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedFile(null);
+                        setImagePreview(null);
+                      }}
+                      className="text-red-500 hover:text-red-700"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                )}
+                
+                <p className="text-xs text-gray-500 mt-2 text-center">
+                  Supported: JPG, PNG, GIF, WebP (Max 5MB)
+                </p>
               </div>
 
               {/* Name Input */}
@@ -716,13 +928,13 @@ export default function ProfilePage() {
               {/* Submit Button */}
               <button
                 type="submit"
-                disabled={isUpdating}
+                disabled={isUpdating || isUploadingImage}
                 className="w-full bg-[#0066FF] text-white py-3 rounded-xl font-bold hover:bg-[#0052CC] transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
               >
-                {isUpdating ? (
+                {isUpdating || isUploadingImage ? (
                   <>
                     <Loader2 className="w-5 h-5 animate-spin" />
-                    Saving...
+                    {isUploadingImage ? 'Uploading Photo...' : 'Saving...'}
                   </>
                 ) : (
                   <>
@@ -732,6 +944,133 @@ export default function ProfilePage() {
                 )}
               </button>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Image Options Modal (Bottom Sheet Style) */}
+      {showImageOptionsModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-end justify-center z-50">
+          <div 
+            className="bg-white rounded-t-3xl w-full max-w-md animate-slide-up"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Handle Bar */}
+            <div className="flex justify-center pt-3 pb-2">
+              <div className="w-12 h-1.5 bg-gray-300 rounded-full"></div>
+            </div>
+            
+            <div className="p-6">
+              <h3 className="text-lg font-bold text-gray-900 mb-4 text-center">Profile Photo</h3>
+              
+              {/* Current Photo Preview */}
+              <div className="flex justify-center mb-6">
+                <div className="w-24 h-24 rounded-full overflow-hidden border-4 border-gray-100 shadow-lg bg-gradient-to-br from-[#0066FF] to-[#0052CC] flex items-center justify-center">
+                  {user?.profile_image ? (
+                    <Image 
+                      src={getProfileImageUrl(user.profile_image)} 
+                      alt="Profile"
+                      width={96}
+                      height={96}
+                      className="w-full h-full object-cover"
+                      unoptimized
+                    />
+                  ) : (
+                    <span className="text-white text-3xl font-bold">
+                      {user?.name?.charAt(0).toUpperCase() || 'U'}
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Hidden File Input */}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
+                onChange={handleFileSelect}
+                className="hidden"
+              />
+              
+              {/* Options */}
+              <div className="space-y-2">
+                {/* Choose from Gallery */}
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isUploadingImage}
+                  className="w-full flex items-center gap-4 p-4 rounded-xl hover:bg-gray-50 transition-colors text-left"
+                >
+                  <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center">
+                    <ImageIcon className="w-6 h-6 text-[#0066FF]" />
+                  </div>
+                  <div>
+                    <p className="font-medium text-gray-900">Choose from Gallery</p>
+                    <p className="text-sm text-gray-500">Select a photo from your device</p>
+                  </div>
+                </button>
+                
+                {/* Take Photo (camera capture) */}
+                <button
+                  onClick={() => {
+                    // Create a file input for camera capture
+                    const cameraInput = document.createElement('input');
+                    cameraInput.type = 'file';
+                    cameraInput.accept = 'image/*';
+                    cameraInput.capture = 'user'; // Front camera
+                    cameraInput.onchange = (e) => {
+                      const target = e.target as HTMLInputElement;
+                      if (target.files && target.files[0]) {
+                        handleFileSelect({ target: { files: target.files } } as React.ChangeEvent<HTMLInputElement>);
+                      }
+                    };
+                    cameraInput.click();
+                  }}
+                  disabled={isUploadingImage}
+                  className="w-full flex items-center gap-4 p-4 rounded-xl hover:bg-gray-50 transition-colors text-left"
+                >
+                  <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center">
+                    <Camera className="w-6 h-6 text-green-600" />
+                  </div>
+                  <div>
+                    <p className="font-medium text-gray-900">Take Photo</p>
+                    <p className="text-sm text-gray-500">Use your camera to take a new photo</p>
+                  </div>
+                </button>
+                
+                {/* Remove Photo (only show if has photo) */}
+                {user?.profile_image && (
+                  <button
+                    onClick={handleRemoveImage}
+                    disabled={isUploadingImage}
+                    className="w-full flex items-center gap-4 p-4 rounded-xl hover:bg-red-50 transition-colors text-left"
+                  >
+                    <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center">
+                      <Trash2 className="w-6 h-6 text-red-600" />
+                    </div>
+                    <div>
+                      <p className="font-medium text-red-600">Remove Photo</p>
+                      <p className="text-sm text-gray-500">Delete your current profile photo</p>
+                    </div>
+                  </button>
+                )}
+              </div>
+              
+              {/* Upload Progress */}
+              {isUploadingImage && (
+                <div className="mt-4 flex items-center justify-center gap-2 text-[#0066FF]">
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  <span>Uploading photo...</span>
+                </div>
+              )}
+              
+              {/* Cancel Button */}
+              <button
+                onClick={() => setShowImageOptionsModal(false)}
+                className="w-full mt-4 py-3 text-gray-600 font-medium hover:text-gray-900 transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
           </div>
         </div>
       )}

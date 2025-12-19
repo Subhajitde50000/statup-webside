@@ -2,10 +2,15 @@
 User management routes
 """
 
-from fastapi import APIRouter, HTTPException, status, Depends, Query
+from fastapi import APIRouter, HTTPException, status, Depends, Query, UploadFile, File
+from fastapi.responses import FileResponse
 from datetime import datetime
 from bson import ObjectId
 from typing import Optional
+import os
+import uuid
+import shutil
+from pathlib import Path
 
 from app.database import get_users_collection
 from app.schemas.user import (
@@ -27,6 +32,107 @@ from app.middleware.rbac import require_roles
 
 
 router = APIRouter()
+
+# Create uploads directory if it doesn't exist
+UPLOAD_DIR = Path("uploads/profile_images")
+UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+
+# Allowed image extensions
+ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".gif", ".webp"}
+MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
+
+
+@router.post("/upload-profile-image")
+async def upload_profile_image(
+    file: UploadFile = File(...),
+    current_user: dict = Depends(get_current_user)
+):
+    """Upload profile image"""
+    # Validate file extension
+    file_ext = Path(file.filename).suffix.lower()
+    if file_ext not in ALLOWED_EXTENSIONS:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"File type not allowed. Allowed types: {', '.join(ALLOWED_EXTENSIONS)}"
+        )
+    
+    # Read file content
+    content = await file.read()
+    
+    # Validate file size
+    if len(content) > MAX_FILE_SIZE:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"File too large. Maximum size: {MAX_FILE_SIZE // (1024*1024)}MB"
+        )
+    
+    # Generate unique filename
+    unique_filename = f"{current_user['_id']}_{uuid.uuid4().hex[:8]}{file_ext}"
+    file_path = UPLOAD_DIR / unique_filename
+    
+    # Delete old profile image if exists
+    users = get_users_collection()
+    old_image = current_user.get("profile_image")
+    if old_image and old_image.startswith("/api/users/profile-image/"):
+        old_filename = old_image.split("/")[-1]
+        old_file_path = UPLOAD_DIR / old_filename
+        if old_file_path.exists():
+            old_file_path.unlink()
+    
+    # Save new file
+    with open(file_path, "wb") as f:
+        f.write(content)
+    
+    # Update user profile with new image URL
+    image_url = f"/api/users/profile-image/{unique_filename}"
+    await users.update_one(
+        {"_id": current_user["_id"]},
+        {"$set": {"profile_image": image_url, "updated_at": datetime.utcnow()}}
+    )
+    
+    # Fetch updated user
+    updated_user = await users.find_one({"_id": current_user["_id"]})
+    
+    return {
+        "message": "Profile image uploaded successfully",
+        "image_url": image_url,
+        "user": user_helper(updated_user)
+    }
+
+
+@router.get("/profile-image/{filename}")
+async def get_profile_image(filename: str):
+    """Get profile image by filename"""
+    file_path = UPLOAD_DIR / filename
+    
+    if not file_path.exists():
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Image not found"
+        )
+    
+    return FileResponse(file_path)
+
+
+@router.delete("/profile-image")
+async def delete_profile_image(current_user: dict = Depends(get_current_user)):
+    """Delete profile image"""
+    users = get_users_collection()
+    
+    old_image = current_user.get("profile_image")
+    if old_image and old_image.startswith("/api/users/profile-image/"):
+        old_filename = old_image.split("/")[-1]
+        old_file_path = UPLOAD_DIR / old_filename
+        if old_file_path.exists():
+            old_file_path.unlink()
+    
+    # Remove image URL from user profile
+    await users.update_one(
+        {"_id": current_user["_id"]},
+        {"$set": {"profile_image": None, "updated_at": datetime.utcnow()}}
+    )
+    
+    return {"message": "Profile image deleted successfully"}
 
 
 @router.get("/profile", response_model=UserProfileResponse)
