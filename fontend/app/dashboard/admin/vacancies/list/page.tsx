@@ -14,8 +14,11 @@ import {
   MoreVertical,
   Users,
   Briefcase,
+  Loader2,
+  AlertCircle,
 } from 'lucide-react';
 import Link from 'next/link';
+import { getAdminVacancies, Vacancy, APIError } from '@/utils/vacancies';
 
 export default function VacancyListPage() {
   const [searchTerm, setSearchTerm] = useState('');
@@ -24,126 +27,92 @@ export default function VacancyListPage() {
   const [hiringTypeFilter, setHiringTypeFilter] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
+  const [vacancies, setVacancies] = useState<Vacancy[]>([]);
+  const [totalCount, setTotalCount] = useState(0);
+  const [error, setError] = useState('');
   const itemsPerPage = 10;
 
+  // Fetch vacancies from API
   useEffect(() => {
-    setTimeout(() => setIsLoading(false), 600);
-  }, []);
+    fetchVacancies();
+  }, [statusFilter, currentPage]);
 
-  const vacancies = [
-    {
-      id: 'VAC001',
-      title: 'Service Professional - Plumber',
-      department: 'Operations',
-      hiringFor: 'Service Professional',
-      positions: 5,
-      applicants: 42,
-      status: 'Open',
-      createdOn: '2025-01-05',
-      statusColor: '#0057D9',
-    },
-    {
-      id: 'VAC002',
-      title: 'Shop Manager - Electronics',
-      department: 'Sales & Marketing',
-      hiringFor: 'Shop Staff',
-      positions: 2,
-      applicants: 28,
-      status: 'In Progress',
-      createdOn: '2025-01-03',
-      statusColor: '#FFB020',
-    },
-    {
-      id: 'VAC003',
-      title: 'Customer Support Executive',
-      department: 'Customer Support',
-      hiringFor: 'Customer Support',
-      positions: 10,
-      applicants: 86,
-      status: 'Open',
-      createdOn: '2025-01-02',
-      statusColor: '#0057D9',
-    },
-    {
-      id: 'VAC004',
-      title: 'Delivery Partner',
-      department: 'Operations',
-      hiringFor: 'Delivery Partner',
-      positions: 15,
-      applicants: 124,
-      status: 'In Progress',
-      createdOn: '2024-12-28',
-      statusColor: '#FFB020',
-    },
-    {
-      id: 'VAC005',
-      title: 'Service Professional - Electrician',
-      department: 'Operations',
-      hiringFor: 'Service Professional',
-      positions: 8,
-      applicants: 64,
-      status: 'Closed',
-      createdOn: '2024-12-25',
-      statusColor: '#3CB878',
-    },
-    {
-      id: 'VAC006',
-      title: 'KYC Verification Officer',
-      department: 'HR & Recruitment',
-      hiringFor: 'KYC Verifier',
-      positions: 3,
-      applicants: 18,
-      status: 'On Hold',
-      createdOn: '2024-12-20',
-      statusColor: '#E53935',
-    },
-    {
-      id: 'VAC007',
-      title: 'Quality Analyst - Service',
-      department: 'Technology',
-      hiringFor: 'Quality Analyst',
-      positions: 4,
-      applicants: 32,
-      status: 'Open',
-      createdOn: '2024-12-18',
-      statusColor: '#0057D9',
-    },
-    {
-      id: 'VAC008',
-      title: 'Admin Staff - Operations',
-      department: 'Operations',
-      hiringFor: 'Admin Staff',
-      positions: 2,
-      applicants: 15,
-      status: 'Closed',
-      createdOn: '2024-12-15',
-      statusColor: '#3CB878',
-    },
-  ];
+  const fetchVacancies = async () => {
+    setIsLoading(true);
+    setError('');
+    
+    try {
+      const params: any = {
+        skip: (currentPage - 1) * itemsPerPage,
+        limit: itemsPerPage,
+      };
+      
+      if (statusFilter !== 'all') {
+        params.status = statusFilter;
+      }
+      
+      const response = await getAdminVacancies(params);
+      setVacancies(response.vacancies);
+      setTotalCount(response.total);
+    } catch (err) {
+      if (err instanceof APIError) {
+        setError(err.message);
+      } else {
+        setError('Failed to load vacancies. Please try again.');
+      }
+      setVacancies([]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
+  // Filter vacancies locally for search/department/hiring type
   const filteredVacancies = vacancies.filter((vacancy) => {
     const matchesSearch =
-      vacancy.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      vacancy.job_title.toLowerCase().includes(searchTerm.toLowerCase()) ||
       vacancy.id.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = statusFilter === 'all' || vacancy.status === statusFilter;
     const matchesDepartment = departmentFilter === 'all' || vacancy.department === departmentFilter;
-    const matchesHiringType = hiringTypeFilter === 'all' || vacancy.hiringFor === hiringTypeFilter;
+    const matchesHiringType = hiringTypeFilter === 'all' || vacancy.hiring_for === hiringTypeFilter;
 
-    return matchesSearch && matchesStatus && matchesDepartment && matchesHiringType;
+    return matchesSearch && matchesDepartment && matchesHiringType;
   });
 
-  const totalPages = Math.ceil(filteredVacancies.length / itemsPerPage);
-  const paginatedVacancies = filteredVacancies.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
-  );
+  const totalPages = Math.ceil(totalCount / itemsPerPage);
+
+  const getStatusColor = (status: string) => {
+    const colors: Record<string, string> = {
+      open: '#0057D9',
+      closed: '#3CB878',
+      filled: '#3CB878',
+      draft: '#6B7280',
+    };
+    return colors[status.toLowerCase()] || '#0057D9';
+  };
 
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-[#F4F7FB]">
         <div className="text-center">
-          <div className="w-16 h-16 border-4 border-[#0057D9] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <Loader2 className="w-16 h-16 text-[#0057D9] animate-spin mx-auto mb-4" />
           <p className="text-[#1B1F3B] font-medium">Loading vacancies...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-[#F4F7FB]">
+        <div className="text-center">
+          <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-[#1B1F3B] mb-2">Error Loading Vacancies</h2>
+          <p className="text-gray-600 mb-4">{error}</p>
+          <button
+            onClick={fetchVacancies}
+            className="px-6 py-3 bg-[#0057D9] text-white rounded-xl font-semibold hover:bg-[#0044AA] transition-colors"
+          >
+            Try Again
+          </button>
         </div>
       </div>
     );
@@ -247,68 +216,83 @@ export default function VacancyListPage() {
               </tr>
             </thead>
             <tbody>
-              {paginatedVacancies.map((vacancy) => (
-                <tr key={vacancy.id} className="border-t border-gray-100 hover:bg-[#F4F7FB] transition-colors">
-                  <td className="py-4 px-6">
-                    <span className="font-semibold text-[#0057D9]">{vacancy.id}</span>
-                  </td>
-                  <td className="py-4 px-6">
-                    <p className="font-semibold text-[#1B1F3B]">{vacancy.title}</p>
-                  </td>
-                  <td className="py-4 px-6">
-                    <span className="text-sm text-[#6B7280]">{vacancy.department}</span>
-                  </td>
-                  <td className="py-4 px-6">
-                    <span className="px-3 py-1 bg-[#E3F2FD] text-[#0057D9] rounded-lg text-xs font-semibold">
-                      {vacancy.hiringFor}
-                    </span>
-                  </td>
-                  <td className="py-4 px-6 text-center">
-                    <span className="font-semibold text-[#1B1F3B]">{vacancy.positions}</span>
-                  </td>
-                  <td className="py-4 px-6 text-center">
-                    <div className="flex items-center justify-center gap-1">
-                      <Users className="w-4 h-4 text-[#6B7280]" />
-                      <span className="font-semibold text-[#1B1F3B]">{vacancy.applicants}</span>
-                    </div>
-                  </td>
-                  <td className="py-4 px-6">
-                    <span
-                      className="px-3 py-1 rounded-full text-xs font-semibold text-white"
-                      style={{ backgroundColor: vacancy.statusColor }}
-                    >
-                      {vacancy.status}
-                    </span>
-                  </td>
-                  <td className="py-4 px-6">
-                    <span className="text-sm text-[#6B7280]">{vacancy.createdOn}</span>
-                  </td>
-                  <td className="py-4 px-6">
-                    <div className="flex items-center justify-center gap-2">
-                      <Link
-                        href={`/dashboard/admin/vacancies/${vacancy.id}`}
-                        className="p-2 hover:bg-[#E3F2FD] rounded-lg transition-colors"
-                        title="View Details"
-                      >
-                        <Eye className="w-4 h-4 text-[#0057D9]" />
-                      </Link>
-                      <Link
-                        href={`/dashboard/admin/vacancies/edit/${vacancy.id}`}
-                        className="p-2 hover:bg-[#FFF8E1] rounded-lg transition-colors"
-                        title="Edit"
-                      >
-                        <Edit className="w-4 h-4 text-[#FFB020]" />
-                      </Link>
-                      <button className="p-2 hover:bg-[#FFEBEE] rounded-lg transition-colors" title="Close">
-                        <XCircle className="w-4 h-4 text-[#E53935]" />
-                      </button>
-                      <button className="p-2 hover:bg-[#E8F5E9] rounded-lg transition-colors" title="Duplicate">
-                        <Copy className="w-4 h-4 text-[#3CB878]" />
-                      </button>
-                    </div>
+              {filteredVacancies.length === 0 ? (
+                <tr>
+                  <td colSpan={9} className="py-12 text-center">
+                    <Briefcase className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+                    <p className="text-gray-500">No vacancies found</p>
                   </td>
                 </tr>
-              ))}
+              ) : (
+                filteredVacancies.map((vacancy) => (
+                  <tr key={vacancy.id} className="border-t border-gray-100 hover:bg-[#F4F7FB] transition-colors">
+                    <td className="py-4 px-6">
+                      <span className="font-semibold text-[#0057D9]">{vacancy.id.slice(0, 8)}</span>
+                    </td>
+                    <td className="py-4 px-6">
+                      <p className="font-semibold text-[#1B1F3B]">{vacancy.job_title}</p>
+                    </td>
+                    <td className="py-4 px-6">
+                      <span className="text-sm text-[#6B7280]">{vacancy.department}</span>
+                    </td>
+                    <td className="py-4 px-6">
+                      <span className="px-3 py-1 bg-[#E3F2FD] text-[#0057D9] rounded-lg text-xs font-semibold">
+                        {vacancy.hiring_for}
+                      </span>
+                    </td>
+                    <td className="py-4 px-6 text-center">
+                      <span className="font-semibold text-[#1B1F3B]">{vacancy.positions}</span>
+                    </td>
+                    <td className="py-4 px-6 text-center">
+                      <div className="flex items-center justify-center gap-1">
+                        <Users className="w-4 h-4 text-[#6B7280]" />
+                        <span className="font-semibold text-[#1B1F3B]">{vacancy.applicant_count}</span>
+                      </div>
+                    </td>
+                    <td className="py-4 px-6">
+                      <span
+                        className="px-3 py-1 rounded-full text-xs font-semibold text-white capitalize"
+                        style={{ backgroundColor: getStatusColor(vacancy.status) }}
+                      >
+                        {vacancy.status}
+                      </span>
+                    </td>
+                    <td className="py-4 px-6">
+                      <span className="text-sm text-[#6B7280]">
+                        {new Date(vacancy.created_at).toLocaleDateString('en-US', {
+                          year: 'numeric',
+                          month: 'short',
+                          day: 'numeric'
+                        })}
+                      </span>
+                    </td>
+                    <td className="py-4 px-6">
+                      <div className="flex items-center justify-center gap-2">
+                        <Link
+                          href={`/dashboard/admin/vacancies/${vacancy.id}`}
+                          className="p-2 hover:bg-[#E3F2FD] rounded-lg transition-colors"
+                          title="View Details"
+                        >
+                          <Eye className="w-4 h-4 text-[#0057D9]" />
+                        </Link>
+                        <Link
+                          href={`/dashboard/admin/vacancies/edit/${vacancy.id}`}
+                          className="p-2 hover:bg-[#FFF8E1] rounded-lg transition-colors"
+                          title="Edit"
+                        >
+                          <Edit className="w-4 h-4 text-[#FFB020]" />
+                        </Link>
+                        <button className="p-2 hover:bg-[#FFEBEE] rounded-lg transition-colors" title="Close">
+                          <XCircle className="w-4 h-4 text-[#E53935]" />
+                        </button>
+                        <button className="p-2 hover:bg-[#E8F5E9] rounded-lg transition-colors" title="Duplicate">
+                          <Copy className="w-4 h-4 text-[#3CB878]" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>

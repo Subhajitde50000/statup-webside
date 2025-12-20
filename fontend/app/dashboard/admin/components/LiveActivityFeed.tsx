@@ -223,22 +223,6 @@ export default function LiveActivityFeed() {
           </button>
         </div>
       </div>
-
-      <style jsx>{`
-        .custom-scrollbar::-webkit-scrollbar {
-          width: 6px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-track {
-          background: #F4F6FA;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-          background: #CBD5E1;
-          border-radius: 3px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-          background: #94A3B8;
-        }
-      `}</style>
     </div>
   );
 }

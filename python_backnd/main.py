@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 
 from app.database import connect_to_mongo, close_mongo_connection
-from app.routes import auth, users, oauth
+from app.routes import auth, users, oauth, vacancies
 
 
 @asynccontextmanager
@@ -43,6 +43,7 @@ app.add_middleware(
 app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
 app.include_router(users.router, prefix="/api/users", tags=["Users"])
 app.include_router(oauth.router, prefix="/api/oauth", tags=["OAuth"])
+app.include_router(vacancies.router, prefix="/api/vacancies", tags=["Vacancies"])
 
 
 @app.get("/")

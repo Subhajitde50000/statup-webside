@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { createVacancy, APIError } from '@/utils/vacancies';
 
 export default function CreateVacancyPage() {
   const router = useRouter();
@@ -129,17 +130,54 @@ export default function CreateVacancyPage() {
 
     setIsSubmitting(true);
 
-    // Simulate API call
-    setTimeout(() => {
-      setIsSubmitting(false);
+    try {
+      // Prepare data for API
+      const vacancyData = {
+        job_title: formData.jobTitle,
+        role_level: formData.roleLevel,
+        department: formData.department,
+        hiring_for: formData.hiringFor,
+        employment_type: formData.employmentType,
+        positions: parseInt(formData.positions),
+        salary_min: parseInt(formData.salaryMin),
+        salary_max: parseInt(formData.salaryMax),
+        location: formData.location,
+        description: formData.description,
+        responsibilities: formData.responsibilities.filter(r => r.trim() !== ''),
+        skills: formData.skills.filter(s => s.trim() !== ''),
+        experience: formData.experience,
+        auto_close: formData.autoClose,
+        ai_screening: formData.aiScreening,
+        priority: formData.priority,
+        posting_type: formData.postingType,
+      };
+
+      const response = await createVacancy(vacancyData);
+      
       showToast(
-        isDraft ? 'Vacancy saved as draft successfully!' : 'Vacancy published successfully!',
+        response.message || 'Vacancy created successfully!',
         'success'
       );
+      
       setTimeout(() => {
         router.push('/dashboard/admin/vacancies/list');
       }, 1500);
-    }, 2000);
+    } catch (err) {
+      if (err instanceof APIError) {
+        if (err.status === 403) {
+          showToast('Access denied. Please login as Admin or Manager.', 'error');
+          setTimeout(() => {
+            router.push('/auth');
+          }, 2000);
+        } else {
+          showToast(err.message, 'error');
+        }
+      } else {
+        showToast('Failed to create vacancy. Please try again.', 'error');
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const showToast = (message: string, type: 'success' | 'error') => {
@@ -186,7 +224,7 @@ export default function CreateVacancyPage() {
                   value={formData.jobTitle}
                   onChange={(e) => handleInputChange('jobTitle', e.target.value)}
                   placeholder="e.g. Service Professional - Plumber"
-                  className={`w-full px-4 py-3 border-2 rounded-xl focus:outline-none focus:border-[#0057D9] transition-colors ${
+                  className={`w-full px-4 py-3 text-gray-700 border-2 rounded-xl focus:outline-none focus:border-[#0057D9] transition-colors ${
                     formErrors.jobTitle ? 'border-[#E53935]' : 'border-gray-200'
                   }`}
                 />
@@ -202,7 +240,7 @@ export default function CreateVacancyPage() {
                 <select
                   value={formData.roleLevel}
                   onChange={(e) => handleInputChange('roleLevel', e.target.value)}
-                  className={`w-full px-4 py-3 border-2 rounded-xl focus:outline-none focus:border-[#0057D9] transition-colors ${
+                  className={`w-full px-4 py-3 text-gray-700 border-2 rounded-xl focus:outline-none focus:border-[#0057D9] transition-colors ${
                     formErrors.roleLevel ? 'border-[#E53935]' : 'border-gray-200'
                   }`}
                 >
@@ -222,7 +260,7 @@ export default function CreateVacancyPage() {
                 <select
                   value={formData.department}
                   onChange={(e) => handleInputChange('department', e.target.value)}
-                  className={`w-full px-4 py-3 border-2 rounded-xl focus:outline-none focus:border-[#0057D9] transition-colors ${
+                  className={`w-full px-4 py-3 text-gray-700 border-2 rounded-xl focus:outline-none focus:border-[#0057D9] transition-colors ${
                     formErrors.department ? 'border-[#E53935]' : 'border-gray-200'
                   }`}
                 >
@@ -242,7 +280,7 @@ export default function CreateVacancyPage() {
                 <select
                   value={formData.hiringFor}
                   onChange={(e) => handleInputChange('hiringFor', e.target.value)}
-                  className={`w-full px-4 py-3 border-2 rounded-xl focus:outline-none focus:border-[#0057D9] transition-colors ${
+                  className={`w-full px-4 py-3 text-gray-700 border-2 rounded-xl focus:outline-none focus:border-[#0057D9] transition-colors ${
                     formErrors.hiringFor ? 'border-[#E53935]' : 'border-gray-200'
                   }`}
                 >
@@ -262,7 +300,7 @@ export default function CreateVacancyPage() {
                 <select
                   value={formData.employmentType}
                   onChange={(e) => handleInputChange('employmentType', e.target.value)}
-                  className={`w-full px-4 py-3 border-2 rounded-xl focus:outline-none focus:border-[#0057D9] transition-colors ${
+                  className={`w-full px-4 py-3 text-gray-700 border-2 rounded-xl focus:outline-none focus:border-[#0057D9] transition-colors ${
                     formErrors.employmentType ? 'border-[#E53935]' : 'border-gray-200'
                   }`}
                 >
@@ -284,7 +322,7 @@ export default function CreateVacancyPage() {
                   min="1"
                   value={formData.positions}
                   onChange={(e) => handleInputChange('positions', e.target.value)}
-                  className={`w-full px-4 py-3 border-2 rounded-xl focus:outline-none focus:border-[#0057D9] transition-colors ${
+                  className={`w-full px-4 py-3 text-gray-700 border-2 rounded-xl focus:outline-none focus:border-[#0057D9] transition-colors ${
                     formErrors.positions ? 'border-[#E53935]' : 'border-gray-200'
                   }`}
                 />
@@ -300,7 +338,7 @@ export default function CreateVacancyPage() {
                     value={formData.salaryMin}
                     onChange={(e) => handleInputChange('salaryMin', e.target.value)}
                     placeholder="Min"
-                    className={`w-full px-4 py-3 border-2 rounded-xl focus:outline-none focus:border-[#0057D9] transition-colors ${
+                    className={`w-full px-4 py-3 text-gray-700 border-2 rounded-xl focus:outline-none focus:border-[#0057D9] transition-colors ${
                       formErrors.salary ? 'border-[#E53935]' : 'border-gray-200'
                     }`}
                   />
@@ -309,7 +347,7 @@ export default function CreateVacancyPage() {
                     value={formData.salaryMax}
                     onChange={(e) => handleInputChange('salaryMax', e.target.value)}
                     placeholder="Max"
-                    className={`w-full px-4 py-3 border-2 rounded-xl focus:outline-none focus:border-[#0057D9] transition-colors ${
+                    className={`w-full px-4 py-3 text-gray-700 border-2 rounded-xl focus:outline-none focus:border-[#0057D9] transition-colors ${
                       formErrors.salary ? 'border-[#E53935]' : 'border-gray-200'
                     }`}
                   />
@@ -326,7 +364,7 @@ export default function CreateVacancyPage() {
                   value={formData.location}
                   onChange={(e) => handleInputChange('location', e.target.value)}
                   placeholder="e.g. Mumbai, Bangalore, Remote"
-                  className={`w-full px-4 py-3 border-2 rounded-xl focus:outline-none focus:border-[#0057D9] transition-colors ${
+                  className={`w-full px-4 py-3 text-gray-700 border-2 rounded-xl focus:outline-none focus:border-[#0057D9] transition-colors ${
                     formErrors.location ? 'border-[#E53935]' : 'border-gray-200'
                   }`}
                 />
@@ -339,7 +377,7 @@ export default function CreateVacancyPage() {
                 <select
                   value={formData.experience}
                   onChange={(e) => handleInputChange('experience', e.target.value)}
-                  className={`w-full px-4 py-3 border-2 rounded-xl focus:outline-none focus:border-[#0057D9] transition-colors ${
+                  className={`w-full px-4 py-3 text-gray-700 border-2 rounded-xl focus:outline-none focus:border-[#0057D9] transition-colors ${
                     formErrors.experience ? 'border-[#E53935]' : 'border-gray-200'
                   }`}
                 >
@@ -365,7 +403,7 @@ export default function CreateVacancyPage() {
               onChange={(e) => handleInputChange('description', e.target.value)}
               rows={6}
               placeholder="Describe the role, what the candidate will do, and the impact they'll have..."
-              className={`w-full px-4 py-3 border-2 rounded-xl focus:outline-none focus:border-[#0057D9] transition-colors resize-none ${
+              className={`w-full px-4 py-3 text-gray-700 border-2 rounded-xl focus:outline-none focus:border-[#0057D9] transition-colors resize-none ${
                 formErrors.description ? 'border-[#E53935]' : 'border-gray-200'
               }`}
             />
@@ -394,7 +432,7 @@ export default function CreateVacancyPage() {
                     value={resp}
                     onChange={(e) => handleArrayChange('responsibilities', index, e.target.value)}
                     placeholder={`Responsibility ${index + 1}`}
-                    className="flex-1 px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#0057D9] transition-colors"
+                    className="flex-1 px-4 py-3 text-gray-700 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#0057D9] transition-colors"
                   />
                   {formData.responsibilities.length > 1 && (
                     <button
@@ -432,7 +470,7 @@ export default function CreateVacancyPage() {
                     value={skill}
                     onChange={(e) => handleArrayChange('skills', index, e.target.value)}
                     placeholder={`Skill ${index + 1}`}
-                    className="flex-1 px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#0057D9] transition-colors"
+                    className="flex-1 px-4 py-3 text-gray-700 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#0057D9] transition-colors"
                   />
                   {formData.skills.length > 1 && (
                     <button
@@ -494,7 +532,7 @@ export default function CreateVacancyPage() {
                   <select
                     value={formData.priority}
                     onChange={(e) => handleInputChange('priority', e.target.value)}
-                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#0057D9] transition-colors"
+                    className="w-full px-4 py-3 text-gray-700 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#0057D9] transition-colors"
                   >
                     <option value="low">Low</option>
                     <option value="medium">Medium</option>
@@ -508,7 +546,7 @@ export default function CreateVacancyPage() {
                   <select
                     value={formData.postingType}
                     onChange={(e) => handleInputChange('postingType', e.target.value)}
-                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#0057D9] transition-colors"
+                    className="w-full px-4 py-3 text-gray-700 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#0057D9] transition-colors"
                   >
                     <option value="internal">Internal Only</option>
                     <option value="external">External Only</option>

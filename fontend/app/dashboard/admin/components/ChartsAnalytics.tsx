@@ -214,7 +214,7 @@ export default function ChartsAnalytics() {
 
         <div className="relative h-48">
           {/* Area Chart */}
-          <svg className="w-full h-full" preserveAspectRatio="none">
+          <svg className="w-full h-full" viewBox="0 0 400 192" preserveAspectRatio="none">
             <defs>
               <linearGradient id="areaGradient" x1="0%" y1="0%" x2="0%" y2="100%">
                 <stop offset="0%" stopColor="#8B5CF6" stopOpacity="0.3" />
@@ -223,17 +223,17 @@ export default function ChartsAnalytics() {
             </defs>
             <path
               d={`M 0 ${192 - (bookingsData[0] / maxBookings * 170)} ${bookingsData.map((val, idx) => {
-                const x = (idx / (bookingsData.length - 1)) * 100;
+                const x = (idx / (bookingsData.length - 1)) * 400;
                 const y = 192 - (val / maxBookings * 170);
-                return `L ${x}% ${y}`;
-              }).join(' ')} L 100% 192 L 0 192 Z`}
+                return `L ${x} ${y}`;
+              }).join(' ')} L 400 192 L 0 192 Z`}
               fill="url(#areaGradient)"
             />
             <path
               d={`M 0 ${192 - (bookingsData[0] / maxBookings * 170)} ${bookingsData.map((val, idx) => {
-                const x = (idx / (bookingsData.length - 1)) * 100;
+                const x = (idx / (bookingsData.length - 1)) * 400;
                 const y = 192 - (val / maxBookings * 170);
-                return `L ${x}% ${y}`;
+                return `L ${x} ${y}`;
               }).join(' ')}`}
               fill="none"
               stroke="#8B5CF6"

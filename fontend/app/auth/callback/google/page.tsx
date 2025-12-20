@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { handleOAuthCallback, getCurrentUser, saveAuthData } from '@/utils/auth';
+import { handleOAuthCallback, getCurrentUser, saveAuthData, redirectByRole } from '@/utils/auth';
 import { Loader2, CheckCircle, XCircle } from 'lucide-react';
 
 export default function GoogleCallbackPage() {
@@ -40,9 +40,10 @@ export default function GoogleCallbackPage() {
         setStatus('success');
         setMessage('Login successful! Redirecting...');
 
-        // Redirect to home or dashboard
+        // Redirect based on user role
         setTimeout(() => {
-          router.push('/');
+          const redirectUrl = redirectByRole(user);
+          router.push(redirectUrl);
         }, 1500);
 
       } catch (error) {

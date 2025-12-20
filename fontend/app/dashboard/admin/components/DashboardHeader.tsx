@@ -65,7 +65,7 @@ export default function DashboardHeader() {
               </button>
 
               {showQuickCreate && (
-                <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-xl border border-gray-100 py-2 animate-fadeIn">
+                <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-xl border border-gray-100 py-2 transition-all duration-200">
                   <button className="w-full px-4 py-2.5 text-left hover:bg-[#F4F6FA] flex items-center space-x-3 text-[#1F2937] transition-colors">
                     <Tag className="w-4 h-4 text-[#F59E0B]" />
                     <span>Create Coupon</span>
@@ -119,7 +119,7 @@ export default function DashboardHeader() {
               </button>
 
               {showProfile && (
-                <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-xl border border-gray-100 py-2 animate-fadeIn">
+                <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-xl border border-gray-100 py-2 transition-all duration-200">
                   <button className="w-full px-4 py-2.5 text-left hover:bg-[#F4F6FA] flex items-center space-x-3 text-[#1F2937] transition-colors">
                     <User className="w-4 h-4 text-[#4C5BF5]" />
                     <span>My Profile</span>
@@ -139,22 +139,6 @@ export default function DashboardHeader() {
           </div>
         </div>
       </div>
-
-      <style jsx>{`
-        @keyframes fadeIn {
-          from {
-            opacity: 0;
-            transform: translateY(-10px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-        .animate-fadeIn {
-          animation: fadeIn 0.2s ease-out;
-        }
-      `}</style>
     </header>
   );
 }

@@ -365,3 +365,31 @@ export async function verifyPhone(otp_code: string): Promise<{ message: string; 
     body: JSON.stringify({ otp_code }),
   });
 }
+
+// ============ ROLE-BASED REDIRECT ============
+
+/**
+ * Get the appropriate landing page URL based on user role
+ */
+export function getRoleBasedRedirectUrl(role: string): string {
+  switch (role) {
+    case 'admin':
+      return '/dashboard/admin';
+    case 'manager':
+      return '/dashboard/manager';
+    case 'shopkeeper':
+      return '/shopkeeper';
+    case 'professional':
+      return '/professional';
+    case 'user':
+    default:
+      return '/';
+  }
+}
+
+/**
+ * Redirect user to appropriate landing page based on role
+ */
+export function redirectByRole(user: User): string {
+  return getRoleBasedRedirectUrl(user.role);
+}

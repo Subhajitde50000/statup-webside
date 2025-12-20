@@ -16,7 +16,8 @@ import {
   verifyLoginOTP,
   getGoogleAuthUrl,
   getFacebookAuthUrl,
-  APIError
+  APIError,
+  redirectByRole
 } from '@/utils/auth';
 
 export default function AuthPage() {
@@ -177,25 +178,31 @@ export default function AuthPage() {
     try {
       const otpCode = otp.join('');
       
+      let response;
       if (otpPurpose === 'signup') {
         // For signup, user can choose to verify with email or phone
         const identifier = verifyMethod === 'email' ? formData.email : formData.phone;
-        await verifySignup({
+        response = await verifySignup({
           identifier,
           otp_code: otpCode,
           purpose: 'signup'
         });
       } else {
         const identifier = loginMethod === 'email' ? formData.email : formData.phone;
-        await verifyLoginOTP({
+        response = await verifyLoginOTP({
           identifier,
           otp_code: otpCode,
           purpose: 'login'
         });
       }
       
-      // Redirect to home
-      router.push('/');
+      // Redirect based on user role
+      if (response.user) {
+        const redirectUrl = redirectByRole(response.user);
+        router.push(redirectUrl);
+      } else {
+        router.push('/');
+      }
     } catch (err) {
       if (err instanceof APIError) {
         setErrors({ otp: err.message });
@@ -223,12 +230,19 @@ export default function AuthPage() {
       
       try {
         const identifier = loginMethod === 'email' ? formData.email : formData.phone;
-        await login({
+        const response = await login({
           identifier,
           password: formData.password,
           login_method: loginMethod
         });
-        router.push('/');
+        
+        // Redirect based on user role
+        if (response.user) {
+          const redirectUrl = redirectByRole(response.user);
+          router.push(redirectUrl);
+        } else {
+          router.push('/');
+        }
       } catch (err) {
         if (err instanceof APIError) {
           setErrors({ general: err.message });
