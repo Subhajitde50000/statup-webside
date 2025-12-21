@@ -1,10 +1,23 @@
 'use client';
 
-import React, { useState } from 'react';
-import { Search, Download, Filter, Eye, CheckCircle, Ban, MessageSquare, Star, Phone, UserPlus, Clock } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Search, Download, Filter, Eye, CheckCircle, Ban, MessageSquare, Star, Phone, UserPlus, Clock, AlertTriangle, RefreshCw } from 'lucide-react';
 import Link from 'next/link';
 import TopNavbar from '../components/TopNavbar';
 import LeftSidebar from '../components/LeftSidebar';
+
+interface Professional {
+  id: string;
+  name: string;
+  email?: string;
+  phone: string;
+  role: string;
+  is_active: boolean;
+  is_verified?: boolean;
+  profile_image?: string;
+  created_at: string;
+  updated_at: string;
+}
 
 export default function ProfessionalsListPage() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -13,81 +26,44 @@ export default function ProfessionalsListPage() {
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [verificationFilter, setVerificationFilter] = useState('all');
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [professionals, setProfessionals] = useState<Professional[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
-  const professionals = [
-    {
-      id: 1,
-      name: 'Rajesh Kumar',
-      photo: 'https://i.pravatar.cc/100?img=11',
-      phone: '+91 98765 43210',
-      category: 'Electrician',
-      status: 'active',
-      kycVerified: true,
-      rating: 4.9,
-      reviewCount: 134,
-      completedJobs: 245,
-    },
-    {
-      id: 2,
-      name: 'Amit Sharma',
-      photo: 'https://i.pravatar.cc/100?img=12',
-      phone: '+91 98765 43211',
-      category: 'Plumber',
-      status: 'busy',
-      kycVerified: true,
-      rating: 4.7,
-      reviewCount: 98,
-      completedJobs: 178,
-    },
-    {
-      id: 3,
-      name: 'Priya Singh',
-      photo: 'https://i.pravatar.cc/100?img=5',
-      phone: '+91 98765 43212',
-      category: 'Housekeeper',
-      status: 'offline',
-      kycVerified: false,
-      rating: 4.8,
-      reviewCount: 56,
-      completedJobs: 89,
-    },
-    {
-      id: 4,
-      name: 'Vikram Patel',
-      photo: 'https://i.pravatar.cc/100?img=13',
-      phone: '+91 98765 43213',
-      category: 'Driver',
-      status: 'suspended',
-      kycVerified: true,
-      rating: 4.2,
-      reviewCount: 42,
-      completedJobs: 156,
-    },
-    {
-      id: 5,
-      name: 'Ramesh Yadav',
-      photo: 'https://i.pravatar.cc/100?img=14',
-      phone: '+91 98765 43214',
-      category: 'Cook',
-      status: 'active',
-      kycVerified: false,
-      rating: 4.6,
-      reviewCount: 67,
-      completedJobs: 112,
-    },
-    {
-      id: 6,
-      name: 'Suresh Reddy',
-      photo: 'https://i.pravatar.cc/100?img=15',
-      phone: '+91 98765 43215',
-      category: 'Mechanic',
-      status: 'active',
-      kycVerified: true,
-      rating: 4.9,
-      reviewCount: 189,
-      completedJobs: 298,
-    },
-  ];
+  useEffect(() => {
+    fetchProfessionals();
+  }, []);
+
+  const fetchProfessionals = async () => {
+    try {
+      setLoading(true);
+      const token = localStorage.getItem('access_token');
+      
+      if (!token) {
+        setError('No access token found. Please login.');
+        return;
+      }
+
+      const response = await fetch('http://localhost:8000/api/users/list?role=professional&per_page=100', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch professionals');
+      }
+
+      const data = await response.json();
+      setProfessionals(data.users || []);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load professionals');
+      console.error('Error fetching professionals:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const categories = ['All', 'Electrician', 'Plumber', 'Housekeeper', 'Cook', 'Driver', 'Mechanic', 'Carpenter', 'Painter'];
 
@@ -95,15 +71,19 @@ export default function ProfessionalsListPage() {
     const matchesSearch = 
       professional.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       professional.phone.includes(searchQuery) ||
-      professional.category.toLowerCase().includes(searchQuery.toLowerCase());
+      professional.email?.toLowerCase().includes(searchQuery.toLowerCase());
     
-    const matchesStatus = statusFilter === 'all' || professional.status === statusFilter;
+    const matchesStatus = statusFilter === 'all' || 
+      (statusFilter === 'active' && professional.is_active) ||
+      (statusFilter === 'inactive' && !professional.is_active) ||
+      (statusFilter === 'pending' && professional.role === 'pending_professional') ||
+      (statusFilter === 'suspended' && !professional.is_active);
+    
     const matchesKyc = kycFilter === 'all' || 
-      (kycFilter === 'verified' && professional.kycVerified) ||
-      (kycFilter === 'not-verified' && !professional.kycVerified);
-    const matchesCategory = categoryFilter === 'all' || professional.category === categoryFilter;
+      (kycFilter === 'verified' && professional.is_verified) ||
+      (kycFilter === 'not-verified' && !professional.is_verified);
     
-    return matchesSearch && matchesStatus && matchesKyc && matchesCategory;
+    return matchesSearch && matchesStatus && matchesKyc;
   });
 
   return (
@@ -175,7 +155,7 @@ export default function ProfessionalsListPage() {
 
                   {/* Status Filter Chips */}
                   <div className="flex items-center gap-2 flex-wrap">
-                    {['all', 'active', 'busy', 'offline', 'suspended'].map((status) => (
+                    {['all', 'active', 'inactive', 'pending'].map((status) => (
                       <button
                         key={status}
                         onClick={() => setStatusFilter(status)}
@@ -202,7 +182,7 @@ export default function ProfessionalsListPage() {
                     </div>
                   </div>
                   <h3 className="text-3xl font-bold">{professionals.length}</h3>
-                  <p className="text-xs opacity-75 mt-1">+12 this month</p>
+                  <p className="text-xs opacity-75 mt-1">Registered users</p>
                 </div>
 
                 <div className="bg-gradient-to-br from-[#10B981] to-[#059669] rounded-xl p-5 text-white">
@@ -212,46 +192,62 @@ export default function ProfessionalsListPage() {
                       <CheckCircle className="w-4 h-4" />
                     </div>
                   </div>
-                  <h3 className="text-3xl font-bold">{professionals.filter(p => p.status === 'active').length}</h3>
+                  <h3 className="text-3xl font-bold">{professionals.filter(p => p.is_active).length}</h3>
                   <p className="text-xs opacity-75 mt-1">Currently available</p>
                 </div>
 
                 <div className="bg-gradient-to-br from-[#F59E0B] to-[#D97706] rounded-xl p-5 text-white">
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm opacity-90">Pending KYC</span>
+                    <span className="text-sm opacity-90">Pending</span>
                     <div className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center">
                       <Clock className="w-4 h-4" />
                     </div>
                   </div>
-                  <h3 className="text-3xl font-bold">{professionals.filter(p => !p.kycVerified).length}</h3>
-                  <p className="text-xs opacity-75 mt-1">Needs verification</p>
+                  <h3 className="text-3xl font-bold">{professionals.filter(p => p.role === 'pending_professional').length}</h3>
+                  <p className="text-xs opacity-75 mt-1">Awaiting approval</p>
                 </div>
 
                 <div className="bg-gradient-to-br from-[#EF4444] to-[#DC2626] rounded-xl p-5 text-white">
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm opacity-90">Suspended</span>
+                    <span className="text-sm opacity-90">Inactive</span>
                     <div className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center">
                       <Ban className="w-4 h-4" />
                     </div>
                   </div>
-                  <h3 className="text-3xl font-bold">{professionals.filter(p => p.status === 'suspended').length}</h3>
-                  <p className="text-xs opacity-75 mt-1">Action required</p>
+                  <h3 className="text-3xl font-bold">{professionals.filter(p => !p.is_active).length}</h3>
+                  <p className="text-xs opacity-75 mt-1">Not available</p>
                 </div>
               </div>
 
               {/* Table Section */}
               <div className="bg-white rounded-xl border border-[#E2E8F0] shadow-sm overflow-hidden">
+                {loading ? (
+                  <div className="flex items-center justify-center py-12">
+                    <RefreshCw className="w-8 h-8 text-[#3B82F6] animate-spin" />
+                    <span className="ml-3 text-[#64748B]">Loading professionals...</span>
+                  </div>
+                ) : error ? (
+                  <div className="flex items-center justify-center py-12 text-red-600">
+                    <AlertTriangle className="w-6 h-6 mr-2" />
+                    {error}
+                  </div>
+                ) : filteredProfessionals.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-12 text-[#64748B]">
+                    <Search className="w-12 h-12 mb-3 opacity-50" />
+                    <p>No professionals found</p>
+                  </div>
+                ) : (
+                  <>
                 <div className="overflow-x-auto">
                   <table className="w-full">
                     <thead className="sticky top-0 bg-[#F8FAFC] z-10">
                       <tr className="border-b border-[#E2E8F0]">
                         <th className="text-left py-4 px-6 text-xs font-semibold text-[#64748B] uppercase tracking-wide">Professional</th>
+                        <th className="text-left py-4 px-6 text-xs font-semibold text-[#64748B] uppercase tracking-wide">Email</th>
                         <th className="text-left py-4 px-6 text-xs font-semibold text-[#64748B] uppercase tracking-wide">Phone</th>
-                        <th className="text-left py-4 px-6 text-xs font-semibold text-[#64748B] uppercase tracking-wide">Category</th>
                         <th className="text-left py-4 px-6 text-xs font-semibold text-[#64748B] uppercase tracking-wide">Status</th>
-                        <th className="text-left py-4 px-6 text-xs font-semibold text-[#64748B] uppercase tracking-wide">KYC</th>
-                        <th className="text-left py-4 px-6 text-xs font-semibold text-[#64748B] uppercase tracking-wide">Rating</th>
-                        <th className="text-left py-4 px-6 text-xs font-semibold text-[#64748B] uppercase tracking-wide">Jobs</th>
+                        <th className="text-left py-4 px-6 text-xs font-semibold text-[#64748B] uppercase tracking-wide">Verification</th>
+                        <th className="text-left py-4 px-6 text-xs font-semibold text-[#64748B] uppercase tracking-wide">Joined</th>
                         <th className="text-left py-4 px-6 text-xs font-semibold text-[#64748B] uppercase tracking-wide">Actions</th>
                       </tr>
                     </thead>
@@ -265,16 +261,27 @@ export default function ProfessionalsListPage() {
                           <td className="py-4 px-6">
                             <Link href={`/dashboard/manager/professionals/${professional.id}`}>
                               <div className="flex items-center gap-3">
-                                <img 
-                                  src={professional.photo} 
-                                  alt={professional.name}
-                                  className="w-10 h-10 rounded-full object-cover ring-2 ring-[#E2E8F0]"
-                                />
+                                <div className="w-10 h-10 rounded-full bg-[#3B82F6] flex items-center justify-center text-white font-semibold overflow-hidden ring-2 ring-[#E2E8F0]">
+                                  {professional.profile_image ? (
+                                    <img 
+                                      src={`http://localhost:8000${professional.profile_image}`} 
+                                      alt={professional.name}
+                                      className="w-full h-full object-cover"
+                                    />
+                                  ) : (
+                                    professional.name.charAt(0).toUpperCase()
+                                  )}
+                                </div>
                                 <span className="font-semibold text-[#1E293B] group-hover:text-[#3B82F6] transition-colors">
                                   {professional.name}
                                 </span>
                               </div>
                             </Link>
+                          </td>
+
+                          {/* Email */}
+                          <td className="py-4 px-6">
+                            <div className="text-sm text-[#1E293B]">{professional.email || '-'}</div>
                           </td>
 
                           {/* Phone */}
@@ -288,31 +295,20 @@ export default function ProfessionalsListPage() {
                             </a>
                           </td>
 
-                          {/* Category */}
-                          <td className="py-4 px-6">
-                            <span className="px-2 py-1 bg-[#EFF6FF] text-[#3B82F6] rounded text-xs font-semibold">
-                              {professional.category}
-                            </span>
-                          </td>
-
                           {/* Status Badge */}
                           <td className="py-4 px-6">
                             <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                              professional.status === 'active' 
+                              professional.is_active 
                                 ? 'bg-[#D1FAE5] text-[#059669]' 
-                                : professional.status === 'busy'
-                                ? 'bg-[#FEF3C7] text-[#D97706]'
-                                : professional.status === 'offline'
-                                ? 'bg-[#F1F5F9] text-[#64748B]'
-                                : 'bg-[#FEE2E2] text-[#DC2626]'
+                                : 'bg-[#F1F5F9] text-[#64748B]'
                             }`}>
-                              {professional.status.toUpperCase()}
+                              {professional.is_active ? 'ACTIVE' : 'INACTIVE'}
                             </span>
                           </td>
 
-                          {/* KYC Verification */}
+                          {/* Verification */}
                           <td className="py-4 px-6">
-                            {professional.kycVerified ? (
+                            {professional.is_verified ? (
                               <div className="flex items-center gap-1 text-[#059669]">
                                 <CheckCircle className="w-4 h-4" />
                                 <span className="text-xs font-semibold">Verified</span>
@@ -325,18 +321,15 @@ export default function ProfessionalsListPage() {
                             )}
                           </td>
 
-                          {/* Rating */}
+                          {/* Joined Date */}
                           <td className="py-4 px-6">
-                            <div className="flex items-center gap-1">
-                              <Star className="w-4 h-4 fill-[#F59E0B] text-[#F59E0B]" />
-                              <span className="font-semibold text-[#1E293B]">{professional.rating}</span>
-                              <span className="text-xs text-[#64748B]">({professional.reviewCount})</span>
+                            <div className="text-sm text-[#64748B]">
+                              {new Date(professional.created_at).toLocaleDateString('en-IN', {
+                                day: 'numeric',
+                                month: 'short',
+                                year: 'numeric'
+                              })}
                             </div>
-                          </td>
-
-                          {/* Completed Jobs */}
-                          <td className="py-4 px-6">
-                            <span className="font-semibold text-[#1E293B]">{professional.completedJobs}</span>
                           </td>
 
                           {/* Actions */}
@@ -347,12 +340,12 @@ export default function ProfessionalsListPage() {
                                   <Eye className="w-4 h-4" />
                                 </button>
                               </Link>
-                              {!professional.kycVerified && (
+                              {!professional.is_verified && (
                                 <button className="p-2 text-[#10B981] hover:bg-[#D1FAE5] rounded-lg transition-colors" title="Verify">
                                   <CheckCircle className="w-4 h-4" />
                                 </button>
                               )}
-                              {professional.status !== 'suspended' && (
+                              {professional.is_active && (
                                 <button className="p-2 text-[#EF4444] hover:bg-[#FEE2E2] rounded-lg transition-colors" title="Suspend">
                                   <Ban className="w-4 h-4" />
                                 </button>
@@ -367,8 +360,11 @@ export default function ProfessionalsListPage() {
                     </tbody>
                   </table>
                 </div>
+                </>
+                )}
 
                 {/* Pagination */}
+                {!loading && !error && filteredProfessionals.length > 0 && (
                 <div className="border-t border-[#E2E8F0] px-6 py-4 flex items-center justify-between">
                   <div className="text-sm text-[#64748B]">
                     Showing <span className="font-semibold text-[#1E293B]">{filteredProfessionals.length}</span> of <span className="font-semibold text-[#1E293B]">{professionals.length}</span> professionals
@@ -382,6 +378,7 @@ export default function ProfessionalsListPage() {
                     </button>
                   </div>
                 </div>
+                )}
               </div>
             </div>
           </div>

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   ArrowLeft, ArrowRight, Store, MapPin, Phone, Camera, 
   Check, IndianRupee, TrendingUp, Users, Shield, CheckCircle2, 
@@ -8,8 +8,9 @@ import {
   MessageCircle, BarChart3, Smartphone, Clock, Star, AlertCircle
 } from 'lucide-react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { signup, verifySignup, uploadProfileImage, APIError } from '@/utils/auth';
+import { registerShop } from '@/utils/verifications';
 import { useAuth } from '@/utils/AuthContext';
 
 // Shop categories based on real market
@@ -50,6 +51,8 @@ const testimonials = [
 
 export default function ShopRegistrationPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const editId = searchParams.get('edit'); // Get verification ID for editing
   const { login } = useAuth();
   const [currentStep, setCurrentStep] = useState(0); // 0 = landing, 1-4 = form steps
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -58,6 +61,7 @@ export default function ShopRegistrationPage() {
   const [showSuccess, setShowSuccess] = useState(false);
   const [apiError, setApiError] = useState('');
   const [registeredUserId, setRegisteredUserId] = useState('');
+  const [isLoadingData, setIsLoadingData] = useState(false);
   
   // Simplified form data
   const [formData, setFormData] = useState({
@@ -65,28 +69,110 @@ export default function ShopRegistrationPage() {
     ownerName: '',
     phone: '',
     email: '',
+    alternatePhone: '',
     
     // Step 2: Shop Info
     shopName: '',
     category: '',
+    shopType: 'retail', // retail, restaurant, service
+    description: '',
+    establishedYear: '',
     
-    // Step 3: Location
+    // Step 3: Location & Timing
     shopAddress: '',
+    landmark: '',
     city: '',
     pincode: '',
+    openingTime: '09:00',
+    closingTime: '21:00',
+    workingDays: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'],
     
-    // Step 4: Verification
+    // Step 4: Business Details
     gstNumber: '',
     hasGst: true,
+    panNumber: '',
+    fssaiNumber: '', // For food businesses
+    tradeLicense: '',
+    
+    // Step 5: Banking & Additional
+    bankAccountNumber: '',
+    ifscCode: '',
+    accountHolderName: '',
+    deliveryAvailable: false,
+    deliveryRadius: '5',
+    minimumOrderValue: '',
+    
     agreeTerms: false,
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [shopImage, setShopImage] = useState<string>('');
   const [shopImageFile, setShopImageFile] = useState<File | null>(null);
-  const [otp, setOtp] = useState(['', '', '', '']);
+  const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [otpSent, setOtpSent] = useState(false);
   const [otpVerified, setOtpVerified] = useState(false);
+
+  // Load existing verification data if editing
+  useEffect(() => {
+    if (editId) {
+      loadVerificationData(editId);
+    }
+  }, [editId]);
+
+  const loadVerificationData = async (verificationId: string) => {
+    setIsLoadingData(true);
+    try {
+      const response = await fetch(`http://localhost:8000/api/verifications/${verificationId}`);
+      if (!response.ok) throw new Error('Failed to load verification data');
+      
+      const data = await response.json();
+      
+      // Auto-fill form with existing data
+      setFormData({
+        ownerName: data.name || '',
+        phone: data.phone || '',
+        email: data.email || '',
+        alternatePhone: data.alternate_phone || '',
+        shopName: data.shop_name || '',
+        category: data.category || '',
+        shopType: data.shop_type || 'retail',
+        description: data.description || '',
+        establishedYear: data.established_year || '',
+        shopAddress: data.shop_address || '',
+        landmark: data.landmark || '',
+        city: data.city || '',
+        pincode: data.pincode || '',
+        openingTime: data.opening_time || '09:00',
+        closingTime: data.closing_time || '21:00',
+        workingDays: data.working_days || ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'],
+        gstNumber: data.gst_number || '',
+        hasGst: data.has_gst ?? true,
+        panNumber: data.pan_number || '',
+        fssaiNumber: data.fssai_number || '',
+        tradeLicense: data.trade_license || '',
+        bankAccountNumber: data.bank_account_number || '',
+        ifscCode: data.ifsc_code || '',
+        accountHolderName: data.account_holder_name || '',
+        deliveryAvailable: data.delivery_available || false,
+        deliveryRadius: data.delivery_radius || '5',
+        minimumOrderValue: data.minimum_order_value || '',
+        agreeTerms: false,
+      });
+
+      if (data.shop_image) {
+        setShopImage(data.shop_image);
+      }
+
+      // Skip to step 1 (phone already verified)
+      setOtpVerified(true);
+      setCurrentStep(1);
+    } catch (error) {
+      console.error('Error loading verification data:', error);
+      setApiError('Failed to load existing data. Please try again.');
+    } finally {
+      setIsLoadingData(false);
+    }
+  };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
@@ -121,25 +207,40 @@ export default function ShopRegistrationPage() {
   };
 
   const sendOtp = async () => {
-    if (formData.phone.length !== 10) return;
+    // Validate required fields before sending OTP
+    if (!formData.ownerName.trim()) {
+      setApiError('Please enter owner name');
+      return;
+    }
+    
+    if (formData.phone.length !== 10) {
+      setApiError('Please enter valid 10-digit phone number');
+      return;
+    }
     
     setIsSendingOtp(true);
     setApiError('');
     
     try {
-      // Generate email if not provided
-      const email = formData.email || `shop${formData.phone}@electromart.local`;
-      
-      // Call backend signup API
-      await signup({
+      // Call backend signup API with proper data
+      const signupData: any = {
         name: formData.ownerName,
-        email: email,
         phone: formData.phone,
-        password: `Shop${formData.phone}@123` // Auto-generated password for shop owners
-      });
+        password: `Shop${formData.phone}@123`
+      };
+      
+      // Only include email if provided (backend will generate if missing)
+      if (formData.email && formData.email.trim()) {
+        signupData.email = formData.email;
+      }
+      
+      console.log('Sending signup request:', signupData);
+      
+      await signup(signupData);
       
       setOtpSent(true);
     } catch (error) {
+      console.error('Signup error:', error);
       if (error instanceof APIError) {
         setApiError(error.message);
       } else {
@@ -152,7 +253,7 @@ export default function ShopRegistrationPage() {
 
   const verifyOtp = async () => {
     const otpCode = otp.join('');
-    if (otpCode.length !== 4) return;
+    if (otpCode.length !== 6) return;
     
     setIsVerifyingOtp(true);
     setApiError('');
@@ -270,11 +371,56 @@ export default function ShopRegistrationPage() {
         }
       }
       
-      // TODO: Update user profile with additional shop data
-      // This would include shop name, category, location, GST, etc.
-      // For now, we'll just show success since basic registration is complete
+      const shopData = {
+        owner_name: formData.ownerName,
+        phone: formData.phone,
+        email: formData.email || undefined,
+        alternate_phone: formData.alternatePhone || undefined,
+        shop_name: formData.shopName,
+        category: formData.category,
+        shop_type: formData.shopType,
+        description: formData.description || undefined,
+        established_year: formData.establishedYear || undefined,
+        shop_address: formData.shopAddress,
+        landmark: formData.landmark || undefined,
+        city: formData.city,
+        pincode: formData.pincode,
+        opening_time: formData.openingTime,
+        closing_time: formData.closingTime,
+        working_days: formData.workingDays,
+        gst_number: formData.gstNumber || undefined,
+        has_gst: formData.hasGst,
+        pan_number: formData.panNumber || undefined,
+        fssai_number: formData.fssaiNumber || undefined,
+        trade_license: formData.tradeLicense || undefined,
+        bank_account_number: formData.bankAccountNumber || undefined,
+        ifsc_code: formData.ifscCode || undefined,
+        account_holder_name: formData.accountHolderName || undefined,
+        delivery_available: formData.deliveryAvailable,
+        delivery_radius: formData.deliveryRadius || undefined,
+        minimum_order_value: formData.minimumOrderValue || undefined,
+        shop_image: shopImage || undefined,
+      };
       
-      setShowSuccess(true);
+      if (editId) {
+        // Update existing verification
+        const response = await fetch(`http://localhost:8000/api/verifications/edit/${editId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(shopData)
+        });
+        
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.detail || 'Failed to update registration');
+        }
+      } else {
+        // Submit new shop registration for verification
+        await registerShop(shopData);
+      }
+      
+      // Redirect to status page
+      router.push(`/register/status?phone=${encodeURIComponent(formData.phone)}`);
     } catch (error) {
       if (error instanceof APIError) {
         setApiError(error.message);
@@ -300,8 +446,8 @@ export default function ShopRegistrationPage() {
                 </div>
                 <span className="font-bold text-lg">ElectroMart Partner</span>
               </Link>
-              <Link href="/auth" className="text-sm font-medium hover:underline">
-                Already a Partner? Login
+              <Link href="/register/shop/login" className="text-sm font-medium hover:underline">
+                Already Registered? Check Status
               </Link>
             </div>
           </div>
@@ -468,58 +614,18 @@ export default function ShopRegistrationPage() {
     );
   }
 
-  // Success Screen
+  // Success Screen - No longer needed, redirecting to status page instead
   if (showSuccess) {
+    return null; // This should never be reached as we redirect before setting showSuccess
+  }
+
+  // Loading screen when fetching edit data
+  if (isLoadingData) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50 flex items-center justify-center p-4">
-        <div className="bg-white rounded-3xl shadow-2xl p-8 max-w-md w-full text-center">
-          <div className="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
-            <CheckCircle2 className="w-12 h-12 text-green-600" />
-          </div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Welcome Aboard! 🎉</h2>
-          <p className="text-gray-600 mb-6">
-            Your shop registration is complete! You can now access your dashboard.
-          </p>
-          
-          <div className="bg-gray-50 rounded-xl p-4 mb-4 text-left">
-            <div className="flex justify-between items-center mb-2">
-              <span className="text-sm text-gray-500">Shop ID</span>
-              <span className="font-mono font-bold text-[#0057D9]">
-                {registeredUserId ? `SHP-${registeredUserId.slice(-8).toUpperCase()}` : 'SHP-VERIFIED'}
-              </span>
-            </div>
-            <div className="flex justify-between items-center mb-2">
-              <span className="text-sm text-gray-500">Owner</span>
-              <span className="font-medium text-gray-900">{formData.ownerName}</span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-gray-500">Shop Name</span>
-              <span className="font-medium text-gray-900">{formData.shopName}</span>
-            </div>
-          </div>
-
-          <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6 text-left">
-            <div className="flex gap-3">
-              <BadgeCheck className="w-5 h-5 text-[#0057D9] flex-shrink-0 mt-0.5" />
-              <div>
-                <p className="text-sm font-medium text-[#0046B0]">Next Steps</p>
-                <ol className="text-sm text-blue-700 mt-2 space-y-1 list-decimal list-inside">
-                  <li>Complete your shop profile</li>
-                  <li>Add your products</li>
-                  <li>Start receiving orders!</li>
-                </ol>
-              </div>
-            </div>
-          </div>
-
-          <div className="space-y-3">
-            <Link href="/shopkeeper" className="block w-full bg-[#0057D9] text-white py-4 rounded-xl font-semibold hover:bg-[#004BB5] transition-colors">
-              Go to Dashboard
-            </Link>
-            <Link href="/" className="block w-full text-gray-600 py-3 font-medium hover:text-gray-900">
-              Back to Home
-            </Link>
-          </div>
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="w-12 h-12 text-[#0057D9] animate-spin mx-auto mb-4" />
+          <p className="text-gray-600">Loading your registration details...</p>
         </div>
       </div>
     );
@@ -572,7 +678,7 @@ export default function ShopRegistrationPage() {
                 value={formData.ownerName}
                 onChange={handleInputChange}
                 placeholder="Enter your full name"
-                className={`w-full px-4 py-4 border-2 rounded-xl focus:ring-2 focus:ring-[#0057D9] focus:border-[#0057D9] outline-none text-lg ${
+                className={`w-full px-4 py-4 text-gray-700 border-2 rounded-xl focus:ring-2 focus:ring-[#0057D9] focus:border-[#0057D9] outline-none text-lg ${
                   errors.ownerName ? 'border-red-500' : 'border-gray-200'
                 }`}
               />
@@ -593,7 +699,7 @@ export default function ShopRegistrationPage() {
                   placeholder="10-digit mobile number"
                   maxLength={10}
                   disabled={otpVerified}
-                  className={`flex-1 px-4 py-4 border-2 rounded-xl focus:ring-2 focus:ring-[#0057D9] focus:border-[#0057D9] outline-none text-lg ${
+                  className={`flex-1 px-4 py-4 text-gray-700 border-2 rounded-xl focus:ring-2 focus:ring-[#0057D9] focus:border-[#0057D9] outline-none text-lg ${
                     errors.phone ? 'border-red-500' : 'border-gray-200'
                   } ${otpVerified ? 'bg-green-50 border-green-400' : ''}`}
                 />
@@ -604,6 +710,22 @@ export default function ShopRegistrationPage() {
                 )}
               </div>
               {errors.phone && <p className="text-red-500 text-sm mt-1">{errors.phone}</p>}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Email Address (Optional)</label>
+              <input
+                type="email"
+                name="email"
+                value={formData.email}
+                onChange={handleInputChange}
+                placeholder="your.email@example.com"
+                className={`w-full px-4 py-4 text-gray-700 border-2 rounded-xl focus:ring-2 focus:ring-[#0057D9] focus:border-[#0057D9] outline-none text-lg ${
+                  errors.email ? 'border-red-500' : 'border-gray-200'
+                }`}
+              />
+              {errors.email && <p className="text-red-500 text-sm mt-1">{errors.email}</p>}
+              <p className="text-xs text-gray-500 mt-1">We'll use this for important updates about your shop</p>
             </div>
 
             {!otpVerified && formData.phone.length === 10 && (
@@ -634,7 +756,7 @@ export default function ShopRegistrationPage() {
                 ) : (
                   <div className="space-y-4">
                     <p className="text-sm text-center text-gray-600">
-                      Enter 4-digit OTP sent to <strong>+91 {formData.phone}</strong>
+                      Enter 6-digit OTP sent to <strong>+91 {formData.phone}</strong>
                     </p>
                     {apiError && (
                       <div className="bg-red-50 text-red-600 p-3 rounded-xl text-sm flex items-center gap-2">
@@ -654,13 +776,13 @@ export default function ShopRegistrationPage() {
                           onKeyDown={(e) => handleOtpKeyDown(idx, e)}
                           maxLength={1}
                           disabled={isVerifyingOtp}
-                          className="w-14 h-14 text-center text-2xl font-bold border-2 border-gray-200 rounded-xl focus:border-[#0057D9] focus:ring-2 focus:ring-[#0057D9] outline-none disabled:opacity-50"
+                          className="w-14 h-14 text-center text-2xl text-gray-700 font-bold border-2 border-gray-200 rounded-xl focus:border-[#0057D9] focus:ring-2 focus:ring-[#0057D9] outline-none disabled:opacity-50"
                         />
                       ))}
                     </div>
                     <button
                       onClick={verifyOtp}
-                      disabled={otp.join('').length !== 4 || isVerifyingOtp}
+                      disabled={otp.join('').length !== 6 || isVerifyingOtp}
                       className="w-full py-4 bg-[#0057D9] text-white rounded-xl font-semibold disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                     >
                       {isVerifyingOtp ? (
@@ -887,6 +1009,61 @@ export default function ShopRegistrationPage() {
                   <span className="font-medium text-gray-900">{formData.city}, {formData.pincode}</span>
                 </div>
               </div>
+            </div>
+
+            {/* Documents Upload */}
+            <div className="bg-white border border-gray-200 rounded-2xl p-4">
+              <h3 className="font-semibold text-gray-900 mb-3">📄 Business Documents</h3>
+              <p className="text-sm text-gray-500 mb-4">Upload supporting documents (optional - can add later)</p>
+              
+              <div className="space-y-3">
+                <label className="block p-4 border-2 border-dashed border-gray-300 rounded-xl cursor-pointer hover:border-[#0057D9] hover:bg-blue-50 transition-colors">
+                  <input type="file" accept=".pdf,.jpg,.jpeg,.png" className="hidden" />
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                      <Shield className="w-5 h-5 text-[#0057D9]" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-gray-900">Shop License / Registration</p>
+                      <p className="text-xs text-gray-500">PDF, JPG, or PNG • Max 5MB</p>
+                    </div>
+                    <span className="text-sm text-[#0057D9] font-medium">Upload</span>
+                  </div>
+                </label>
+                
+                <label className="block p-4 border-2 border-dashed border-gray-300 rounded-xl cursor-pointer hover:border-[#0057D9] hover:bg-blue-50 transition-colors">
+                  <input type="file" accept=".pdf,.jpg,.jpeg,.png" className="hidden" />
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                      <BadgeCheck className="w-5 h-5 text-[#0057D9]" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-gray-900">Owner ID Proof (Aadhaar/PAN)</p>
+                      <p className="text-xs text-gray-500">PDF, JPG, or PNG • Max 5MB</p>
+                    </div>
+                    <span className="text-sm text-[#0057D9] font-medium">Upload</span>
+                  </div>
+                </label>
+                
+                <label className="block p-4 border-2 border-dashed border-gray-300 rounded-xl cursor-pointer hover:border-[#0057D9] hover:bg-blue-50 transition-colors">
+                  <input type="file" accept=".pdf,.jpg,.jpeg,.png" className="hidden" />
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                      <Store className="w-5 h-5 text-[#0057D9]" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-gray-900">Shop/Store Photos</p>
+                      <p className="text-xs text-gray-500">JPG or PNG • Max 5MB each</p>
+                    </div>
+                    <span className="text-sm text-[#0057D9] font-medium">Upload</span>
+                  </div>
+                </label>
+              </div>
+              
+              <p className="text-xs text-gray-500 mt-3 flex items-center gap-1">
+                <AlertCircle className="w-3 h-3" />
+                Documents help speed up verification process
+              </p>
             </div>
 
             {/* GST */}

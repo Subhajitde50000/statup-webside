@@ -7,79 +7,62 @@ import Image from 'next/image';
 import TopNavbar from '../components/TopNavbar';
 import LeftSidebar from '../components/LeftSidebar';
 
+interface Shop {
+  id: string;
+  name: string;
+  email?: string;
+  phone: string;
+  role: string;
+  is_active: boolean;
+  is_verified?: boolean;
+  profile_image?: string;
+  created_at: string;
+  updated_at: string;
+}
+
 export default function ShopsListPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
-  const [showMoreMenu, setShowMoreMenu] = useState<number | null>(null);
+  const [showMoreMenu, setShowMoreMenu] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [shops, setShops] = useState<Shop[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
-  const shops = [
-    {
-      id: 1,
-      name: 'ElectroWorld Pro',
-      photo: 'https://i.pravatar.cc/100?img=1',
-      owner: 'Rajesh Kumar',
-      phone: '+91 98765 43210',
-      status: 'active',
-      verified: true,
-      rating: 4.8,
-      reviewCount: 234,
-      location: 'Sector V, Kolkata',
-      category: 'Electronics'
-    },
-    {
-      id: 2,
-      name: 'TechFix Solutions',
-      photo: 'https://i.pravatar.cc/100?img=2',
-      owner: 'Priya Sharma',
-      phone: '+91 98765 43211',
-      status: 'pending',
-      verified: false,
-      rating: 4.5,
-      reviewCount: 156,
-      location: 'Park Street, Kolkata',
-      category: 'Electronics Repair'
-    },
-    {
-      id: 3,
-      name: 'HomeService Supplies',
-      photo: 'https://i.pravatar.cc/100?img=3',
-      owner: 'Amit Verma',
-      phone: '+91 98765 43212',
-      status: 'active',
-      verified: true,
-      rating: 4.9,
-      reviewCount: 312,
-      location: 'Salt Lake, Kolkata',
-      category: 'Home Repair'
-    },
-    {
-      id: 4,
-      name: 'QuickFix Hub',
-      photo: 'https://i.pravatar.cc/100?img=4',
-      owner: 'Neha Singh',
-      phone: '+91 98765 43213',
-      status: 'suspended',
-      verified: true,
-      rating: 3.2,
-      reviewCount: 89,
-      location: 'New Market, Kolkata',
-      category: 'General Services'
-    },
-    {
-      id: 5,
-      name: 'MegaStore Electronics',
-      photo: 'https://i.pravatar.cc/100?img=5',
-      owner: 'Suresh Patel',
-      phone: '+91 98765 43214',
-      status: 'inactive',
-      verified: false,
-      rating: 4.1,
-      reviewCount: 67,
-      location: 'Howrah, Kolkata',
-      category: 'Electronics'
-    },
-  ];
+  React.useEffect(() => {
+    fetchShops();
+  }, []);
+
+  const fetchShops = async () => {
+    try {
+      setLoading(true);
+      const token = localStorage.getItem('access_token');
+      
+      if (!token) {
+        setError('No access token found. Please login.');
+        return;
+      }
+
+      const response = await fetch('http://localhost:8000/api/users/list?role=shopkeeper&per_page=100', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch shops');
+      }
+
+      const data = await response.json();
+      setShops(data.users || []);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load shops');
+      console.error('Error fetching shops:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -99,10 +82,14 @@ export default function ShopsListPage() {
   const filteredShops = shops.filter(shop => {
     const matchesSearch = 
       shop.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      shop.owner.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      shop.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       shop.phone.includes(searchQuery);
     
-    const matchesFilter = statusFilter === 'all' || shop.status === statusFilter;
+    const matchesFilter = statusFilter === 'all' || 
+      (statusFilter === 'active' && shop.is_active) ||
+      (statusFilter === 'inactive' && !shop.is_active) ||
+      (statusFilter === 'pending' && shop.role === 'pending_shopkeeper') ||
+      (statusFilter === 'suspended' && !shop.is_active);
     
     return matchesSearch && matchesFilter;
   });
@@ -175,17 +162,33 @@ export default function ShopsListPage() {
 
               {/* Table Section */}
               <div className="bg-white rounded-xl border border-[#E2E8F0] shadow-sm overflow-hidden">
+                {loading ? (
+                  <div className="flex items-center justify-center py-12">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#3B82F6]"></div>
+                    <span className="ml-3 text-[#64748B]">Loading shops...</span>
+                  </div>
+                ) : error ? (
+                  <div className="flex items-center justify-center py-12 text-red-600">
+                    <AlertTriangle className="w-6 h-6 mr-2" />
+                    {error}
+                  </div>
+                ) : filteredShops.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-12 text-[#64748B]">
+                    <Search className="w-12 h-12 mb-3 opacity-50" />
+                    <p>No shops found</p>
+                  </div>
+                ) : (
+                  <>
                 <div className="overflow-x-auto">
                   <table className="w-full">
                     <thead>
                       <tr className="border-b border-[#E2E8F0] bg-[#F8FAFC]">
                         <th className="text-left py-4 px-6 text-xs font-semibold text-[#64748B] uppercase tracking-wide">Shop</th>
-                        <th className="text-left py-4 px-6 text-xs font-semibold text-[#64748B] uppercase tracking-wide">Owner</th>
+                        <th className="text-left py-4 px-6 text-xs font-semibold text-[#64748B] uppercase tracking-wide">Email</th>
                         <th className="text-left py-4 px-6 text-xs font-semibold text-[#64748B] uppercase tracking-wide">Phone</th>
                         <th className="text-left py-4 px-6 text-xs font-semibold text-[#64748B] uppercase tracking-wide">Status</th>
                         <th className="text-left py-4 px-6 text-xs font-semibold text-[#64748B] uppercase tracking-wide">Verification</th>
-                        <th className="text-left py-4 px-6 text-xs font-semibold text-[#64748B] uppercase tracking-wide">Ratings</th>
-                        <th className="text-left py-4 px-6 text-xs font-semibold text-[#64748B] uppercase tracking-wide">Location</th>
+                        <th className="text-left py-4 px-6 text-xs font-semibold text-[#64748B] uppercase tracking-wide">Joined</th>
                         <th className="text-left py-4 px-6 text-xs font-semibold text-[#64748B] uppercase tracking-wide">Actions</th>
                       </tr>
                     </thead>
@@ -200,25 +203,25 @@ export default function ShopsListPage() {
                       <Link href={`/dashboard/manager/shops/${shop.id}`}>
                         <div className="flex items-center gap-3">
                           <div className="w-12 h-12 rounded-full bg-[#3B82F6] flex items-center justify-center text-white font-semibold overflow-hidden">
-                            {shop.photo ? (
-                              <img src={shop.photo} alt={shop.name} className="w-full h-full object-cover" />
+                            {shop.profile_image ? (
+                              <img src={`http://localhost:8000${shop.profile_image}`} alt={shop.name} className="w-full h-full object-cover" />
                             ) : (
-                              shop.name.charAt(0)
+                              shop.name.charAt(0).toUpperCase()
                             )}
                           </div>
                           <div>
                             <div className="font-semibold text-[#1E293B] text-sm group-hover:text-[#3B82F6] transition-colors">
                               {shop.name}
                             </div>
-                            <div className="text-xs text-[#64748B]">{shop.category}</div>
+                            <div className="text-xs text-[#64748B]">{shop.role === 'pending_shopkeeper' ? 'Pending' : 'Shopkeeper'}</div>
                           </div>
                         </div>
                       </Link>
                     </td>
 
-                    {/* Owner Name */}
+                    {/* Email */}
                     <td className="py-4 px-6">
-                      <div className="text-sm text-[#1E293B] font-medium">{shop.owner}</div>
+                      <div className="text-sm text-[#1E293B] font-medium">{shop.email || '-'}</div>
                     </td>
 
                     {/* Phone Number */}
@@ -234,14 +237,14 @@ export default function ShopsListPage() {
 
                     {/* Status */}
                     <td className="py-4 px-6">
-                      <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getStatusBadge(shop.status)}`}>
-                        {shop.status.charAt(0).toUpperCase() + shop.status.slice(1)}
+                      <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getStatusBadge(shop.is_active ? 'active' : 'inactive')}`}>
+                        {shop.is_active ? 'Active' : 'Inactive'}
                       </span>
                     </td>
 
                     {/* Verification Badge */}
                     <td className="py-4 px-6">
-                      {shop.verified ? (
+                      {shop.is_verified ? (
                         <div className="flex items-center gap-1 text-[#059669]">
                           <CheckCircle className="w-4 h-4" />
                           <span className="text-xs font-semibold">Verified</span>
@@ -254,22 +257,14 @@ export default function ShopsListPage() {
                       )}
                     </td>
 
-                    {/* Ratings */}
+                    {/* Joined Date */}
                     <td className="py-4 px-6">
-                      <div className="flex items-center gap-2">
-                        <div className="flex items-center gap-1">
-                          <Star className="w-4 h-4 fill-[#F59E0B] text-[#F59E0B]" />
-                          <span className="text-sm font-semibold text-[#1E293B]">{shop.rating}</span>
-                        </div>
-                        <span className="text-xs text-[#64748B]">({shop.reviewCount})</span>
-                      </div>
-                    </td>
-
-                    {/* Location */}
-                    <td className="py-4 px-6">
-                      <div className="flex items-center gap-1 text-sm text-[#64748B]">
-                        <MapPin className="w-3 h-3" />
-                        {shop.location}
+                      <div className="text-sm text-[#64748B]">
+                        {new Date(shop.created_at).toLocaleDateString('en-IN', {
+                          day: 'numeric',
+                          month: 'short',
+                          year: 'numeric'
+                        })}
                       </div>
                     </td>
 
@@ -282,13 +277,13 @@ export default function ShopsListPage() {
                           </button>
                         </Link>
                         
-                        {!shop.verified && (
+                        {!shop.is_verified && (
                           <button className="p-2 text-[#10B981] hover:bg-[#ECFDF5] rounded-lg transition-colors" title="Approve">
                             <CheckCircle className="w-4 h-4" />
                           </button>
                         )}
                         
-                        {shop.status !== 'suspended' && (
+                        {shop.is_active && (
                           <button className="p-2 text-[#EF4444] hover:bg-[#FEF2F2] rounded-lg transition-colors" title="Suspend">
                             <Ban className="w-4 h-4" />
                           </button>
@@ -327,8 +322,11 @@ export default function ShopsListPage() {
                     </tbody>
                   </table>
                 </div>
+                </>
+                )}
 
                 {/* Pagination */}
+                {!loading && !error && filteredShops.length > 0 && (
                 <div className="border-t border-[#E2E8F0] px-6 py-4 flex items-center justify-between">
                   <div className="text-sm text-[#64748B]">
                     Showing <span className="font-semibold text-[#1E293B]">{filteredShops.length}</span> of <span className="font-semibold text-[#1E293B]">{shops.length}</span> shops
@@ -342,6 +340,7 @@ export default function ShopsListPage() {
                     </button>
                   </div>
                 </div>
+                )}
               </div>
             </div>
           </div>

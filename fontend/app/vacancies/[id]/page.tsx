@@ -1,74 +1,70 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
+import { getVacancyById, Vacancy } from '@/utils/vacancies';
 import { 
   ArrowLeft, Briefcase, MapPin, Clock, DollarSign, Calendar, Users, 
   Building2, CheckCircle, Award, Target, Globe, Share2, Bookmark,
-  TrendingUp, Heart, ChevronRight, Shield, Zap, Star
+  TrendingUp, Heart, ChevronRight, Shield, Zap, Star, Loader2, AlertCircle
 } from 'lucide-react';
 
 export default function VacancyDetailPage() {
   const params = useParams();
   const [isSaved, setIsSaved] = useState(false);
+  const [vacancy, setVacancy] = useState<Vacancy | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState('');
 
-  // Mock data - Replace with API call using params.id
-  const vacancy = {
-    id: params.id,
-    title: 'Senior Full Stack Developer',
-    department: 'Engineering',
-    location: 'Bangalore, India',
-    type: 'Full-time',
-    experience: '5-8 years',
-    salary: '₹18-25 LPA',
-    postedDate: '2 days ago',
-    deadline: 'Dec 30, 2025',
-    applicants: 156,
-    views: 1247,
-    featured: true,
-    urgent: false,
-    company: 'TechCorp Solutions',
-    description: 'We are seeking an experienced Senior Full Stack Developer to join our dynamic engineering team. You will be responsible for designing, developing, and maintaining scalable web applications using modern technologies.',
-    responsibilities: [
-      'Design and develop scalable web applications using React and Node.js',
-      'Collaborate with cross-functional teams to define and ship new features',
-      'Write clean, maintainable, and efficient code following best practices',
-      'Conduct code reviews and mentor junior developers',
-      'Optimize application performance and ensure high quality',
-      'Participate in architectural decisions and technical planning'
-    ],
-    requirements: [
-      '5-8 years of experience in full stack development',
-      'Expert knowledge of React, TypeScript, and Node.js',
-      'Strong understanding of RESTful APIs and microservices',
-      'Experience with AWS or similar cloud platforms',
-      'Proficiency in SQL and NoSQL databases',
-      'Excellent problem-solving and communication skills'
-    ],
-    skills: ['React', 'Node.js', 'TypeScript', 'AWS', 'Docker', 'PostgreSQL', 'MongoDB', 'Redis'],
-    benefits: [
-      'Competitive salary and performance bonuses',
-      'Health insurance for you and your family',
-      'Flexible work hours and remote work options',
-      'Learning and development opportunities',
-      'Stock options and equity participation',
-      'Modern office with state-of-the-art facilities'
-    ],
-    companyInfo: {
-      name: 'TechCorp Solutions',
-      size: '500-1000 employees',
-      industry: 'Information Technology',
-      founded: '2015',
-      website: 'www.techcorp.com'
-    }
-  };
+  // Fetch vacancy details from API
+  useEffect(() => {
+    const fetchVacancy = async () => {
+      try {
+        const response = await getVacancyById(params.id as string);
+        setVacancy(response.vacancy);
+      } catch (err) {
+        setError('Failed to load vacancy details');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    fetchVacancy();
+  }, [params.id]);
 
   const similarJobs = [
     { id: 'VAC002', title: 'Full Stack Developer', department: 'Engineering', salary: '₹12-18 LPA' },
     { id: 'VAC003', title: 'Backend Developer', department: 'Engineering', salary: '₹15-20 LPA' },
     { id: 'VAC004', title: 'Frontend Developer', department: 'Engineering', salary: '₹10-15 LPA' }
   ];
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-[#F4F7FB] via-white to-[#E8F4F8]">
+        <div className="text-center">
+          <Loader2 className="w-16 h-16 text-[#0057D9] animate-spin mx-auto mb-4" />
+          <p className="text-[#1B1F3B] font-medium">Loading job details...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !vacancy) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-[#F4F7FB] via-white to-[#E8F4F8]">
+        <div className="text-center">
+          <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
+          <p className="text-[#1B1F3B] font-medium mb-4">{error || 'Job not found'}</p>
+          <Link href="/vacancies">
+            <button className="px-6 py-3 bg-[#0057D9] text-white rounded-lg">
+              Browse Jobs
+            </button>
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#F4F7FB] via-white to-[#E8F4F8]">
@@ -93,23 +89,23 @@ export default function VacancyDetailPage() {
               <div className="flex items-start justify-between mb-6">
                 <div className="flex-1">
                   <div className="flex items-center gap-3 mb-3">
-                    {vacancy.featured && (
+                    {vacancy.priority === 'high' && (
                       <span className="bg-gradient-to-r from-[#FFB020] to-amber-500 text-white text-xs px-3 py-1 rounded-full font-semibold flex items-center gap-1">
                         <Award className="w-3 h-3" />
                         Featured
                       </span>
                     )}
-                    {vacancy.urgent && (
+                    {vacancy.priority === 'urgent' && (
                       <span className="bg-gradient-to-r from-[#E53935] to-red-600 text-white text-xs px-3 py-1 rounded-full font-semibold flex items-center gap-1 animate-pulse">
                         <Target className="w-3 h-3" />
                         Urgent Hiring
                       </span>
                     )}
                   </div>
-                  <h1 className="text-4xl font-bold text-gray-800 mb-2">{vacancy.title}</h1>
+                  <h1 className="text-4xl font-bold text-gray-800 mb-2">{vacancy.job_title}</h1>
                   <div className="flex items-center gap-2 text-gray-600 mb-4">
                     <Building2 className="w-5 h-5 text-[#0057D9]" />
-                    <span className="text-lg font-semibold">{vacancy.company}</span>
+                    <span className="text-lg font-semibold">{vacancy.hiring_for}</span>
                   </div>
                 </div>
                 <div className="flex gap-2">
@@ -146,7 +142,7 @@ export default function VacancyDetailPage() {
                   </div>
                   <div>
                     <p className="text-xs text-gray-500">Salary</p>
-                    <p className="font-semibold text-gray-800">{vacancy.salary}</p>
+                    <p className="font-semibold text-gray-800">₹{vacancy.salary_min}-{vacancy.salary_max} LPA</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
@@ -155,7 +151,7 @@ export default function VacancyDetailPage() {
                   </div>
                   <div>
                     <p className="text-xs text-gray-500">Job Type</p>
-                    <p className="font-semibold text-gray-800">{vacancy.type}</p>
+                    <p className="font-semibold text-gray-800">{vacancy.employment_type}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
@@ -173,18 +169,18 @@ export default function VacancyDetailPage() {
               <div className="grid grid-cols-3 gap-4">
                 <div className="text-center p-4 bg-blue-50 rounded-lg">
                   <Users className="w-6 h-6 text-[#0057D9] mx-auto mb-2" />
-                  <p className="text-2xl font-bold text-gray-800">{vacancy.applicants}</p>
+                  <p className="text-2xl font-bold text-gray-800">{vacancy.applicant_count || 0}</p>
                   <p className="text-xs text-gray-500">Applicants</p>
                 </div>
                 <div className="text-center p-4 bg-green-50 rounded-lg">
                   <TrendingUp className="w-6 h-6 text-[#3CB878] mx-auto mb-2" />
-                  <p className="text-2xl font-bold text-gray-800">{vacancy.views}</p>
-                  <p className="text-xs text-gray-500">Views</p>
+                  <p className="text-2xl font-bold text-gray-800">{vacancy.positions}</p>
+                  <p className="text-xs text-gray-500">Positions</p>
                 </div>
                 <div className="text-center p-4 bg-amber-50 rounded-lg">
                   <Calendar className="w-6 h-6 text-[#FFB020] mx-auto mb-2" />
-                  <p className="text-2xl font-bold text-gray-800">{vacancy.deadline}</p>
-                  <p className="text-xs text-gray-500">Deadline</p>
+                  <p className="text-2xl font-bold text-gray-800">{new Date(vacancy.created_at).toLocaleDateString()}</p>
+                  <p className="text-xs text-gray-500">Posted</p>
                 </div>
               </div>
             </div>
@@ -222,16 +218,12 @@ export default function VacancyDetailPage() {
                 <Shield className="w-6 h-6 text-[#0057D9]" />
                 Requirements
               </h2>
-              <ul className="space-y-3">
-                {vacancy.requirements.map((req, index) => (
-                  <li key={index} className="flex items-start gap-3">
-                    <div className="bg-blue-50 p-1 rounded-full mt-1">
-                      <Star className="w-4 h-4 text-[#0057D9]" />
-                    </div>
-                    <span className="text-gray-600 flex-1">{req}</span>
-                  </li>
-                ))}
-              </ul>
+              <div className="text-gray-600 leading-relaxed">
+                <p><strong>Experience:</strong> {vacancy.experience}</p>
+                <p className="mt-2"><strong>Role Level:</strong> {vacancy.role_level}</p>
+                <p className="mt-2"><strong>Department:</strong> {vacancy.department}</p>
+                <p className="mt-2"><strong>Employment Type:</strong> {vacancy.employment_type}</p>
+              </div>
             </div>
 
             {/* Skills */}
@@ -245,22 +237,6 @@ export default function VacancyDetailPage() {
                   >
                     {skill}
                   </span>
-                ))}
-              </div>
-            </div>
-
-            {/* Benefits */}
-            <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-2xl shadow-lg p-8 border border-green-200">
-              <h2 className="text-2xl font-bold text-gray-800 mb-4 flex items-center gap-2">
-                <Award className="w-6 h-6 text-[#3CB878]" />
-                Benefits & Perks
-              </h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {vacancy.benefits.map((benefit, index) => (
-                  <div key={index} className="flex items-start gap-3 bg-white p-4 rounded-lg">
-                    <CheckCircle className="w-5 h-5 text-[#3CB878] mt-0.5" />
-                    <span className="text-gray-700">{benefit}</span>
-                  </div>
                 ))}
               </div>
             </div>
@@ -282,12 +258,12 @@ export default function VacancyDetailPage() {
               </Link>
               <div className="mt-6 pt-6 border-t border-white/20">
                 <div className="flex items-center justify-between text-sm text-blue-100 mb-2">
-                  <span>Application Deadline</span>
-                  <span className="font-semibold text-white">{vacancy.deadline}</span>
+                  <span>Positions Available</span>
+                  <span className="font-semibold text-white">{vacancy.positions}</span>
                 </div>
                 <div className="flex items-center justify-between text-sm text-blue-100">
                   <span>Posted</span>
-                  <span className="font-semibold text-white">{vacancy.postedDate}</span>
+                  <span className="font-semibold text-white">{new Date(vacancy.created_at).toLocaleDateString()}</span>
                 </div>
               </div>
             </div>
@@ -300,25 +276,21 @@ export default function VacancyDetailPage() {
               </h3>
               <div className="space-y-3">
                 <div>
-                  <p className="text-xs text-gray-500">Company Name</p>
-                  <p className="font-semibold text-gray-800">{vacancy.companyInfo.name}</p>
+                  <p className="text-xs text-gray-500">Hiring For</p>
+                  <p className="font-semibold text-gray-800">{vacancy.hiring_for}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-gray-500">Company Size</p>
-                  <p className="font-semibold text-gray-800">{vacancy.companyInfo.size}</p>
+                  <p className="text-xs text-gray-500">Department</p>
+                  <p className="font-semibold text-gray-800">{vacancy.department}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-gray-500">Industry</p>
-                  <p className="font-semibold text-gray-800">{vacancy.companyInfo.industry}</p>
+                  <p className="text-xs text-gray-500">Posting Type</p>
+                  <p className="font-semibold text-gray-800">{vacancy.posting_type}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-gray-500">Founded</p>
-                  <p className="font-semibold text-gray-800">{vacancy.companyInfo.founded}</p>
+                  <p className="text-xs text-gray-500">Status</p>
+                  <p className="font-semibold text-gray-800 capitalize">{vacancy.status}</p>
                 </div>
-                <button className="w-full mt-4 flex items-center justify-center gap-2 px-4 py-2 border-2 border-[#0057D9] text-[#0057D9] rounded-lg font-semibold hover:bg-blue-50 transition-all">
-                  <Globe className="w-4 h-4" />
-                  Visit Website
-                </button>
               </div>
             </div>
 

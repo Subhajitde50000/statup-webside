@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   ArrowLeft, ArrowRight, User, MapPin, Phone, Camera, Check, 
   IndianRupee, TrendingUp, Shield, CheckCircle2, ChevronRight,
@@ -10,8 +10,9 @@ import {
   AlertCircle
 } from 'lucide-react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { signup, sendOTP, verifySignup, uploadProfileImage, APIError } from '@/utils/auth';
+import { registerProfessional } from '@/utils/verifications';
 import { useAuth } from '@/utils/AuthContext';
 
 // Professional categories based on Urban Company model
@@ -52,6 +53,8 @@ const testimonials = [
 
 export default function ProfessionalRegistrationPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const editId = searchParams.get('edit'); // Get verification ID for editing
   const { login } = useAuth();
   const [currentStep, setCurrentStep] = useState(0); // 0 = landing, 1-4 = form steps
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -60,25 +63,50 @@ export default function ProfessionalRegistrationPage() {
   const [showSuccess, setShowSuccess] = useState(false);
   const [apiError, setApiError] = useState('');
   const [registeredUserId, setRegisteredUserId] = useState('');
+  const [isLoadingData, setIsLoadingData] = useState(false);
   
   // Simplified form data
   const [formData, setFormData] = useState({
     // Step 1: Basic
     fullName: '',
     phone: '',
+    email: '',
+    dateOfBirth: '',
+    gender: '',
     
     // Step 2: Service
     profession: '',
+    subCategory: '', // e.g., AC Repair, House Cleaning, etc.
     experience: '',
+    qualifications: '',
+    certifications: '',
+    languages: [] as string[], // Languages spoken
     
-    // Step 3: Location
+    // Step 3: Location & Availability
     address: '',
+    landmark: '',
     city: '',
     pincode: '',
     serviceRadius: '5',
+    availableDays: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'],
+    startTime: '09:00',
+    endTime: '18:00',
     
-    // Step 4: Final
+    // Step 4: Documents & Banking
     aadhaarNumber: '',
+    panNumber: '',
+    drivingLicense: '',
+    policeVerification: false,
+    
+    // Step 5: Banking
+    bankAccountNumber: '',
+    ifscCode: '',
+    accountHolderName: '',
+    
+    // Equipment owned (for applicable services)
+    ownEquipment: false,
+    equipmentList: '',
+    
     agreeTerms: false,
     agreeBackground: false,
   });
@@ -86,10 +114,78 @@ export default function ProfessionalRegistrationPage() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [profileImage, setProfileImage] = useState<string>('');
   const [profileImageFile, setProfileImageFile] = useState<File | null>(null);
-  const [otp, setOtp] = useState(['', '', '', '']);
+  const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [otpSent, setOtpSent] = useState(false);
   const [otpVerified, setOtpVerified] = useState(false);
   const [tempEmail, setTempEmail] = useState('');
+
+  // Load existing verification data if editing
+  useEffect(() => {
+    if (editId) {
+      loadVerificationData(editId);
+    }
+  }, [editId]);
+
+  const loadVerificationData = async (verificationId: string) => {
+    setIsLoadingData(true);
+    try {
+      const response = await fetch(`http://localhost:8000/api/verifications/${verificationId}`);
+      if (!response.ok) throw new Error('Failed to load verification data');
+      
+      const data = await response.json();
+      
+      // Auto-fill form with existing data
+      setFormData({
+        fullName: data.name || '',
+        phone: data.phone || '',
+        email: data.email || '',
+        dateOfBirth: data.date_of_birth || '',
+        gender: data.gender || '',
+        profession: data.profession || '',
+        subCategory: data.sub_category || '',
+        experience: data.experience || '',
+        qualifications: data.qualifications || '',
+        certifications: data.certifications || '',
+        languages: data.languages || [],
+        address: data.address || '',
+        landmark: data.landmark || '',
+        city: data.city || '',
+        pincode: data.pincode || '',
+        serviceRadius: data.service_radius || '5',
+        availableDays: data.available_days || ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'],
+        startTime: data.start_time || '09:00',
+        endTime: data.end_time || '18:00',
+        aadhaarNumber: data.aadhaar_number || '',
+        panNumber: data.pan_number || '',
+        drivingLicense: data.driving_license || '',
+        policeVerification: data.police_verification || false,
+        bankAccountNumber: data.bank_account_number || '',
+        ifscCode: data.ifsc_code || '',
+        accountHolderName: data.account_holder_name || '',
+        ownEquipment: data.own_equipment || false,
+        equipmentList: data.equipment_list || '',
+        agreeTerms: false,
+        agreeBackground: false,
+      });
+
+      if (data.profile_image) {
+        setProfileImage(data.profile_image);
+      }
+
+      if (data.email) {
+        setTempEmail(data.email);
+      }
+
+      // Skip to step 1 (phone already verified)
+      setOtpVerified(true);
+      setCurrentStep(1);
+    } catch (error) {
+      console.error('Error loading verification data:', error);
+      setApiError('Failed to load existing data. Please try again.');
+    } finally {
+      setIsLoadingData(false);
+    }
+  };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
@@ -124,23 +220,34 @@ export default function ProfessionalRegistrationPage() {
   };
 
   const sendOtp = async () => {
-    if (formData.phone.length !== 10) return;
+    // Validate required fields before sending OTP
+    if (!formData.fullName.trim()) {
+      setApiError('Please enter your full name');
+      return;
+    }
+    
+    if (formData.phone.length !== 10) {
+      setApiError('Please enter valid 10-digit phone number');
+      return;
+    }
     
     setIsSendingOtp(true);
     setApiError('');
     
     try {
-      // Generate email from phone if not provided
-      const email = tempEmail || `pro${formData.phone}@electromart.local`;
-      setTempEmail(email);
-      
       // Call backend signup API
-      await signup({
+      const signupData: any = {
         name: formData.fullName,
-        email: email,
         phone: formData.phone,
-        password: `Pro${formData.phone}@123` // Auto-generated password for professionals
-      });
+        password: `Pro${formData.phone}@123`
+      };
+      
+      // Only include email if provided (backend will generate if missing)
+      if (tempEmail && tempEmail.trim()) {
+        signupData.email = tempEmail;
+      }
+      
+      await signup(signupData);
       
       setOtpSent(true);
     } catch (error) {
@@ -156,7 +263,7 @@ export default function ProfessionalRegistrationPage() {
 
   const verifyOtp = async () => {
     const otpCode = otp.join('');
-    if (otpCode.length !== 4) return;
+    if (otpCode.length !== 6) return;
     
     setIsVerifyingOtp(true);
     setApiError('');
@@ -273,11 +380,57 @@ export default function ProfessionalRegistrationPage() {
         }
       }
       
-      // TODO: Update user profile with additional professional data
-      // This would include profession, experience, location, etc.
-      // For now, we'll just show success since basic registration is complete
+      const professionalData = {
+        name: formData.fullName,
+        phone: formData.phone,
+        email: tempEmail || formData.email || undefined,
+        date_of_birth: formData.dateOfBirth || undefined,
+        gender: formData.gender || undefined,
+        profession: formData.profession,
+        sub_category: formData.subCategory || undefined,
+        experience: formData.experience,
+        qualifications: formData.qualifications || undefined,
+        certifications: formData.certifications || undefined,
+        languages: formData.languages,
+        address: formData.address,
+        landmark: formData.landmark || undefined,
+        city: formData.city,
+        pincode: formData.pincode,
+        service_radius: formData.serviceRadius,
+        available_days: formData.availableDays,
+        start_time: formData.startTime,
+        end_time: formData.endTime,
+        aadhaar_number: formData.aadhaarNumber || undefined,
+        pan_number: formData.panNumber || undefined,
+        driving_license: formData.drivingLicense || undefined,
+        police_verification: formData.policeVerification,
+        bank_account_number: formData.bankAccountNumber || undefined,
+        ifsc_code: formData.ifscCode || undefined,
+        account_holder_name: formData.accountHolderName || undefined,
+        own_equipment: formData.ownEquipment,
+        equipment_list: formData.equipmentList || undefined,
+        profile_image: profileImage || undefined,
+      };
       
-      setShowSuccess(true);
+      if (editId) {
+        // Update existing verification
+        const response = await fetch(`http://localhost:8000/api/verifications/edit/${editId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(professionalData)
+        });
+        
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.detail || 'Failed to update registration');
+        }
+      } else {
+        // Submit new professional registration for verification
+        await registerProfessional(professionalData);
+      }
+      
+      // Redirect to status page
+      router.push(`/register/status?phone=${encodeURIComponent(formData.phone)}`);
     } catch (error) {
       if (error instanceof APIError) {
         setApiError(error.message);
@@ -303,8 +456,8 @@ export default function ProfessionalRegistrationPage() {
                 </div>
                 <span className="font-bold text-lg">ElectroMart Pro</span>
               </Link>
-              <Link href="/auth" className="text-sm font-medium hover:underline">
-                Already Registered? Login
+              <Link href="/register/professional/login" className="text-sm font-medium hover:underline">
+                Already Registered? Check Status
               </Link>
             </div>
           </div>
@@ -525,60 +678,18 @@ export default function ProfessionalRegistrationPage() {
     );
   }
 
-  // Success Screen
+  // Success Screen - No longer needed, redirecting to status page instead
   if (showSuccess) {
+    return null; // This should never be reached as we redirect before setting showSuccess
+  }
+
+  // Loading screen when fetching edit data
+  if (isLoadingData) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-emerald-50 to-teal-50 flex items-center justify-center p-4">
-        <div className="bg-white rounded-3xl shadow-2xl p-8 max-w-md w-full text-center">
-          <div className="w-24 h-24 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-6">
-            <CheckCircle2 className="w-12 h-12 text-emerald-600" />
-          </div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Welcome to the Team! 🎉</h2>
-          <p className="text-gray-600 mb-6">
-            Your registration is complete! You can now access your professional dashboard.
-          </p>
-          
-          <div className="bg-gray-50 rounded-xl p-4 mb-4 text-left">
-            <div className="flex justify-between items-center mb-2">
-              <span className="text-sm text-gray-500">Partner ID</span>
-              <span className="font-mono font-bold text-emerald-600">
-                {registeredUserId ? `PRO-${registeredUserId.slice(-8).toUpperCase()}` : 'PRO-VERIFIED'}
-              </span>
-            </div>
-            <div className="flex justify-between items-center mb-2">
-              <span className="text-sm text-gray-500">Name</span>
-              <span className="font-medium text-gray-900">{formData.fullName}</span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-gray-500">Service</span>
-              <span className="font-medium text-gray-900">
-                {professionCategories.find(c => c.id === formData.profession)?.name || 'Not selected'}
-              </span>
-            </div>
-          </div>
-
-          <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 mb-6 text-left">
-            <div className="flex gap-3">
-              <BadgeCheck className="w-5 h-5 text-emerald-600 flex-shrink-0 mt-0.5" />
-              <div>
-                <p className="text-sm font-medium text-emerald-800">Next Steps</p>
-                <ol className="text-sm text-emerald-700 mt-2 space-y-1 list-decimal list-inside">
-                  <li>Complete your professional profile</li>
-                  <li>Add your services and pricing</li>
-                  <li>Start receiving job requests!</li>
-                </ol>
-              </div>
-            </div>
-          </div>
-
-          <div className="space-y-3">
-            <Link href="/professional" className="block w-full bg-emerald-600 text-white py-4 rounded-xl font-semibold hover:bg-emerald-700 transition-colors">
-              Go to Dashboard
-            </Link>
-            <Link href="/" className="block w-full text-gray-600 py-3 font-medium hover:text-gray-900">
-              Back to Home
-            </Link>
-          </div>
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="w-12 h-12 text-emerald-600 animate-spin mx-auto mb-4" />
+          <p className="text-gray-600">Loading your registration details...</p>
         </div>
       </div>
     );
@@ -682,6 +793,22 @@ export default function ProfessionalRegistrationPage() {
               {errors.phone && <p className="text-red-500 text-sm mt-1">{errors.phone}</p>}
             </div>
 
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Email Address (Optional)</label>
+              <input
+                type="email"
+                name="email"
+                value={formData.email}
+                onChange={handleInputChange}
+                placeholder="your.email@example.com"
+                className={`w-full px-4 py-4 text-gray-700 border-2 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none text-lg ${
+                  errors.email ? 'border-red-500' : 'border-gray-200'
+                }`}
+              />
+              {errors.email && <p className="text-red-500 text-sm mt-1">{errors.email}</p>}
+              <p className="text-xs text-gray-500 mt-1">We'll use this for job updates and customer inquiries</p>
+            </div>
+
             {!otpVerified && formData.phone.length === 10 && (
               <div className="space-y-4">
                 {!otpSent ? (
@@ -710,7 +837,7 @@ export default function ProfessionalRegistrationPage() {
                 ) : (
                   <div className="space-y-4">
                     <p className="text-sm text-center text-gray-600">
-                      Enter OTP sent to <strong>+91 {formData.phone}</strong>
+                      Enter 6-digit OTP sent to <strong>+91 {formData.phone}</strong>
                     </p>
                     {apiError && (
                       <div className="bg-red-50 text-red-600 p-3 rounded-xl text-sm flex items-center gap-2">
@@ -736,7 +863,7 @@ export default function ProfessionalRegistrationPage() {
                     </div>
                     <button
                       onClick={verifyOtp}
-                      disabled={otp.join('').length !== 4 || isVerifyingOtp}
+                      disabled={otp.join('').length !== 6 || isVerifyingOtp}
                       className="w-full py-4 bg-emerald-600 text-white rounded-xl font-semibold disabled:opacity-50 flex items-center justify-center gap-2"
                     >
                       {isVerifyingOtp ? (
@@ -983,6 +1110,61 @@ export default function ProfessionalRegistrationPage() {
                   <span className="font-medium text-gray-900">{formData.city}, {formData.pincode}</span>
                 </div>
               </div>
+            </div>
+
+            {/* Documents Upload */}
+            <div className="bg-white border border-gray-200 rounded-2xl p-4">
+              <h3 className="font-semibold text-gray-900 mb-3">📄 Verification Documents</h3>
+              <p className="text-sm text-gray-500 mb-4">Upload documents (optional - can add later)</p>
+              
+              <div className="space-y-3">
+                <label className="block p-4 border-2 border-dashed border-gray-300 rounded-xl cursor-pointer hover:border-emerald-500 hover:bg-emerald-50 transition-colors">
+                  <input type="file" accept=".pdf,.jpg,.jpeg,.png" className="hidden" />
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-emerald-100 rounded-lg flex items-center justify-center">
+                      <Shield className="w-5 h-5 text-emerald-600" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-gray-900">Aadhaar Card</p>
+                      <p className="text-xs text-gray-500">PDF, JPG, or PNG • Max 5MB</p>
+                    </div>
+                    <span className="text-sm text-emerald-600 font-medium">Upload</span>
+                  </div>
+                </label>
+                
+                <label className="block p-4 border-2 border-dashed border-gray-300 rounded-xl cursor-pointer hover:border-emerald-500 hover:bg-emerald-50 transition-colors">
+                  <input type="file" accept=".pdf,.jpg,.jpeg,.png" className="hidden" />
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-emerald-100 rounded-lg flex items-center justify-center">
+                      <BadgeCheck className="w-5 h-5 text-emerald-600" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-gray-900">Experience Certificate</p>
+                      <p className="text-xs text-gray-500">PDF, JPG, or PNG • Max 5MB</p>
+                    </div>
+                    <span className="text-sm text-emerald-600 font-medium">Upload</span>
+                  </div>
+                </label>
+                
+                <label className="block p-4 border-2 border-dashed border-gray-300 rounded-xl cursor-pointer hover:border-emerald-500 hover:bg-emerald-50 transition-colors">
+                  <input type="file" accept=".pdf,.jpg,.jpeg,.png" className="hidden" />
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-emerald-100 rounded-lg flex items-center justify-center">
+                      <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-gray-900">Skill Certificates</p>
+                      <p className="text-xs text-gray-500">PDF, JPG, or PNG • Max 5MB</p>
+                    </div>
+                    <span className="text-sm text-emerald-600 font-medium">Upload</span>
+                  </div>
+                </label>
+              </div>
+              
+              <p className="text-xs text-gray-500 mt-3 flex items-center gap-1">
+                <AlertCircle className="w-3 h-3" />
+                Verified professionals get 50% more bookings
+              </p>
             </div>
 
             {/* Aadhaar (Optional) */}

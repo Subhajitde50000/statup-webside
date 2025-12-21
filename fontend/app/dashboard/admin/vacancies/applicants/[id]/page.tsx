@@ -1,360 +1,539 @@
 'use client';
 
-import React, { useState } from 'react';
-import {
-  ArrowLeft,
-  User,
-  Phone,
-  Mail,
-  MapPin,
-  Briefcase,
-  GraduationCap,
-  Award,
-  FileText,
-  Download,
-  CheckCircle2,
-  XCircle,
-  AlertCircle,
-  Calendar,
-  Star,
+import React, { useState, useEffect } from 'react';
+import { useParams, useRouter } from 'next/navigation';
+import { 
+  ArrowLeft, User, Mail, Phone, MapPin, Calendar, Briefcase, 
+  GraduationCap, DollarSign, Clock, FileText, Link2, Github, 
+  Linkedin, Twitter, Download, Star, Edit, CheckCircle, XCircle,
+  Loader2, AlertCircle, Award, Globe
 } from 'lucide-react';
-import Link from 'next/link';
+import { getApplicationById, Application, updateApplication, APIError } from '@/utils/applications';
 
-export default function ApplicantProfilePage({ params }: { params: { id: string } }) {
-  const [showDocumentAction, setShowDocumentAction] = useState(false);
+export default function ApplicantDetailPage() {
+  const params = useParams();
+  const router = useRouter();
+  const [applicant, setApplicant] = useState<Application | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [isEditing, setIsEditing] = useState(false);
+  const [editedScore, setEditedScore] = useState(0);
+  const [editedStage, setEditedStage] = useState('');
+  const [editedNotes, setEditedNotes] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
 
-  const applicant = {
-    id: params.id,
-    name: 'Rajesh Kumar',
-    photo: 'https://via.placeholder.com/150',
-    age: 32,
-    phone: '+91 98765 43210',
-    email: 'rajesh.kumar@example.com',
-    location: 'Mumbai, Maharashtra',
-    appliedPosition: 'Service Professional - Plumber',
-    currentStage: 'Shortlisted',
-    score: 8.5,
-    resume: '/resumes/rajesh-kumar.pdf',
-    education: [
-      { degree: 'ITI Plumbing', institution: 'Government ITI Mumbai', year: '2012' },
-      { degree: '12th Standard', institution: 'Maharashtra State Board', year: '2010' },
-    ],
-    skills: ['Plumbing Installation', 'Repair & Maintenance', 'Pipe Fitting', 'Water Systems', 'Problem Solving'],
-    experience: [
-      {
-        title: 'Senior Plumber',
-        company: 'ABC Plumbing Services',
-        duration: '2018 - 2024',
-        description: 'Handled residential and commercial plumbing projects',
-      },
-      {
-        title: 'Plumber',
-        company: 'XYZ Construction',
-        duration: '2014 - 2018',
-        description: 'Installation and repair of plumbing systems',
-      },
-    ],
-    certifications: ['ITI Plumbing Certificate', 'Safety Training Certified', 'Advanced Pipe Fitting'],
-    professionalCategory: 'Service Professional',
-    documents: [
-      { type: 'ID Proof (Aadhaar)', status: 'Verified', file: 'aadhaar.pdf' },
-      { type: 'Address Proof', status: 'Verified', file: 'address.pdf' },
-      { type: 'ITI Certificate', status: 'Verified', file: 'iti-cert.pdf' },
-      { type: 'Police Verification', status: 'Pending', file: 'police-verify.pdf' },
-    ],
-    interviewStatus: {
-      scheduled: true,
-      date: '2025-01-15',
-      time: '10:00 AM',
-      interviewer: 'HR Manager Sunita',
-      notes: 'Initial screening completed. Technical round scheduled.',
-      score: 8,
-    },
+  useEffect(() => {
+    fetchApplicantDetails();
+  }, [params.id]);
+
+  const fetchApplicantDetails = async () => {
+    setIsLoading(true);
+    setError('');
+    
+    try {
+      const response = await getApplicationById(params.id as string);
+      setApplicant(response.application);
+      setEditedScore(response.application.score);
+      setEditedStage(response.application.stage);
+      setEditedNotes(response.application.notes || '');
+    } catch (err) {
+      if (err instanceof APIError) {
+        setError(err.message);
+      } else {
+        setError('Failed to load applicant details');
+      }
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const handleDocumentAction = (action: string, docType: string) => {
-    alert(`${action} action performed on ${docType}`);
-    setShowDocumentAction(false);
+  const handleSaveChanges = async () => {
+    if (!applicant) return;
+    
+    setIsSaving(true);
+    try {
+      await updateApplication(applicant.id, {
+        stage: editedStage,
+        score: editedScore,
+        notes: editedNotes
+      });
+      
+      setApplicant({
+        ...applicant,
+        stage: editedStage,
+        score: editedScore,
+        notes: editedNotes
+      });
+      
+      setIsEditing(false);
+    } catch (err) {
+      if (err instanceof APIError) {
+        alert(err.message);
+      } else {
+        alert('Failed to update application');
+      }
+    } finally {
+      setIsSaving(false);
+    }
   };
+
+  const getStageColor = (stage: string) => {
+    const colors: Record<string, string> = {
+      'Under Review': '#0057D9',
+      'Shortlisted': '#3CB878',
+      'Interview Scheduled': '#FFB020',
+      'Background Check': '#00A8E8',
+      'Offer Released': '#3CB878',
+      'Rejected': '#E53935',
+    };
+    return colors[stage] || '#6B7280';
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-[#F4F7FB]">
+        <div className="text-center">
+          <Loader2 className="w-16 h-16 text-[#0057D9] animate-spin mx-auto mb-4" />
+          <p className="text-[#1B1F3B] font-medium">Loading applicant details...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !applicant) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-[#F4F7FB]">
+        <div className="text-center">
+          <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
+          <p className="text-[#1B1F3B] font-medium mb-4">{error || 'Applicant not found'}</p>
+          <button
+            onClick={() => router.back()}
+            className="px-6 py-3 bg-[#0057D9] text-white rounded-lg hover:bg-[#0044AA]"
+          >
+            Go Back
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#F4F7FB] p-8">
       {/* Header */}
       <div className="mb-8">
-        <Link
-          href="/dashboard/admin/vacancies/applicants"
-          className="inline-flex items-center gap-2 text-[#0057D9] hover:text-[#0044AA] font-semibold mb-4"
+        <button
+          onClick={() => router.back()}
+          className="flex items-center gap-2 text-[#0057D9] hover:text-[#0044AA] mb-4 font-semibold"
         >
           <ArrowLeft className="w-5 h-5" />
-          Back to Applicants
-        </Link>
+          Back to All Applicants
+        </button>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-[#1B1F3B] mb-2">{applicant.full_name}</h1>
+            <p className="text-[#6B7280]">Application for {applicant.vacancy_title}</p>
+          </div>
+          <div className="flex items-center gap-3">
+            <span
+              className="px-4 py-2 rounded-lg text-sm font-semibold text-white"
+              style={{ backgroundColor: getStageColor(applicant.stage) }}
+            >
+              {applicant.stage}
+            </span>
+            {!isEditing ? (
+              <button
+                onClick={() => setIsEditing(true)}
+                className="px-6 py-3 bg-[#0057D9] text-white rounded-lg font-semibold hover:bg-[#0044AA] flex items-center gap-2"
+              >
+                <Edit className="w-4 h-4" />
+                Update Status
+              </button>
+            ) : (
+              <div className="flex gap-2">
+                <button
+                  onClick={handleSaveChanges}
+                  disabled={isSaving}
+                  className="px-6 py-3 bg-[#3CB878] text-white rounded-lg font-semibold hover:bg-[#2FA366] flex items-center gap-2 disabled:opacity-50"
+                >
+                  {isSaving ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle className="w-4 h-4" />
+                      Save Changes
+                    </>
+                  )}
+                </button>
+                <button
+                  onClick={() => {
+                    setIsEditing(false);
+                    setEditedScore(applicant.score);
+                    setEditedStage(applicant.stage);
+                    setEditedNotes(applicant.notes || '');
+                  }}
+                  className="px-6 py-3 bg-gray-200 text-[#1B1F3B] rounded-lg font-semibold hover:bg-gray-300 flex items-center gap-2"
+                >
+                  <XCircle className="w-4 h-4" />
+                  Cancel
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Main Content */}
         <div className="lg:col-span-2 space-y-6">
-          {/* Applicant Summary */}
-          <div className="bg-white rounded-2xl p-8 shadow-sm border border-gray-100">
-            <div className="flex items-start gap-6 mb-6">
-              <div className="w-24 h-24 bg-gradient-to-br from-[#0057D9] to-[#0044AA] rounded-2xl flex items-center justify-center text-white text-3xl font-bold">
-                {applicant.name.charAt(0)}
+          {/* Personal Information */}
+          <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+            <h2 className="text-xl font-bold text-[#1B1F3B] mb-4 flex items-center gap-2">
+              <User className="w-5 h-5 text-[#0057D9]" />
+              Personal Information
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="flex items-start gap-3">
+                <Mail className="w-5 h-5 text-[#6B7280] mt-1" />
+                <div>
+                  <p className="text-xs text-[#6B7280] mb-1">Email</p>
+                  <p className="font-semibold text-[#1B1F3B]">{applicant.email}</p>
+                </div>
               </div>
-              <div className="flex-1">
-                <h1 className="text-2xl font-bold text-[#1B1F3B] mb-2">{applicant.name}</h1>
-                <div className="flex flex-wrap gap-4 text-[#6B7280] mb-4">
-                  <span className="flex items-center gap-1">
-                    <User className="w-4 h-4" />
-                    {applicant.age} years
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <Phone className="w-4 h-4" />
-                    {applicant.phone}
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <Mail className="w-4 h-4" />
-                    {applicant.email}
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <MapPin className="w-4 h-4" />
-                    {applicant.location}
-                  </span>
+              <div className="flex items-start gap-3">
+                <Phone className="w-5 h-5 text-[#6B7280] mt-1" />
+                <div>
+                  <p className="text-xs text-[#6B7280] mb-1">Phone</p>
+                  <p className="font-semibold text-[#1B1F3B]">{applicant.phone}</p>
                 </div>
-                <div className="flex items-center gap-3">
-                  <span className="px-4 py-2 bg-[#3CB878] text-white rounded-xl font-semibold text-sm">
-                    {applicant.currentStage}
-                  </span>
-                  <div className="flex items-center gap-1 px-4 py-2 bg-[#FFF8E1] rounded-xl">
-                    <Star className="w-5 h-5 text-[#FFB020] fill-[#FFB020]" />
-                    <span className="font-bold text-[#1B1F3B]">{applicant.score}</span>
-                    <span className="text-sm text-[#6B7280]">/10</span>
+              </div>
+              <div className="flex items-start gap-3">
+                <MapPin className="w-5 h-5 text-[#6B7280] mt-1" />
+                <div>
+                  <p className="text-xs text-[#6B7280] mb-1">Location</p>
+                  <p className="font-semibold text-[#1B1F3B]">{applicant.current_location}</p>
+                </div>
+              </div>
+              {applicant.date_of_birth && (
+                <div className="flex items-start gap-3">
+                  <Calendar className="w-5 h-5 text-[#6B7280] mt-1" />
+                  <div>
+                    <p className="text-xs text-[#6B7280] mb-1">Date of Birth</p>
+                    <p className="font-semibold text-[#1B1F3B]">{applicant.date_of_birth}</p>
                   </div>
-                  <a
-                    href={applicant.resume}
-                    download
-                    className="px-4 py-2 bg-[#0057D9] text-white rounded-xl font-semibold text-sm hover:bg-[#0044AA] transition-colors flex items-center gap-2"
-                  >
-                    <Download className="w-4 h-4" />
-                    Resume
-                  </a>
                 </div>
+              )}
+            </div>
+          </div>
+
+          {/* Professional Information */}
+          <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+            <h2 className="text-xl font-bold text-[#1B1F3B] mb-4 flex items-center gap-2">
+              <Briefcase className="w-5 h-5 text-[#3CB878]" />
+              Professional Information
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {applicant.current_company && (
+                <div>
+                  <p className="text-xs text-[#6B7280] mb-1">Current Company</p>
+                  <p className="font-semibold text-[#1B1F3B]">{applicant.current_company}</p>
+                </div>
+              )}
+              {applicant.current_designation && (
+                <div>
+                  <p className="text-xs text-[#6B7280] mb-1">Current Designation</p>
+                  <p className="font-semibold text-[#1B1F3B]">{applicant.current_designation}</p>
+                </div>
+              )}
+              <div>
+                <p className="text-xs text-[#6B7280] mb-1">Total Experience</p>
+                <p className="font-semibold text-[#1B1F3B] flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-[#FFB020]" />
+                  {applicant.total_experience}
+                </p>
+              </div>
+              {applicant.current_salary && (
+                <div>
+                  <p className="text-xs text-[#6B7280] mb-1">Current Salary</p>
+                  <p className="font-semibold text-[#1B1F3B]">{applicant.current_salary}</p>
+                </div>
+              )}
+              <div>
+                <p className="text-xs text-[#6B7280] mb-1">Expected Salary</p>
+                <p className="font-semibold text-[#1B1F3B] flex items-center gap-2">
+                  <DollarSign className="w-4 h-4 text-[#3CB878]" />
+                  {applicant.expected_salary}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-[#6B7280] mb-1">Notice Period</p>
+                <p className="font-semibold text-[#1B1F3B]">{applicant.notice_period}</p>
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4 p-4 bg-[#F4F7FB] rounded-xl">
-              <div>
-                <p className="text-sm text-[#6B7280] mb-1">Applied Position</p>
-                <p className="font-semibold text-[#1B1F3B]">{applicant.appliedPosition}</p>
-              </div>
-              <div>
-                <p className="text-sm text-[#6B7280] mb-1">Professional Category</p>
-                <p className="font-semibold text-[#1B1F3B]">{applicant.professionalCategory}</p>
+            <div className="mt-4 pt-4 border-t border-gray-100">
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2">
+                  {applicant.willing_to_relocate ? (
+                    <CheckCircle className="w-5 h-5 text-[#3CB878]" />
+                  ) : (
+                    <XCircle className="w-5 h-5 text-[#E53935]" />
+                  )}
+                  <span className="text-sm text-[#1B1F3B]">Willing to Relocate</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  {applicant.available_for_interview ? (
+                    <CheckCircle className="w-5 h-5 text-[#3CB878]" />
+                  ) : (
+                    <XCircle className="w-5 h-5 text-[#E53935]" />
+                  )}
+                  <span className="text-sm text-[#1B1F3B]">Available for Interview</span>
+                </div>
               </div>
             </div>
           </div>
 
           {/* Education */}
-          <div className="bg-white rounded-2xl p-8 shadow-sm border border-gray-100">
-            <h2 className="text-xl font-bold text-[#1B1F3B] mb-6 flex items-center gap-2">
-              <GraduationCap className="w-6 h-6 text-[#0057D9]" />
+          <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+            <h2 className="text-xl font-bold text-[#1B1F3B] mb-4 flex items-center gap-2">
+              <GraduationCap className="w-5 h-5 text-purple-600" />
               Education
             </h2>
-            <div className="space-y-4">
-              {applicant.education.map((edu, index) => (
-                <div key={index} className="flex items-start gap-4 p-4 bg-[#F4F7FB] rounded-xl">
-                  <div className="w-12 h-12 bg-[#0057D9] text-white rounded-lg flex items-center justify-center font-bold">
-                    {edu.year}
-                  </div>
-                  <div className="flex-1">
-                    <p className="font-semibold text-[#1B1F3B] mb-1">{edu.degree}</p>
-                    <p className="text-sm text-[#6B7280]">{edu.institution}</p>
-                  </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <p className="text-xs text-[#6B7280] mb-1">Highest Qualification</p>
+                <p className="font-semibold text-[#1B1F3B]">{applicant.highest_qualification}</p>
+              </div>
+              {applicant.university && (
+                <div>
+                  <p className="text-xs text-[#6B7280] mb-1">University/College</p>
+                  <p className="font-semibold text-[#1B1F3B]">{applicant.university}</p>
                 </div>
-              ))}
+              )}
+              {applicant.graduation_year && (
+                <div>
+                  <p className="text-xs text-[#6B7280] mb-1">Graduation Year</p>
+                  <p className="font-semibold text-[#1B1F3B]">{applicant.graduation_year}</p>
+                </div>
+              )}
+              {applicant.cgpa && (
+                <div>
+                  <p className="text-xs text-[#6B7280] mb-1">CGPA/Percentage</p>
+                  <p className="font-semibold text-[#1B1F3B]">{applicant.cgpa}</p>
+                </div>
+              )}
             </div>
           </div>
 
-          {/* Skills */}
-          <div className="bg-white rounded-2xl p-8 shadow-sm border border-gray-100">
-            <h2 className="text-xl font-bold text-[#1B1F3B] mb-6 flex items-center gap-2">
-              <Award className="w-6 h-6 text-[#0057D9]" />
-              Skills
-            </h2>
-            <div className="flex flex-wrap gap-3">
-              {applicant.skills.map((skill, index) => (
-                <span
-                  key={index}
-                  className="px-4 py-2 bg-[#E3F2FD] text-[#0057D9] rounded-lg font-semibold text-sm"
-                >
-                  {skill}
-                </span>
-              ))}
+          {/* Cover Letter */}
+          {applicant.cover_letter && (
+            <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+              <h2 className="text-xl font-bold text-[#1B1F3B] mb-4 flex items-center gap-2">
+                <FileText className="w-5 h-5 text-[#FFB020]" />
+                Cover Letter
+              </h2>
+              <p className="text-[#1B1F3B] leading-relaxed whitespace-pre-wrap">{applicant.cover_letter}</p>
             </div>
-          </div>
+          )}
 
-          {/* Work Experience */}
-          <div className="bg-white rounded-2xl p-8 shadow-sm border border-gray-100">
-            <h2 className="text-xl font-bold text-[#1B1F3B] mb-6 flex items-center gap-2">
-              <Briefcase className="w-6 h-6 text-[#0057D9]" />
-              Work Experience
-            </h2>
-            <div className="space-y-4">
-              {applicant.experience.map((exp, index) => (
-                <div key={index} className="relative pl-8 pb-6 border-l-2 border-[#E5E7EB] last:border-0 last:pb-0">
-                  <div className="absolute -left-2 top-0 w-4 h-4 bg-[#0057D9] rounded-full"></div>
-                  <div className="mb-1">
-                    <p className="font-semibold text-[#1B1F3B]">{exp.title}</p>
-                    <p className="text-sm text-[#6B7280]">{exp.company}</p>
-                  </div>
-                  <p className="text-xs text-[#6B7280] mb-2">{exp.duration}</p>
-                  <p className="text-sm text-[#1B1F3B]">{exp.description}</p>
-                </div>
-              ))}
+          {/* Social Profiles */}
+          {(applicant.portfolio || applicant.github || applicant.linkedin || applicant.twitter) && (
+            <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+              <h2 className="text-xl font-bold text-[#1B1F3B] mb-4 flex items-center gap-2">
+                <Link2 className="w-5 h-5 text-[#0057D9]" />
+                Social Profiles
+              </h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {applicant.portfolio && (
+                  <a
+                    href={applicant.portfolio}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-3 p-3 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
+                  >
+                    <Globe className="w-5 h-5 text-[#0057D9]" />
+                    <span className="text-sm font-semibold text-[#0057D9]">Portfolio</span>
+                  </a>
+                )}
+                {applicant.github && (
+                  <a
+                    href={applicant.github}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+                  >
+                    <Github className="w-5 h-5 text-[#1B1F3B]" />
+                    <span className="text-sm font-semibold text-[#1B1F3B]">GitHub</span>
+                  </a>
+                )}
+                {applicant.linkedin && (
+                  <a
+                    href={applicant.linkedin}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-3 p-3 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
+                  >
+                    <Linkedin className="w-5 h-5 text-[#0057D9]" />
+                    <span className="text-sm font-semibold text-[#0057D9]">LinkedIn</span>
+                  </a>
+                )}
+                {applicant.twitter && (
+                  <a
+                    href={applicant.twitter}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-3 p-3 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
+                  >
+                    <Twitter className="w-5 h-5 text-[#0057D9]" />
+                    <span className="text-sm font-semibold text-[#0057D9]">Twitter</span>
+                  </a>
+                )}
+              </div>
             </div>
-          </div>
-
-          {/* Certifications */}
-          <div className="bg-white rounded-2xl p-8 shadow-sm border border-gray-100">
-            <h2 className="text-xl font-bold text-[#1B1F3B] mb-6 flex items-center gap-2">
-              <Award className="w-6 h-6 text-[#0057D9]" />
-              Certifications
-            </h2>
-            <div className="space-y-2">
-              {applicant.certifications.map((cert, index) => (
-                <div key={index} className="flex items-center gap-3 p-3 bg-[#F4F7FB] rounded-lg">
-                  <CheckCircle2 className="w-5 h-5 text-[#3CB878]" />
-                  <span className="font-semibold text-[#1B1F3B]">{cert}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Documents */}
-          <div className="bg-white rounded-2xl p-8 shadow-sm border border-gray-100">
-            <h2 className="text-xl font-bold text-[#1B1F3B] mb-6 flex items-center gap-2">
-              <FileText className="w-6 h-6 text-[#0057D9]" />
-              Uploaded Documents
-            </h2>
-            <div className="space-y-4">
-              {applicant.documents.map((doc, index) => (
-                <div key={index} className="flex items-center justify-between p-4 border-2 border-gray-200 rounded-xl hover:border-[#0057D9] transition-colors">
-                  <div className="flex items-center gap-4">
-                    <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${
-                      doc.status === 'Verified' ? 'bg-[#E8F5E9]' : 'bg-[#FFF8E1]'
-                    }`}>
-                      {doc.status === 'Verified' ? (
-                        <CheckCircle2 className="w-6 h-6 text-[#3CB878]" />
-                      ) : (
-                        <AlertCircle className="w-6 h-6 text-[#FFB020]" />
-                      )}
-                    </div>
-                    <div>
-                      <p className="font-semibold text-[#1B1F3B]">{doc.type}</p>
-                      <p className="text-sm text-[#6B7280]">{doc.file}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                      doc.status === 'Verified'
-                        ? 'bg-[#E8F5E9] text-[#3CB878]'
-                        : 'bg-[#FFF8E1] text-[#FFB020]'
-                    }`}>
-                      {doc.status}
-                    </span>
-                    {doc.status === 'Pending' && (
-                      <>
-                        <button
-                          onClick={() => handleDocumentAction('Approve', doc.type)}
-                          className="px-4 py-2 bg-[#3CB878] text-white rounded-lg font-semibold hover:bg-[#2FA968] transition-colors"
-                        >
-                          Approve
-                        </button>
-                        <button
-                          onClick={() => handleDocumentAction('Reject', doc.type)}
-                          className="px-4 py-2 bg-[#E53935] text-white rounded-lg font-semibold hover:bg-[#C62828] transition-colors"
-                        >
-                          Reject
-                        </button>
-                      </>
-                    )}
-                    <a
-                      href={`/documents/${doc.file}`}
-                      download
-                      className="p-2 hover:bg-[#F4F7FB] rounded-lg transition-colors"
-                    >
-                      <Download className="w-5 h-5 text-[#0057D9]" />
-                    </a>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
+          )}
         </div>
 
         {/* Sidebar */}
         <div className="space-y-6">
-          {/* Interview Status */}
-          <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-            <h2 className="text-xl font-bold text-[#1B1F3B] mb-6 flex items-center gap-2">
-              <Calendar className="w-6 h-6 text-[#0057D9]" />
-              Interview Status
-            </h2>
-            {applicant.interviewStatus.scheduled ? (
+          {/* Score & Stage Card */}
+          <div className="bg-gradient-to-br from-[#0057D9] to-[#1B1F3B] rounded-2xl p-6 shadow-xl text-white">
+            <h3 className="text-lg font-bold mb-4">Application Status</h3>
+            
+            {isEditing ? (
               <div className="space-y-4">
-                <div className="p-4 bg-[#E3F2FD] rounded-xl">
-                  <p className="text-sm text-[#6B7280] mb-1">Scheduled Date</p>
-                  <p className="font-bold text-[#1B1F3B]">
-                    {applicant.interviewStatus.date} at {applicant.interviewStatus.time}
-                  </p>
-                </div>
                 <div>
-                  <p className="text-sm text-[#6B7280] mb-1">Interviewer</p>
-                  <p className="font-semibold text-[#1B1F3B]">{applicant.interviewStatus.interviewer}</p>
+                  <label className="text-sm text-blue-100 mb-2 block">Stage</label>
+                  <select
+                    value={editedStage}
+                    onChange={(e) => setEditedStage(e.target.value)}
+                    className="w-full px-4 py-2 bg-black/10 border border-white/20 rounded-lg text-white focus:outline-none focus:border-white"
+                  >
+                    <option value="Under Review">Under Review</option>
+                    <option value="Shortlisted">Shortlisted</option>
+                    <option value="Interview Scheduled">Interview Scheduled</option>
+                    <option value="Background Check">Background Check</option>
+                    <option value="Offer Released">Offer Released</option>
+                    <option value="Rejected">Rejected</option>
+                  </select>
                 </div>
+                
                 <div>
-                  <p className="text-sm text-[#6B7280] mb-1">Interview Notes</p>
-                  <p className="text-sm text-[#1B1F3B]">{applicant.interviewStatus.notes}</p>
+                  <label className="text-sm text-blue-100 mb-2 block">Score (0-10)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="10"
+                    step="0.1"
+                    value={editedScore}
+                    onChange={(e) => setEditedScore(parseFloat(e.target.value))}
+                    className="w-full px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:border-white"
+                  />
                 </div>
+
                 <div>
-                  <p className="text-sm text-[#6B7280] mb-2">Interview Score</p>
-                  <div className="flex items-center gap-1">
-                    <Star className="w-5 h-5 text-[#FFB020] fill-[#FFB020]" />
-                    <span className="font-bold text-[#1B1F3B]">{applicant.interviewStatus.score}</span>
-                    <span className="text-sm text-[#6B7280]">/10</span>
-                  </div>
+                  <label className="text-sm text-blue-100 mb-2 block">Notes</label>
+                  <textarea
+                    value={editedNotes}
+                    onChange={(e) => setEditedNotes(e.target.value)}
+                    rows={4}
+                    className="w-full px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:border-white resize-none"
+                    placeholder="Add notes about this application..."
+                  />
                 </div>
               </div>
             ) : (
-              <p className="text-[#6B7280]">No interview scheduled yet</p>
+              <>
+                <div className="flex items-center justify-between mb-4 pb-4 border-b border-white/20">
+                  <span className="text-blue-100">Current Stage</span>
+                  <span className="font-bold">{applicant.stage}</span>
+                </div>
+                
+                <div className="flex items-center justify-between mb-4 pb-4 border-b border-white/20">
+                  <span className="text-blue-100">Score</span>
+                  <div className="flex items-center gap-2">
+                    <Star className="w-5 h-5 text-[#FFB020] fill-[#FFB020]" />
+                    <span className="text-2xl font-bold">{applicant.score.toFixed(1)}</span>
+                    <span className="text-blue-100">/10</span>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-blue-100">Applied On</span>
+                  <span className="font-semibold">{new Date(applicant.applied_at).toLocaleDateString()}</span>
+                </div>
+              </>
             )}
           </div>
 
-          {/* Quick Actions */}
+          {/* Documents Card */}
           <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-            <h2 className="text-xl font-bold text-[#1B1F3B] mb-4">Quick Actions</h2>
+            <h3 className="text-lg font-bold text-[#1B1F3B] mb-4 flex items-center gap-2">
+              <FileText className="w-5 h-5 text-[#0057D9]" />
+              Documents
+            </h3>
             <div className="space-y-3">
-              <Link
-                href={`/dashboard/admin/vacancies/interview/${applicant.id}`}
-                className="block w-full px-4 py-3 bg-[#0057D9] text-white rounded-xl font-semibold text-center hover:bg-[#0044AA] transition-colors"
-              >
-                Schedule Interview
-              </Link>
-              <Link
-                href={`/dashboard/admin/vacancies/evaluation/${applicant.id}`}
-                className="block w-full px-4 py-3 bg-[#3CB878] text-white rounded-xl font-semibold text-center hover:bg-[#2FA968] transition-colors"
-              >
-                Evaluate Applicant
-              </Link>
-              <Link
-                href={`/dashboard/admin/vacancies/decision/${applicant.id}`}
-                className="block w-full px-4 py-3 bg-white border-2 border-[#0057D9] text-[#0057D9] rounded-xl font-semibold text-center hover:bg-[#E3F2FD] transition-colors"
-              >
-                Make Decision
-              </Link>
-              <button className="w-full px-4 py-3 bg-[#E53935] text-white rounded-xl font-semibold hover:bg-[#C62828] transition-colors">
-                Reject Applicant
-              </button>
+              <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <FileText className="w-5 h-5 text-[#0057D9]" />
+                    <div>
+                      <p className="font-semibold text-[#1B1F3B]">Resume/CV</p>
+                      <p className="text-xs text-[#6B7280]">PDF Document</p>
+                    </div>
+                  </div>
+                  <button className="p-2 bg-[#0057D9] text-white rounded-lg hover:bg-[#0044AA] transition-colors">
+                    <Download className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+              
+              <p className="text-xs text-[#6B7280] text-center mt-4">
+                Note: Document download functionality requires backend file storage implementation
+              </p>
             </div>
           </div>
+
+          {/* Timeline Card */}
+          <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+            <h3 className="text-lg font-bold text-[#1B1F3B] mb-4 flex items-center gap-2">
+              <Clock className="w-5 h-5 text-[#FFB020]" />
+              Timeline
+            </h3>
+            <div className="space-y-4">
+              <div className="flex items-start gap-3">
+                <div className="bg-blue-50 p-2 rounded-full">
+                  <CheckCircle className="w-4 h-4 text-[#0057D9]" />
+                </div>
+                <div className="flex-1">
+                  <p className="font-semibold text-[#1B1F3B]">Application Submitted</p>
+                  <p className="text-xs text-[#6B7280]">{new Date(applicant.applied_at).toLocaleString()}</p>
+                </div>
+              </div>
+              
+              <div className="flex items-start gap-3">
+                <div className="bg-green-50 p-2 rounded-full">
+                  <Award className="w-4 h-4 text-[#3CB878]" />
+                </div>
+                <div className="flex-1">
+                  <p className="font-semibold text-[#1B1F3B]">Current Status</p>
+                  <p className="text-xs text-[#6B7280]">{applicant.stage}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Admin Notes */}
+          {!isEditing && applicant.notes && (
+            <div className="bg-amber-50 rounded-2xl p-6 shadow-sm border border-amber-200">
+              <h3 className="text-lg font-bold text-[#1B1F3B] mb-3 flex items-center gap-2">
+                <FileText className="w-5 h-5 text-[#FFB020]" />
+                Admin Notes
+              </h3>
+              <p className="text-sm text-[#1B1F3B] whitespace-pre-wrap">{applicant.notes}</p>
+            </div>
+          )}
         </div>
       </div>
     </div>

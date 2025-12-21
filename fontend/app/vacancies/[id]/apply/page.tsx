@@ -1,8 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
+import { submitApplication, APIError } from '@/utils/applications';
+import { getVacancyById, Vacancy } from '@/utils/vacancies';
 import { 
   ArrowLeft, Upload, FileText, Mail, Phone, MapPin, User, Briefcase, 
   GraduationCap, Calendar, Award, Link2, Github, Linkedin, Twitter,
@@ -11,9 +13,13 @@ import {
 
 export default function ApplyPage() {
   const params = useParams();
+  const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
+  const [isLoading, setIsLoading] = useState(true);
+  const [job, setJob] = useState<Vacancy | null>(null);
+  const [error, setError] = useState('');
 
   const [formData, setFormData] = useState({
     // Personal Information
@@ -57,13 +63,21 @@ export default function ApplyPage() {
 
   const [errors, setErrors] = useState<any>({});
 
-  // Mock job data
-  const job = {
-    id: params.id,
-    title: 'Senior Full Stack Developer',
-    company: 'TechCorp Solutions',
-    department: 'Engineering'
-  };
+  // Fetch job details
+  useEffect(() => {
+    const fetchJob = async () => {
+      try {
+        const response = await getVacancyById(params.id as string);
+        setJob(response.vacancy);
+      } catch (err) {
+        setError('Failed to load job details');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    fetchJob();
+  }, [params.id]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
@@ -140,11 +154,53 @@ export default function ApplyPage() {
 
     setIsSubmitting(true);
 
-    // Simulate API call
-    setTimeout(() => {
-      setIsSubmitting(false);
+    try {
+      const applicationData = {
+        vacancy_id: params.id as string,
+        first_name: formData.firstName,
+        last_name: formData.lastName,
+        email: formData.email,
+        phone: formData.phone,
+        current_location: formData.currentLocation,
+        date_of_birth: formData.dateOfBirth,
+        
+        current_company: formData.currentCompany,
+        current_designation: formData.currentDesignation,
+        total_experience: formData.totalExperience,
+        current_salary: formData.currentSalary,
+        expected_salary: formData.expectedSalary,
+        notice_period: formData.noticePeriod,
+        
+        highest_qualification: formData.highestQualification,
+        university: formData.university,
+        graduation_year: formData.graduationYear,
+        cgpa: formData.cgpa,
+        
+        cover_letter: formData.coverLetter,
+        portfolio: formData.portfolio,
+        github: formData.github,
+        linkedin: formData.linkedin,
+        twitter: formData.twitter,
+        
+        willing_to_relocate: formData.willingToRelocate,
+        available_for_interview: formData.availableForInterview,
+      };
+
+      await submitApplication(applicationData);
       setShowSuccess(true);
-    }, 2000);
+    } catch (err) {
+      if (err instanceof APIError) {
+        if (err.status === 400 && err.message.includes('already')) {
+          setErrors({ submit: 'This email has already been used to apply for this position' });
+        } else {
+          setErrors({ submit: err.message });
+        }
+      } else {
+        setErrors({ submit: 'Failed to submit application. Please try again.' });
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const steps = [
@@ -153,6 +209,33 @@ export default function ApplyPage() {
     { number: 3, title: 'Education', icon: GraduationCap },
     { number: 4, title: 'Documents', icon: FileText }
   ];
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-[#F4F7FB] via-white to-[#E8F4F8]">
+        <div className="text-center">
+          <Loader2 className="w-16 h-16 text-[#0057D9] animate-spin mx-auto mb-4" />
+          <p className="text-[#1B1F3B] font-medium">Loading job details...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !job) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-[#F4F7FB] via-white to-[#E8F4F8]">
+        <div className="text-center">
+          <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
+          <p className="text-[#1B1F3B] font-medium mb-4">{error || 'Job not found'}</p>
+          <Link href="/vacancies">
+            <button className="px-6 py-3 bg-[#0057D9] text-white rounded-lg">
+              Browse Jobs
+            </button>
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   if (showSuccess) {
     return (
@@ -163,7 +246,7 @@ export default function ApplyPage() {
           </div>
           <h1 className="text-4xl font-bold text-gray-800 mb-4">Application Submitted!</h1>
           <p className="text-xl text-gray-600 mb-8">
-            Your application for <span className="font-semibold text-[#0057D9]">{job.title}</span> has been successfully submitted.
+            Your application for <span className="font-semibold text-[#0057D9]">{job.job_title}</span> has been successfully submitted.
           </p>
           <div className="bg-blue-50 rounded-xl p-6 mb-8">
             <h3 className="font-semibold text-gray-800 mb-2">What's Next?</h3>
@@ -210,8 +293,8 @@ export default function ApplyPage() {
               <span>Back to Job Details</span>
             </button>
           </Link>
-          <h1 className="text-3xl font-bold mb-2">Apply for {job.title}</h1>
-          <p className="text-blue-100">{job.company} - {job.department}</p>
+          <h1 className="text-3xl font-bold mb-2">Apply for {job.job_title}</h1>
+          <p className="text-blue-100">{job.department} - {job.hiring_for}</p>
         </div>
       </div>
 
@@ -275,7 +358,7 @@ export default function ApplyPage() {
                       name="firstName"
                       value={formData.firstName}
                       onChange={handleInputChange}
-                      className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-[#0057D9] focus:border-transparent outline-none transition-all ${
+                      className={`w-full px-4 py-3 text-gray-700 border rounded-lg focus:ring-2 focus:ring-[#0057D9] focus:border-transparent outline-none transition-all ${
                         errors.firstName ? 'border-red-500' : 'border-gray-200'
                       }`}
                       placeholder="John"
@@ -297,7 +380,7 @@ export default function ApplyPage() {
                       name="lastName"
                       value={formData.lastName}
                       onChange={handleInputChange}
-                      className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-[#0057D9] focus:border-transparent outline-none transition-all ${
+                      className={`w-full px-4 py-3 text-gray-700 border rounded-lg focus:ring-2 focus:ring-[#0057D9] focus:border-transparent outline-none transition-all ${
                         errors.lastName ? 'border-red-500' : 'border-gray-200'
                       }`}
                       placeholder="Doe"
@@ -323,7 +406,7 @@ export default function ApplyPage() {
                         name="email"
                         value={formData.email}
                         onChange={handleInputChange}
-                        className={`w-full pl-11 pr-4 py-3 border rounded-lg focus:ring-2 focus:ring-[#0057D9] focus:border-transparent outline-none transition-all ${
+                        className={`w-full pl-11 pr-4 py-3 text-gray-700 border rounded-lg focus:ring-2 focus:ring-[#0057D9] focus:border-transparent outline-none transition-all ${
                           errors.email ? 'border-red-500' : 'border-gray-200'
                         }`}
                         placeholder="john.doe@example.com"
@@ -348,7 +431,7 @@ export default function ApplyPage() {
                         name="phone"
                         value={formData.phone}
                         onChange={handleInputChange}
-                        className={`w-full pl-11 pr-4 py-3 border rounded-lg focus:ring-2 focus:ring-[#0057D9] focus:border-transparent outline-none transition-all ${
+                        className={`w-full pl-11 pr-4 py-3 text-gray-700 border rounded-lg focus:ring-2 focus:ring-[#0057D9] focus:border-transparent outline-none transition-all ${
                           errors.phone ? 'border-red-500' : 'border-gray-200'
                         }`}
                         placeholder="+91 9876543210"
@@ -375,7 +458,7 @@ export default function ApplyPage() {
                         name="currentLocation"
                         value={formData.currentLocation}
                         onChange={handleInputChange}
-                        className={`w-full pl-11 pr-4 py-3 border rounded-lg focus:ring-2 focus:ring-[#0057D9] focus:border-transparent outline-none transition-all ${
+                        className={`w-full pl-11 pr-4 py-3 text-gray-700 border rounded-lg focus:ring-2 focus:ring-[#0057D9] focus:border-transparent outline-none transition-all ${
                           errors.currentLocation ? 'border-red-500' : 'border-gray-200'
                         }`}
                         placeholder="Bangalore, India"
@@ -400,7 +483,7 @@ export default function ApplyPage() {
                         name="dateOfBirth"
                         value={formData.dateOfBirth}
                         onChange={handleInputChange}
-                        className="w-full pl-11 pr-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#0057D9] focus:border-transparent outline-none transition-all"
+                        className="w-full pl-11 pr-4 py-3 text-gray-700 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#0057D9] focus:border-transparent outline-none transition-all"
                       />
                     </div>
                   </div>
@@ -431,7 +514,7 @@ export default function ApplyPage() {
                       name="currentCompany"
                       value={formData.currentCompany}
                       onChange={handleInputChange}
-                      className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#0057D9] focus:border-transparent outline-none transition-all"
+                      className="w-full px-4 py-3 text-gray-700 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#0057D9] focus:border-transparent outline-none transition-all"
                       placeholder="ABC Technologies"
                     />
                   </div>
@@ -445,7 +528,7 @@ export default function ApplyPage() {
                       name="currentDesignation"
                       value={formData.currentDesignation}
                       onChange={handleInputChange}
-                      className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#0057D9] focus:border-transparent outline-none transition-all"
+                      className="w-full px-4 py-3 text-gray-700 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#0057D9] focus:border-transparent outline-none transition-all"
                       placeholder="Software Engineer"
                     />
                   </div>
@@ -460,7 +543,7 @@ export default function ApplyPage() {
                       name="totalExperience"
                       value={formData.totalExperience}
                       onChange={handleInputChange}
-                      className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-[#0057D9] focus:border-transparent outline-none transition-all ${
+                      className={`w-full px-4 py-3 text-gray-700 border rounded-lg focus:ring-2 focus:ring-[#0057D9] focus:border-transparent outline-none transition-all ${
                         errors.totalExperience ? 'border-red-500' : 'border-gray-200'
                       }`}
                     >
@@ -488,7 +571,7 @@ export default function ApplyPage() {
                       name="noticePeriod"
                       value={formData.noticePeriod}
                       onChange={handleInputChange}
-                      className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-[#0057D9] focus:border-transparent outline-none transition-all ${
+                      className={`w-full px-4 py-3 text-gray-700 border rounded-lg focus:ring-2 focus:ring-[#0057D9] focus:border-transparent outline-none transition-all ${
                         errors.noticePeriod ? 'border-red-500' : 'border-gray-200'
                       }`}
                     >
@@ -518,7 +601,7 @@ export default function ApplyPage() {
                       name="currentSalary"
                       value={formData.currentSalary}
                       onChange={handleInputChange}
-                      className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#0057D9] focus:border-transparent outline-none transition-all"
+                      className="w-full px-4 py-3 text-gray-700 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#0057D9] focus:border-transparent outline-none transition-all"
                       placeholder="₹12"
                     />
                   </div>
@@ -532,7 +615,7 @@ export default function ApplyPage() {
                       name="expectedSalary"
                       value={formData.expectedSalary}
                       onChange={handleInputChange}
-                      className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-[#0057D9] focus:border-transparent outline-none transition-all ${
+                      className={`w-full px-4 py-3 text-gray-700 border rounded-lg focus:ring-2 focus:ring-[#0057D9] focus:border-transparent outline-none transition-all ${
                         errors.expectedSalary ? 'border-red-500' : 'border-gray-200'
                       }`}
                       placeholder="₹18"
@@ -552,7 +635,7 @@ export default function ApplyPage() {
                     name="willingToRelocate"
                     checked={formData.willingToRelocate}
                     onChange={handleInputChange}
-                    className="w-5 h-5 rounded border-gray-300 text-[#0057D9] focus:ring-[#0057D9]"
+                    className="w-5 h-5 rounded text-gray-700 border-gray-300 text-[#0057D9] focus:ring-[#0057D9]"
                   />
                   <label className="text-sm text-gray-700">Willing to relocate</label>
                 </div>
@@ -581,7 +664,7 @@ export default function ApplyPage() {
                       name="highestQualification"
                       value={formData.highestQualification}
                       onChange={handleInputChange}
-                      className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-[#0057D9] focus:border-transparent outline-none transition-all ${
+                      className={`w-full px-4 py-3 text-gray-700 border rounded-lg focus:ring-2 focus:ring-[#0057D9] focus:border-transparent outline-none transition-all ${
                         errors.highestQualification ? 'border-red-500' : 'border-gray-200'
                       }`}
                     >
@@ -612,7 +695,7 @@ export default function ApplyPage() {
                       name="university"
                       value={formData.university}
                       onChange={handleInputChange}
-                      className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#0057D9] focus:border-transparent outline-none transition-all"
+                      className="w-full px-4 py-3 text-gray-700 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#0057D9] focus:border-transparent outline-none transition-all"
                       placeholder="ABC University"
                     />
                   </div>
@@ -628,7 +711,7 @@ export default function ApplyPage() {
                       name="graduationYear"
                       value={formData.graduationYear}
                       onChange={handleInputChange}
-                      className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#0057D9] focus:border-transparent outline-none transition-all"
+                      className="w-full px-4 py-3 text-gray-700 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#0057D9] focus:border-transparent outline-none transition-all"
                       placeholder="2020"
                     />
                   </div>
@@ -642,7 +725,7 @@ export default function ApplyPage() {
                       name="cgpa"
                       value={formData.cgpa}
                       onChange={handleInputChange}
-                      className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#0057D9] focus:border-transparent outline-none transition-all"
+                      className="w-full px-4 py-3 text-gray-700 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#0057D9] focus:border-transparent outline-none transition-all"
                       placeholder="8.5 or 85%"
                     />
                   </div>
@@ -657,7 +740,7 @@ export default function ApplyPage() {
                     value={formData.coverLetter}
                     onChange={handleInputChange}
                     rows={6}
-                    className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#0057D9] focus:border-transparent outline-none transition-all resize-none"
+                    className="w-full px-4 py-3 text-gray-700 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#0057D9] focus:border-transparent outline-none transition-all resize-none"
                     placeholder="Tell us why you're a great fit for this role..."
                   />
                   <p className="text-xs text-gray-500 mt-1">Optional but recommended</p>
@@ -676,7 +759,7 @@ export default function ApplyPage() {
                             name="portfolio"
                             value={formData.portfolio}
                             onChange={handleInputChange}
-                            className="flex-1 px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#0057D9] focus:border-transparent outline-none bg-white"
+                            className="flex-1 px-3 py-2 text-gray-700 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#0057D9] focus:border-transparent outline-none bg-white"
                             placeholder="Portfolio URL"
                           />
                         </div>
@@ -687,7 +770,7 @@ export default function ApplyPage() {
                             name="github"
                             value={formData.github}
                             onChange={handleInputChange}
-                            className="flex-1 px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#0057D9] focus:border-transparent outline-none bg-white"
+                            className="flex-1 px-3 py-2 text-gray-700 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#0057D9] focus:border-transparent outline-none bg-white"
                             placeholder="GitHub Profile"
                           />
                         </div>
@@ -698,7 +781,7 @@ export default function ApplyPage() {
                             name="linkedin"
                             value={formData.linkedin}
                             onChange={handleInputChange}
-                            className="flex-1 px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#0057D9] focus:border-transparent outline-none bg-white"
+                            className="flex-1 px-3 py-2 text-gray-700 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#0057D9] focus:border-transparent outline-none bg-white"
                             placeholder="LinkedIn Profile"
                           />
                         </div>
@@ -844,6 +927,14 @@ export default function ApplyPage() {
 
             {/* Navigation Buttons */}
             <div className="flex items-center justify-between mt-8 pt-6 border-t border-gray-200">
+              {errors.submit && (
+                <div className="flex-1 mr-4 px-4 py-3 bg-red-50 border border-red-200 rounded-lg">
+                  <p className="text-sm text-red-600 flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4" />
+                    {errors.submit}
+                  </p>
+                </div>
+              )}
               <button
                 type="button"
                 onClick={handlePrevious}

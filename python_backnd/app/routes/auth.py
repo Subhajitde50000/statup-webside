@@ -13,6 +13,7 @@ from app.schemas.auth import (
     SendOTPRequest, VerifyOTPRequest, VerifyOTPResponse, ResendOTPRequest,
     ForgotPasswordRequest, ForgotPasswordResponse,
     ResetPasswordRequest, ResetPasswordResponse,
+    SetPasswordRequest, SetPasswordResponse,
     RefreshTokenRequest, TokenResponse,
     MessageResponse
 )
@@ -38,26 +39,30 @@ async def signup(request: SignupRequest):
     print("Users collection:", users)
     print(users)
     
-    # Check if email already exists
-    existing_email = await users.find_one({"email": request.email})
-    if existing_email:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Email already registered"
-        )
+    # Generate email if not provided (using .example which is valid for testing)
+    email = request.email or f"user{request.phone}@electromart.example"
     
-    # Check if phone already exists
+    # Check if email already exists (only if it's a real email, not auto-generated)
+    if request.email:
+        existing_email = await users.find_one({"email": email})
+        if existing_email:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Email already registered"
+            )
+    
+    # Check if phone already exists (users can have multiple roles, so we don't block)
+    # Only preventing duplicate OTP requests for same pending signup
     existing_phone = await users.find_one({"phone": request.phone})
     if existing_phone:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Phone number already registered"
-        )
+        # Allow multiple accounts with same phone for different roles
+        # Just inform user they can login if they want
+        pass
     
     # Store user data temporarily with OTP
     user_data = {
         "name": request.name,
-        "email": request.email,
+        "email": email,
         "phone": request.phone,
         "hashed_password": hash_password(request.password),
         "role": UserRole.USER.value,
@@ -73,10 +78,10 @@ async def signup(request: SignupRequest):
     )
     print("Generated OTP Code:", otp_code)
     
-    # Also create OTP for email with same code
+    # Also create OTP for email with same code (only if real email provided)
     if request.email:
         await create_otp(
-            identifier=request.email,
+            identifier=email,
             otp_type=OTPType.EMAIL,
             purpose=OTPPurpose.SIGNUP,
             user_data=user_data,
@@ -86,14 +91,22 @@ async def signup(request: SignupRequest):
     # Send OTP via SMS
     await send_otp(request.phone, otp_code, OTPType.PHONE)
     
-    # Send OTP via Email if available
+    # Send OTP via Email if real email was provided
     if request.email:
-        await send_otp(request.email, otp_code, OTPType.EMAIL)
+        await send_otp(email, otp_code, OTPType.EMAIL)
+    
+    # Customize response message based on whether email was provided
+    if request.email:
+        message = "OTP sent to your phone and email. Please verify to complete registration."
+        otp_sent_to = f"Phone: ***{request.phone[-4:]} and Email: {email[:2]}***"
+    else:
+        message = "OTP sent to your phone. Please verify to complete registration."
+        otp_sent_to = f"Phone: ***{request.phone[-4:]}"
     
     return SignupResponse(
-        message="OTP sent to your phone and email. Please verify to complete registration.",
+        message=message,
         requires_otp=True,
-        otp_sent_to=f"Phone: ***{request.phone[-4:]} and Email: {request.email[:2]}***"
+        otp_sent_to=otp_sent_to
     )
 
 
@@ -122,7 +135,29 @@ async def verify_signup(request: VerifyOTPRequest):
     
     users = get_users_collection()
     
-    # Create user document
+    # Check if user already exists with this phone (allow multiple roles)
+    existing_user = await users.find_one({"phone": user_data["phone"]})
+    
+    if existing_user:
+        # User already exists - just login them
+        # Update last login
+        await users.update_one(
+            {"_id": existing_user["_id"]},
+            {"$set": {"last_login": datetime.utcnow()}}
+        )
+        
+        # Generate tokens
+        tokens = create_tokens_for_user(existing_user)
+        
+        return LoginResponse(
+            message="Login successful",
+            access_token=tokens["access_token"],
+            refresh_token=tokens["refresh_token"],
+            token_type="bearer",
+            user=user_helper(existing_user)
+        )
+    
+    # Create new user document
     user_doc = {
         **user_data,
         "is_verified": True,
@@ -191,6 +226,46 @@ async def login(request: LoginRequest):
             detail="Account is deactivated"
         )
     
+    # Check verification status for shopkeepers and professionals
+    user_role = user.get("role", "customer")
+    if user_role in ["shopkeeper", "professional", "pending_shopkeeper", "pending_professional"]:
+        # Get verification status
+        verifications = get_database().verifications
+        verification_type = "shop" if "shop" in user_role else "professional"
+        verification = await verifications.find_one({
+            "phone": user.get("phone"),
+            "verification_type": verification_type
+        })
+        
+        if not verification:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Verification not found. Please complete registration first."
+            )
+        
+        verification_status = verification.get("status", "pending")
+        
+        if verification_status == "pending":
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Your registration is under review. You'll receive access once approved by our team."
+            )
+        elif verification_status == "rejected":
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Your registration was rejected. Please contact support for more information."
+            )
+        elif verification_status == "more_info_needed":
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="More information required. Please update your registration and resubmit."
+            )
+        elif verification_status != "approved":
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Account verification incomplete. Please complete the verification process."
+            )
+    
     # Update last login
     await users.update_one(
         {"_id": user["_id"]},
@@ -220,7 +295,22 @@ async def send_login_otp(request: LoginWithOTPRequest):
         user = await users.find_one({"email": request.identifier})
         otp_type = OTPType.EMAIL
     else:
-        user = await users.find_one({"phone": request.identifier})
+        # Try to find user with or without country code
+        identifier = request.identifier
+        # Remove any spaces or special characters
+        clean_phone = identifier.replace(" ", "").replace("-", "")
+        
+        # Try exact match first
+        user = await users.find_one({"phone": clean_phone})
+        
+        # If not found and phone doesn't start with +, try with +91
+        if not user and not clean_phone.startswith("+"):
+            user = await users.find_one({"phone": f"+91{clean_phone}"})
+        
+        # If not found and phone starts with +91, try without it
+        if not user and clean_phone.startswith("+91"):
+            user = await users.find_one({"phone": clean_phone[3:]})
+        
         otp_type = OTPType.PHONE
     
     if not user:
@@ -229,8 +319,12 @@ async def send_login_otp(request: LoginWithOTPRequest):
             detail="User not found. Please signup first."
         )
     
-    # Check if user is active
-    if not user.get("is_active", True):
+    # Allow inactive users if they are pending verification (pending_shopkeeper/pending_professional)
+    user_role = user.get("role", "customer")
+    is_pending = user_role in ["pending_shopkeeper", "pending_professional"]
+    
+    # Check if user is active (allow pending users to login to check status)
+    if not user.get("is_active", True) and not is_pending:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Account is deactivated"
@@ -424,6 +518,68 @@ async def resend_otp(request: ResendOTPRequest):
         otp_type=request.otp_type,
         purpose=request.purpose
     ))
+
+
+# ============ SET PASSWORD (FOR APPROVED USERS) ============
+
+@router.post("/set-password", response_model=SetPasswordResponse)
+async def set_password(request: SetPasswordRequest):
+    """Set password for an approved pending account"""
+    users = get_users_collection()
+    
+    # Normalize phone number
+    clean_phone = request.phone.replace(" ", "").replace("-", "")
+    
+    # Find user by phone (try multiple formats)
+    user = await users.find_one({"phone": clean_phone})
+    if not user and not clean_phone.startswith("+"):
+        user = await users.find_one({"phone": f"+91{clean_phone}"})
+    if not user and clean_phone.startswith("+91"):
+        user = await users.find_one({"phone": clean_phone[3:]})
+    
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
+        )
+    
+    # Check if user is a pending account (shopkeeper or professional)
+    user_role = user.get("role", "")
+    if user_role not in ["pending_shopkeeper", "pending_professional", "shopkeeper", "professional"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="This endpoint is only for shopkeeper/professional accounts"
+        )
+    
+    # Check if account is already approved
+    # Pending users can set password, and approved users can update password
+    # but rejected users cannot
+    verification = await get_users_collection().find_one({"phone": user["phone"]})
+    
+    # Hash and update password
+    hashed_password = hash_password(request.password)
+    
+    result = await users.update_one(
+        {"_id": user["_id"]},
+        {
+            "$set": {
+                "hashed_password": hashed_password,
+                "password_set": True,
+                "updated_at": datetime.utcnow()
+            }
+        }
+    )
+    
+    if result.modified_count == 0:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to set password"
+        )
+    
+    return SetPasswordResponse(
+        message="Password set successfully. You can now log in to your dashboard.",
+        success=True
+    )
 
 
 # ============ TOKEN REFRESH ============

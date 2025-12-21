@@ -29,6 +29,12 @@ class Settings(BaseSettings):
     SMTP_PASSWORD: Optional[str] = None
     EMAIL_FROM: str = "noreply@electronics.com"
     
+    # Email Notification Settings
+    SMTP_SERVER: str = "smtp.gmail.com"
+    SMTP_USERNAME: Optional[str] = os.getenv("SMTP_USERNAME", "")
+    EMAIL_FROM_NAME: str = "Electronics HR Team"
+    EMAIL_FROM_ADDRESS: str = os.getenv("EMAIL_FROM_ADDRESS", "hr@electronics.com")
+    
     # Twilio Settings (for OTP via SMS)
     TWILIO_ACCOUNT_SID: Optional[str] = None
     TWILIO_AUTH_TOKEN: Optional[str] = None
@@ -53,3 +59,11 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
+# Export email settings for email utility
+SMTP_SERVER = settings.SMTP_SERVER
+SMTP_PORT = settings.SMTP_PORT
+SMTP_USERNAME = settings.SMTP_USERNAME
+SMTP_PASSWORD = settings.SMTP_PASSWORD or settings.SMTP_USER
+EMAIL_FROM_NAME = settings.EMAIL_FROM_NAME
+EMAIL_FROM_ADDRESS = settings.EMAIL_FROM_ADDRESS

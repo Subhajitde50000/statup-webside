@@ -17,6 +17,16 @@ class UserRole(str, Enum):
     ADMIN = "admin"
 
 
+class ManagerType(str, Enum):
+    """Different types of managers with specific permissions"""
+    USER_MANAGER = "user_manager"  # Manages users, shops, professionals, orders, payments
+    BUSINESS_MANAGER = "business_manager"  # Manages shops, products, inventory
+    MARKETING_MANAGER = "marketing_manager"  # Manages campaigns, promotions, analytics
+    HR_MANAGER = "hr_manager"  # Manages vacancies, applications, employees
+    OPERATIONS_MANAGER = "operations_manager"  # Manages orders, deliveries, logistics
+    GENERAL_MANAGER = "general_manager"  # Full manager access (like admin but limited)
+
+
 class AuthProvider(str, Enum):
     LOCAL = "local"
     GOOGLE = "google"
@@ -44,6 +54,7 @@ class UserBase(BaseModel):
     email: Optional[EmailStr] = None
     phone: Optional[str] = None
     role: UserRole = UserRole.USER
+    manager_type: Optional[ManagerType] = None  # Only for managers
     is_verified: bool = False
     is_active: bool = True
     profile_image: Optional[str] = None
@@ -72,6 +83,7 @@ class UserResponse(BaseModel):
     email: Optional[str] = None
     phone: Optional[str] = None
     role: UserRole
+    manager_type: Optional[ManagerType] = None
     is_verified: bool
     profile_image: Optional[str] = None
     email_verified: bool = False
@@ -90,6 +102,7 @@ def user_helper(user: dict) -> dict:
         "email": user.get("email"),
         "phone": user.get("phone"),
         "role": user.get("role", "user"),
+        "manager_type": user.get("manager_type"),
         "is_verified": user.get("is_verified", False),
         "is_active": user.get("is_active", True),
         "profile_image": user.get("profile_image"),

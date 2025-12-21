@@ -17,7 +17,7 @@ class LoginMethod(str, Enum):
 
 class SignupRequest(BaseModel):
     name: str = Field(..., min_length=2, max_length=100)
-    email: EmailStr
+    email: Optional[EmailStr] = None  # Made optional for professional/shop registration
     phone: str = Field(..., min_length=10, max_length=15)
     password: str = Field(..., min_length=6, max_length=50)
     
@@ -29,6 +29,14 @@ class SignupRequest(BaseModel):
         if len(digits) < 10:
             raise ValueError("Phone number must be at least 10 digits")
         return digits
+    
+    @field_validator("email", mode="before")
+    @classmethod
+    def validate_email(cls, v):
+        # If no email provided, generate a default one
+        if not v:
+            return None
+        return v
 
 
 class SignupResponse(BaseModel):
@@ -114,6 +122,26 @@ class ResetPasswordRequest(BaseModel):
 
 
 class ResetPasswordResponse(BaseModel):
+    message: str
+    success: bool
+
+
+class SetPasswordRequest(BaseModel):
+    phone: str = Field(..., min_length=10, max_length=15)
+    password: str = Field(..., min_length=6, max_length=50)
+    confirm_password: str = Field(..., min_length=6, max_length=50)
+    
+    @field_validator("confirm_password")
+    @classmethod
+    def passwords_match(cls, v, info):
+        if "new_password" in info.data and v != info.data["new_password"]:
+            raise ValueError("Passwords do not match")
+        if "password" in info.data and v != info.data["password"]:
+            raise ValueError("Passwords do not match")
+        return v
+
+
+class SetPasswordResponse(BaseModel):
     message: str
     success: bool
 

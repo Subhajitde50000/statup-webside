@@ -5,10 +5,12 @@ FastAPI with MongoDB, JWT, OAuth, OTP, and RBAC
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from app.database import connect_to_mongo, close_mongo_connection
-from app.routes import auth, users, oauth, vacancies
+from app.routes import auth, users, oauth, vacancies, applications, verifications, upload
 
 
 @asynccontextmanager
@@ -33,10 +35,13 @@ app.add_middleware(
         "http://localhost:3000",
         "http://127.0.0.1:3000",
         "http://localhost:3001",
+        "http://localhost:8000",
+        "http://127.0.0.1:8000",
     ],
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
     allow_headers=["*"],
+    expose_headers=["*"],
 )
 
 # Include routers
@@ -44,6 +49,14 @@ app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
 app.include_router(users.router, prefix="/api/users", tags=["Users"])
 app.include_router(oauth.router, prefix="/api/oauth", tags=["OAuth"])
 app.include_router(vacancies.router, prefix="/api/vacancies", tags=["Vacancies"])
+app.include_router(applications.router, prefix="/api/applications", tags=["Applications"])
+app.include_router(verifications.router, prefix="/api", tags=["Verifications"])
+app.include_router(upload.router, prefix="/api", tags=["Upload"])
+
+# Mount static files for uploads
+uploads_dir = Path("uploads")
+uploads_dir.mkdir(exist_ok=True)
+app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
 
 @app.get("/")

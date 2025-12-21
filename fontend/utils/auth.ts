@@ -34,7 +34,7 @@ export interface AuthResponse {
 
 export interface SignupData {
   name: string;
-  email: string;
+  email?: string;  // Optional - auto-generated if not provided
   phone: string;
   password: string;
 }
@@ -95,6 +95,21 @@ async function apiRequest<T>(
   const data = await response.json();
 
   if (!response.ok) {
+    // Log detailed error for debugging
+    console.error('API Error Response:', {
+      status: response.status,
+      statusText: response.statusText,
+      data: data
+    });
+    
+    // Handle validation errors (422)
+    if (response.status === 422 && data.detail) {
+      const errorMessage = Array.isArray(data.detail)
+        ? data.detail.map((err: any) => `${err.loc.join('.')}: ${err.msg}`).join(', ')
+        : data.detail;
+      throw new APIError(errorMessage, response.status);
+    }
+    
     throw new APIError(data.detail || 'An error occurred', response.status);
   }
 

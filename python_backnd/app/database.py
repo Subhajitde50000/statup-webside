@@ -95,3 +95,8 @@ def get_password_resets_collection():
 def get_refresh_tokens_collection():
     """Get refresh tokens collection"""
     return db.db.refresh_tokens
+
+
+def get_verifications_collection():
+    """Get verifications collection"""
+    return db.db.verifications
