@@ -6,7 +6,7 @@ from fastapi import APIRouter, HTTPException, status, Depends
 from datetime import datetime
 from bson import ObjectId
 
-from app.database import get_users_collection, get_otps_collection
+from app.database import get_users_collection, get_otps_collection, get_database
 from app.schemas.auth import (
     SignupRequest, SignupResponse,
     LoginRequest, LoginWithOTPRequest, LoginResponse,

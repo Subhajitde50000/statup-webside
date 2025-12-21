@@ -98,7 +98,7 @@ export default function ProfessionalNavbar({
               </Link>
 
               <Link
-                href="/profile"
+                href="/professional/profile"
                 className={`flex items-center gap-2 px-4 py-2 rounded-lg font-bold transition-all ${
                   activeTab === 'profile'
                     ? 'bg-teal-600 text-white'

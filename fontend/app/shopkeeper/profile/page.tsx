@@ -1,25 +1,89 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Edit2, MapPin, Upload, X, Camera, Clock, Check, Copy, Calendar, Save, AlertCircle, CheckCircle2, Building2, Mail, Phone as PhoneIcon, FileText, Image as ImageIcon, RefreshCw } from 'lucide-react';
 import ShopkeeperNavbar from '../components/ShopkeeperNavbar';
+
+interface UserProfile {
+  id: string;
+  name: string;
+  email?: string;
+  phone: string;
+  role: string;
+  is_active: boolean;
+  is_verified?: boolean;
+  profile_image?: string;
+  created_at: string;
+  updated_at: string;
+}
 
 export default function ShopProfilePage() {
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
   const [errors, setErrors] = useState<{[key: string]: string}>({});
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [profilePhotoFile, setProfilePhotoFile] = useState<File | null>(null);
+  const [profilePhotoPreview, setProfilePhotoPreview] = useState<string | null>(null);
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
   
   const [shopData, setShopData] = useState({
-    shopName: 'Apex Electricals & Hardware',
-    email: 'contact@apexelec.com',
-    phone: '9876543210',
+    shopName: '',
+    email: '',
+    phone: '',
     countryCode: '+91',
-    address: '123, Main Market Road, Sector 45, Gurugram, Haryana, India - 122001',
-    gstNumber: '07AAACA8765D1Z4',
+    address: '',
+    gstNumber: '',
     category: 'Electrical & Hardware',
-    established: '2015',
+    established: '',
   });
+
+  useEffect(() => {
+    fetchUserProfile();
+  }, []);
+
+  const fetchUserProfile = async () => {
+    try {
+      setIsLoading(true);
+      const token = localStorage.getItem('access_token');
+      
+      if (!token) {
+        console.error('No access token found');
+        return;
+      }
+
+      const response = await fetch('http://localhost:8000/api/users/me', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch profile');
+      }
+
+      const data = await response.json();
+      setUserProfile(data);
+      
+      // Populate form with user data
+      setShopData({
+        shopName: data.name || '',
+        email: data.email || '',
+        phone: data.phone?.replace(/^\+91/, '') || '',
+        countryCode: '+91',
+        address: '',
+        gstNumber: '',
+        category: 'Electrical & Hardware',
+        established: '',
+      });
+    } catch (err) {
+      console.error('Error fetching profile:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const [shopPhotos, setShopPhotos] = useState<string[]>([
     'https://images.unsplash.com/photo-1604328698692-f76ea9498e76?w=800',
@@ -36,6 +100,69 @@ export default function ShopProfilePage() {
     { day: 'Saturday', openTime: '09:00 AM', closeTime: '10:00 PM', isOpen: true },
     { day: 'Sunday', openTime: '09:00 AM', closeTime: '10:00 PM', isOpen: false },
   ]);
+
+  const handleProfilePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        alert('Please select an image file');
+        return;
+      }
+      // Validate file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        alert('Image size should be less than 5MB');
+        return;
+      }
+      setProfilePhotoFile(file);
+      setProfilePhotoPreview(URL.createObjectURL(file));
+    }
+  };
+
+  const handleProfilePhotoUpload = async () => {
+    if (!profilePhotoFile) return;
+
+    setIsUploadingPhoto(true);
+    try {
+      const token = localStorage.getItem('access_token');
+      if (!token) {
+        alert('Please login again');
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append('file', profilePhotoFile);
+
+      const response = await fetch('http://localhost:8000/api/users/upload-profile-image', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Failed to upload photo');
+      }
+
+      await fetchUserProfile();
+      setProfilePhotoFile(null);
+      setProfilePhotoPreview(null);
+      setShowSuccessMessage(true);
+      setTimeout(() => setShowSuccessMessage(false), 4000);
+    } catch (err) {
+      console.error('Error uploading photo:', err);
+      alert(err instanceof Error ? err.message : 'Failed to upload photo');
+    } finally {
+      setIsUploadingPhoto(false);
+    }
+  };
+
+  const cancelProfilePhotoUpload = () => {
+    setProfilePhotoFile(null);
+    setProfilePhotoPreview(null);
+  };
 
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -135,24 +262,79 @@ export default function ShopProfilePage() {
 
     setIsSaving(true);
     
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    
-    console.log('Saving shop profile...', { shopData, shopPhotos, operatingHours });
-    
-    setIsSaving(false);
-    setIsEditing(false);
-    setShowSuccessMessage(true);
-    
-    setTimeout(() => setShowSuccessMessage(false), 4000);
+    try {
+      const token = localStorage.getItem('access_token');
+      
+      if (!token) {
+        alert('Please login again');
+        return;
+      }
+
+      const response = await fetch('http://localhost:8000/api/users/update-profile', {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: shopData.shopName,
+          email: shopData.email || undefined,
+          phone: shopData.countryCode + shopData.phone,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Failed to update profile');
+      }
+
+      await fetchUserProfile();
+      
+      setIsEditing(false);
+      setShowSuccessMessage(true);
+      
+      setTimeout(() => setShowSuccessMessage(false), 4000);
+    } catch (err) {
+      console.error('Error saving profile:', err);
+      alert(err instanceof Error ? err.message : 'Failed to save profile');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleCancel = () => {
     if (window.confirm('Are you sure you want to discard all changes?')) {
+      // Reset to original data
+      if (userProfile) {
+        setShopData({
+          shopName: userProfile.name || '',
+          email: userProfile.email || '',
+          phone: userProfile.phone?.replace(/^\+91/, '') || '',
+          countryCode: '+91',
+          address: '',
+          gstNumber: '',
+          category: 'Electrical & Hardware',
+          established: '',
+        });
+      }
       setIsEditing(false);
       setErrors({});
     }
   };
+
+  if (isLoading) {
+    return (
+      <>
+        <ShopkeeperNavbar />
+        <div className="min-h-screen bg-[#F8F8F8] flex items-center justify-center">
+          <div className="text-center">
+            <RefreshCw className="w-12 h-12 text-[#FF7A22] animate-spin mx-auto mb-4" />
+            <p className="text-[#777777]">Loading profile...</p>
+          </div>
+        </div>
+      </>
+    );
+  }
 
   return (
     <>
@@ -196,6 +378,93 @@ export default function ShopProfilePage() {
         {/* Content */}
         <div className="px-4 lg:px-8 py-6 lg:py-8">
           <div className="max-w-7xl mx-auto space-y-6">
+            {/* Profile Photo Section */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 md:p-6 lg:p-8">
+              <div className="flex items-center justify-between mb-6 pb-4 border-b border-gray-200">
+                <div className="flex items-center space-x-3">
+                  <div className="bg-[#FF7A22]/10 p-3 rounded-xl">
+                    <Camera className="w-6 h-6 text-[#FF7A22]" />
+                  </div>
+                  <div>
+                    <h2 className="text-lg lg:text-xl font-bold text-[#1F1F1F]">Profile Photo</h2>
+                    <p className="text-xs text-[#777777] mt-0.5">Upload your shop or profile picture</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex flex-col md:flex-row items-center gap-6">
+                {/* Current Photo */}
+                <div className="relative">
+                  <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-[#FF7A22] bg-gray-100 flex items-center justify-center">
+                    {profilePhotoPreview ? (
+                      <img src={profilePhotoPreview} alt="Preview" className="w-full h-full object-cover" />
+                    ) : userProfile?.profile_image ? (
+                      <img src={`http://localhost:8000${userProfile.profile_image}`} alt={userProfile.name} className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full bg-[#FF7A22] flex items-center justify-center text-white text-3xl font-bold">
+                        {shopData.shopName.charAt(0).toUpperCase()}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Upload Controls */}
+                <div className="flex-1">
+                  {profilePhotoFile ? (
+                    <div className="space-y-3">
+                      <p className="text-sm text-[#28C76F] font-medium flex items-center gap-2">
+                        <CheckCircle2 className="w-4 h-4" />
+                        Photo selected: {profilePhotoFile.name}
+                      </p>
+                      <div className="flex items-center gap-3">
+                        <button
+                          onClick={handleProfilePhotoUpload}
+                          disabled={isUploadingPhoto}
+                          className="bg-[#28C76F] text-white px-6 py-2.5 rounded-lg font-semibold hover:bg-[#22A55D] transition-all duration-200 shadow-md hover:shadow-lg flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {isUploadingPhoto ? (
+                            <>
+                              <RefreshCw className="w-4 h-4 animate-spin" />
+                              <span>Uploading...</span>
+                            </>
+                          ) : (
+                            <>
+                              <Upload className="w-4 h-4" />
+                              <span>Upload Photo</span>
+                            </>
+                          )}
+                        </button>
+                        <button
+                          onClick={cancelProfilePhotoUpload}
+                          disabled={isUploadingPhoto}
+                          className="bg-gray-200 text-[#2E2E2E] px-6 py-2.5 rounded-lg font-semibold hover:bg-gray-300 transition-all duration-200 flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          <X className="w-4 h-4" />
+                          <span>Cancel</span>
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      <p className="text-sm text-[#777777]">
+                        Choose a photo that represents your shop. Accepted formats: JPG, PNG (max 5MB)
+                      </p>
+                      <label className="inline-flex items-center space-x-2 bg-[#FF7A22] text-white px-6 py-2.5 rounded-lg font-semibold hover:bg-[#E66A12] transition-all duration-200 shadow-md hover:shadow-lg cursor-pointer">
+                        <Camera className="w-4 h-4" />
+                        <span>Choose Photo</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleProfilePhotoSelect}
+                          className="hidden"
+                        />
+                      </label>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
             {/* Shop Details Card */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 md:p-6 lg:p-8">
               <div className="flex items-center justify-between mb-6 pb-4 border-b border-gray-200">

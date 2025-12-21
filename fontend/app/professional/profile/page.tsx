@@ -1,0 +1,1029 @@
+'use client';
+
+import React, { useState, useEffect } from 'react';
+import { 
+  Edit2, MapPin, Upload, X, Camera, Award, Check, Calendar, Save, AlertCircle, 
+  CheckCircle2, User, Mail, Phone as PhoneIcon, FileText, Briefcase, RefreshCw,
+  IndianRupee, Clock, Star, Shield, BadgeCheck, Wrench, Languages
+} from 'lucide-react';
+import ProfessionalNavbar from '../components/ProfessionalNavbar';
+
+interface UserProfile {
+  id: string;
+  name: string;
+  email?: string;
+  phone: string;
+  role: string;
+  is_active: boolean;
+  is_verified?: boolean;
+  profile_image?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export default function ProfessionalProfilePage() {
+  const [isEditing, setIsEditing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [showSuccessMessage, setShowSuccessMessage] = useState(false);
+  const [errors, setErrors] = useState<{[key: string]: string}>({});
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [profilePhotoFile, setProfilePhotoFile] = useState<File | null>(null);
+  const [profilePhotoPreview, setProfilePhotoPreview] = useState<string | null>(null);
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+  
+  const [profileData, setProfileData] = useState({
+    fullName: '',
+    email: '',
+    phone: '',
+    countryCode: '+91',
+    address: '',
+    city: '',
+    state: '',
+    pincode: '',
+    category: 'Electrician',
+    subCategory: '',
+    experience: '',
+    hourlyRate: '',
+    availability: 'full-time',
+    languages: [] as string[],
+    skills: [] as string[],
+    bio: '',
+    aadharNumber: '',
+  });
+
+  const [newSkill, setNewSkill] = useState('');
+
+  useEffect(() => {
+    fetchUserProfile();
+  }, []);
+
+  const fetchUserProfile = async () => {
+    try {
+      setIsLoading(true);
+      const token = localStorage.getItem('access_token');
+      
+      if (!token) {
+        console.error('No access token found');
+        return;
+      }
+
+      const response = await fetch('http://localhost:8000/api/users/me', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch profile');
+      }
+
+      const data = await response.json();
+      setUserProfile(data);
+      
+      // Populate form with user data
+      setProfileData({
+        fullName: data.name || '',
+        email: data.email || '',
+        phone: data.phone?.replace(/^\+91/, '') || '',
+        countryCode: '+91',
+        address: '',
+        city: '',
+        state: '',
+        pincode: '',
+        category: 'Electrician',
+        subCategory: '',
+        experience: '',
+        hourlyRate: '',
+        availability: 'full-time',
+        languages: [],
+        skills: [],
+        bio: '',
+        aadharNumber: '',
+      });
+    } catch (err) {
+      console.error('Error fetching profile:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const addSkill = () => {
+    if (newSkill.trim() && !profileData.skills.includes(newSkill.trim())) {
+      setProfileData({ ...profileData, skills: [...profileData.skills, newSkill.trim()] });
+      setNewSkill('');
+    }
+  };
+
+  const removeSkill = (skill: string) => {
+    setProfileData({ ...profileData, skills: profileData.skills.filter(s => s !== skill) });
+  };
+
+  const toggleLanguage = (lang: string) => {
+    if (profileData.languages.includes(lang)) {
+      setProfileData({ ...profileData, languages: profileData.languages.filter(l => l !== lang) });
+    } else {
+      setProfileData({ ...profileData, languages: [...profileData.languages, lang] });
+    }
+  };
+
+  const handleProfilePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        alert('Please select an image file');
+        return;
+      }
+      // Validate file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        alert('Image size should be less than 5MB');
+        return;
+      }
+      setProfilePhotoFile(file);
+      setProfilePhotoPreview(URL.createObjectURL(file));
+    }
+  };
+
+  const handleProfilePhotoUpload = async () => {
+    if (!profilePhotoFile) return;
+
+    setIsUploadingPhoto(true);
+    try {
+      const token = localStorage.getItem('access_token');
+      if (!token) {
+        alert('Please login again');
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append('file', profilePhotoFile);
+
+      const response = await fetch('http://localhost:8000/api/users/upload-profile-image', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Failed to upload photo');
+      }
+
+      await fetchUserProfile();
+      setProfilePhotoFile(null);
+      setProfilePhotoPreview(null);
+      setShowSuccessMessage(true);
+      setTimeout(() => setShowSuccessMessage(false), 4000);
+    } catch (err) {
+      console.error('Error uploading photo:', err);
+      alert(err instanceof Error ? err.message : 'Failed to upload photo');
+    } finally {
+      setIsUploadingPhoto(false);
+    }
+  };
+
+  const cancelProfilePhotoUpload = () => {
+    setProfilePhotoFile(null);
+    setProfilePhotoPreview(null);
+  };
+
+  const validateEmail = (email: string) => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  };
+
+  const validatePhone = (phone: string) => {
+    return phone.length === 10 && /^\d+$/.test(phone);
+  };
+
+  const validateAadhar = (aadhar: string) => {
+    return aadhar === '' || (aadhar.length === 12 && /^\d+$/.test(aadhar));
+  };
+
+  const handleInputChange = (field: string, value: string) => {
+    setProfileData({ ...profileData, [field]: value });
+    // Clear error when user types
+    if (errors[field]) {
+      setErrors({ ...errors, [field]: '' });
+    }
+  };
+
+  const validateForm = () => {
+    const newErrors: {[key: string]: string} = {};
+    
+    if (!profileData.fullName.trim()) newErrors.fullName = 'Full name is required';
+    if (!profileData.email.trim()) newErrors.email = 'Email is required';
+    else if (!validateEmail(profileData.email)) newErrors.email = 'Invalid email format';
+    if (!profileData.phone.trim()) newErrors.phone = 'Phone number is required';
+    else if (!validatePhone(profileData.phone)) newErrors.phone = 'Phone must be 10 digits';
+    if (!profileData.address.trim()) newErrors.address = 'Address is required';
+    if (!profileData.city.trim()) newErrors.city = 'City is required';
+    if (!profileData.state.trim()) newErrors.state = 'State is required';
+    if (!profileData.pincode.trim()) newErrors.pincode = 'Pincode is required';
+    else if (profileData.pincode.length !== 6) newErrors.pincode = 'Pincode must be 6 digits';
+    if (profileData.aadharNumber && !validateAadhar(profileData.aadharNumber)) {
+      newErrors.aadharNumber = 'Aadhar must be 12 digits';
+    }
+    if (profileData.hourlyRate && isNaN(Number(profileData.hourlyRate))) {
+      newErrors.hourlyRate = 'Please enter a valid rate';
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleSave = async () => {
+    if (!validateForm()) {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+
+    setIsSaving(true);
+    
+    try {
+      const token = localStorage.getItem('access_token');
+      
+      if (!token) {
+        alert('Please login again');
+        return;
+      }
+
+      const response = await fetch('http://localhost:8000/api/users/update-profile', {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: profileData.fullName,
+          email: profileData.email || undefined,
+          phone: profileData.countryCode + profileData.phone,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Failed to update profile');
+      }
+
+      await fetchUserProfile();
+      
+      setIsEditing(false);
+      setShowSuccessMessage(true);
+      
+      setTimeout(() => setShowSuccessMessage(false), 4000);
+    } catch (err) {
+      console.error('Error saving profile:', err);
+      alert(err instanceof Error ? err.message : 'Failed to save profile');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleCancel = () => {
+    if (window.confirm('Are you sure you want to discard all changes?')) {
+      // Reset to original data
+      if (userProfile) {
+        setProfileData({
+          fullName: userProfile.name || '',
+          email: userProfile.email || '',
+          phone: userProfile.phone?.replace(/^\+91/, '') || '',
+          countryCode: '+91',
+          address: '',
+          city: '',
+          state: '',
+          pincode: '',
+          category: 'Electrician',
+          subCategory: '',
+          experience: '',
+          hourlyRate: '',
+          availability: 'full-time',
+          languages: [],
+          skills: [],
+          bio: '',
+          aadharNumber: '',
+        });
+      }
+      setIsEditing(false);
+      setErrors({});
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <>
+        <ProfessionalNavbar />
+        <div className="min-h-screen bg-gradient-to-br from-[#F0F4F8] to-[#E8EDF2] flex items-center justify-center">
+          <div className="text-center">
+            <RefreshCw className="w-12 h-12 text-[#2563EB] animate-spin mx-auto mb-4" />
+            <p className="text-[#64748B] font-medium">Loading your profile...</p>
+          </div>
+        </div>
+      </>
+    );
+  }
+
+  return (
+    <>
+      <ProfessionalNavbar />
+      <div className="min-h-screen bg-gradient-to-br from-[#F0F4F8] to-[#E8EDF2] pb-24 lg:pb-8">
+        {/* Success Message */}
+        {showSuccessMessage && (
+          <div className="fixed top-20 left-1/2 transform -translate-x-1/2 z-50 animate-fade-in">
+            <div className="bg-gradient-to-r from-[#10B981] to-[#059669] text-white px-8 py-4 rounded-2xl shadow-2xl flex items-center space-x-3">
+              <CheckCircle2 className="w-6 h-6" />
+              <span className="font-semibold text-lg">Profile updated successfully!</span>
+            </div>
+          </div>
+        )}
+
+        {/* Header */}
+        <div className="bg-gradient-to-r from-[#1E40AF] to-[#2563EB] text-white border-b border-[#1E40AF]/20 px-4 lg:px-8 py-8 lg:py-12 shadow-xl">
+          <div className="max-w-7xl mx-auto flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl lg:text-4xl font-bold flex items-center space-x-4">
+                <div className="bg-white/20 p-3 rounded-2xl backdrop-blur-sm">
+                  <User className="w-8 h-8" />
+                </div>
+                <span>Professional Profile</span>
+              </h1>
+              <p className="text-base lg:text-lg text-blue-100 mt-3 ml-16">
+                {isEditing ? 'Edit your professional details below' : 'Manage your professional information'}
+              </p>
+            </div>
+            {!isEditing && (
+              <button
+                onClick={() => setIsEditing(true)}
+                className="bg-white text-[#2563EB] px-6 md:px-8 py-3 md:py-3.5 rounded-xl font-bold hover:bg-blue-50 transition-all duration-200 shadow-lg hover:shadow-xl flex items-center space-x-2 transform hover:scale-105"
+              >
+                <Edit2 className="w-5 h-5 md:w-5 md:h-5" />
+                <span className="hidden md:inline">Edit Profile</span>
+                <span className="md:hidden">Edit</span>
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Content */}
+        <div className="px-4 lg:px-8 py-6 lg:py-8">
+          <div className="max-w-7xl mx-auto space-y-6">{/* Profile Photo Section */}
+            <div className="bg-white rounded-2xl shadow-lg border border-[#E2E8F0] p-6 md:p-8 lg:p-10 hover:shadow-xl transition-shadow duration-300">
+              <div className="flex items-center justify-between mb-8 pb-6 border-b border-gray-200">
+                <div className="flex items-center space-x-4">
+                  <div className="bg-gradient-to-br from-[#2563EB] to-[#1E40AF] p-4 rounded-2xl shadow-lg">
+                    <Camera className="w-7 h-7 text-white" />
+                  </div>
+                  <div>
+                    <h2 className="text-xl lg:text-2xl font-bold text-[#1E293B]">Profile Photo</h2>
+                    <p className="text-sm text-[#64748B] mt-1">Upload a professional headshot</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex flex-col md:flex-row items-center gap-8">
+                {/* Current Photo */}
+                <div className="relative group">
+                  <div className="w-40 h-40 rounded-full overflow-hidden border-4 border-[#2563EB] bg-gradient-to-br from-[#EFF6FF] to-[#DBEAFE] flex items-center justify-center shadow-xl group-hover:shadow-2xl transition-shadow duration-300">
+                    {profilePhotoPreview ? (
+                      <img src={profilePhotoPreview} alt="Preview" className="w-full h-full object-cover" />
+                    ) : userProfile?.profile_image ? (
+                      <img src={`http://localhost:8000${userProfile.profile_image}`} alt={userProfile.name} className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full bg-gradient-to-br from-[#2563EB] to-[#1E40AF] flex items-center justify-center text-white text-4xl font-bold">
+                        {profileData.fullName.charAt(0).toUpperCase()}
+                      </div>
+                    )}
+                  </div>
+                  <div className="absolute bottom-2 right-2 bg-[#10B981] p-3 rounded-full shadow-lg">
+                    <BadgeCheck className="w-5 h-5 text-white" />
+                  </div>
+                </div>
+
+                {/* Upload Controls */}
+                <div className="flex-1 w-full">
+                  {profilePhotoFile ? (
+                    <div className="space-y-4">
+                      <div className="bg-[#F0FDF4] border border-[#86EFAC] rounded-xl p-4">
+                        <p className="text-sm text-[#166534] font-medium flex items-center gap-2">
+                          <CheckCircle2 className="w-5 h-5" />
+                          Photo selected: {profilePhotoFile.name}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <button
+                          onClick={handleProfilePhotoUpload}
+                          disabled={isUploadingPhoto}
+                          className="flex-1 bg-gradient-to-r from-[#10B981] to-[#059669] text-white px-6 py-3.5 rounded-xl font-bold hover:from-[#059669] hover:to-[#047857] transition-all duration-200 shadow-lg hover:shadow-xl flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-105"
+                        >
+                          {isUploadingPhoto ? (
+                            <>
+                              <RefreshCw className="w-5 h-5 animate-spin" />
+                              <span>Uploading...</span>
+                            </>
+                          ) : (
+                            <>
+                              <Upload className="w-5 h-5" />
+                              <span>Upload Photo</span>
+                            </>
+                          )}
+                        </button>
+                        <button
+                          onClick={cancelProfilePhotoUpload}
+                          disabled={isUploadingPhoto}
+                          className="bg-[#F1F5F9] text-[#475569] px-6 py-3.5 rounded-xl font-semibold hover:bg-[#E2E8F0] transition-all duration-200 flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          <X className="w-5 h-5" />
+                          <span>Cancel</span>
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      <div className="bg-gradient-to-br from-[#EFF6FF] to-[#DBEAFE] border-2 border-dashed border-[#93C5FD] rounded-xl p-6">
+                        <p className="text-sm text-[#1E40AF] font-medium mb-4">
+                          <strong>Tips for a great profile photo:</strong>
+                        </p>
+                        <ul className="text-xs text-[#475569] space-y-2 ml-4">
+                          <li className="flex items-center gap-2">
+                            <CheckCircle2 className="w-4 h-4 text-[#10B981]" />
+                            Clear, well-lit headshot
+                          </li>
+                          <li className="flex items-center gap-2">
+                            <CheckCircle2 className="w-4 h-4 text-[#10B981]" />
+                            Professional attire preferred
+                          </li>
+                          <li className="flex items-center gap-2">
+                            <CheckCircle2 className="w-4 h-4 text-[#10B981]" />
+                            JPG, PNG formats (max 5MB)
+                          </li>
+                        </ul>
+                      </div>
+                      <label className="inline-flex items-center justify-center space-x-3 bg-gradient-to-r from-[#2563EB] to-[#1E40AF] text-white px-8 py-3.5 rounded-xl font-bold hover:from-[#1E40AF] hover:to-[#1E3A8A] transition-all duration-200 shadow-lg hover:shadow-xl cursor-pointer transform hover:scale-105">
+                        <Camera className="w-5 h-5" />
+                        <span>Choose Photo</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleProfilePhotoSelect}
+                          className="hidden"
+                        />
+                      </label>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Personal Details Card */}
+            <div className="bg-white rounded-2xl shadow-lg border border-[#E2E8F0] p-6 md:p-8 lg:p-10 hover:shadow-xl transition-shadow duration-300">
+              <div className="flex items-center justify-between mb-8 pb-6 border-b border-gray-200">
+                <div className="flex items-center space-x-4">
+                  <div className="bg-gradient-to-br from-[#2563EB] to-[#1E40AF] p-4 rounded-2xl shadow-lg">
+                    <User className="w-7 h-7 text-white" />
+                  </div>
+                  <div>
+                    <h2 className="text-xl lg:text-2xl font-bold text-[#1E293B]">Personal Details</h2>
+                    <p className="text-sm text-[#64748B] mt-1">Basic information about yourself</p>
+                  </div>
+                </div>
+                {!isEditing && userProfile?.is_verified && (
+                  <div className="flex items-center space-x-2 bg-gradient-to-r from-[#10B981] to-[#059669] text-white px-4 py-2 rounded-xl shadow-lg">
+                    <CheckCircle2 className="w-5 h-5" />
+                    <span className="text-sm font-semibold hidden sm:inline">Verified</span>
+                  </div>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Full Name */}
+                <div>
+                  <label className="block text-sm font-bold text-[#1E293B] mb-3 flex items-center space-x-2">
+                    <div className="bg-gradient-to-br from-[#2563EB]/10 to-[#1E40AF]/10 p-2 rounded-lg">
+                      <User className="w-4 h-4 text-[#2563EB]" />
+                    </div>
+                    <span>Full Name <span className="text-[#DC2626]">*</span></span>
+                  </label>
+                  <input
+                    type="text"
+                    value={profileData.fullName}
+                    onChange={(e) => handleInputChange('fullName', e.target.value)}
+                    disabled={!isEditing}
+                    placeholder="Enter your full name"
+                    className={`w-full px-5 py-4 border-2 rounded-xl focus:outline-none focus:ring-2 disabled:bg-[#F1F5F9] disabled:text-[#64748B] transition-all duration-200 text-base ${
+                      errors.fullName ? 'border-[#DC2626] focus:ring-[#DC2626]' : 'border-[#CBD5E1] focus:ring-[#2563EB] focus:border-[#2563EB]'
+                    }`}
+                  />
+                  {errors.fullName && (
+                    <p className="text-[#DC2626] text-sm mt-2 flex items-center space-x-1.5 font-medium">
+                      <AlertCircle className="w-4 h-4" />
+                      <span>{errors.fullName}</span>
+                    </p>
+                  )}
+                </div>
+
+                {/* Email Address */}
+                <div>
+                  <label className="block text-sm font-bold text-[#1E293B] mb-3 flex items-center space-x-2">
+                    <div className="bg-gradient-to-br from-[#2563EB]/10 to-[#1E40AF]/10 p-2 rounded-lg">
+                      <Mail className="w-4 h-4 text-[#2563EB]" />
+                    </div>
+                    <span>Email Address <span className="text-[#DC2626]">*</span></span>
+                  </label>
+                  <input
+                    type="email"
+                    value={profileData.email}
+                    onChange={(e) => handleInputChange('email', e.target.value)}
+                    disabled={!isEditing}
+                    placeholder="your@email.com"
+                    className={`w-full px-5 py-4 border-2 rounded-xl focus:outline-none focus:ring-2 disabled:bg-[#F1F5F9] disabled:text-[#64748B] transition-all duration-200 text-base ${
+                      errors.email ? 'border-[#DC2626] focus:ring-[#DC2626]' : 'border-[#CBD5E1] focus:ring-[#2563EB] focus:border-[#2563EB]'
+                    }`}
+                  />
+                  {errors.email && (
+                    <p className="text-[#DC2626] text-sm mt-2 flex items-center space-x-1.5 font-medium">
+                      <AlertCircle className="w-4 h-4" />
+                      <span>{errors.email}</span>
+                    </p>
+                  )}
+                </div>
+
+                {/* Phone Number */}
+                <div>
+                  <label className="block text-sm font-bold text-[#1E293B] mb-3 flex items-center space-x-2">
+                    <div className="bg-gradient-to-br from-[#2563EB]/10 to-[#1E40AF]/10 p-2 rounded-lg">
+                      <PhoneIcon className="w-4 h-4 text-[#2563EB]" />
+                    </div>
+                    <span>Phone Number <span className="text-[#DC2626]">*</span></span>
+                  </label>
+                  <div className="flex space-x-3">
+                    <select
+                      value={profileData.countryCode}
+                      onChange={(e) => setProfileData({ ...profileData, countryCode: e.target.value })}
+                      disabled={!isEditing}
+                      className="w-28 px-3 py-4 border-2 border-[#CBD5E1] rounded-xl bg-[#F8FAFC] text-sm font-bold text-[#1E293B] focus:outline-none focus:ring-2 focus:ring-[#2563EB] disabled:opacity-50 transition-all duration-200"
+                    >
+                      <option value="+91">🇮🇳 +91</option>
+                      <option value="+1">🇺🇸 +1</option>
+                      <option value="+44">🇬🇧 +44</option>
+                      <option value="+971">🇦🇪 +971</option>
+                    </select>
+                    <input
+                      type="tel"
+                      value={profileData.phone}
+                      onChange={(e) => handleInputChange('phone', e.target.value.replace(/\D/g, '').slice(0, 10))}
+                      disabled={!isEditing}
+                      placeholder="9876543210"
+                      maxLength={10}
+                      className={`flex-1 px-5 py-4 border-2 rounded-xl focus:outline-none focus:ring-2 disabled:bg-[#F1F5F9] disabled:text-[#64748B] transition-all duration-200 text-base ${
+                        errors.phone ? 'border-[#DC2626] focus:ring-[#DC2626]' : 'border-[#CBD5E1] focus:ring-[#2563EB] focus:border-[#2563EB]'
+                      }`}
+                    />
+                  </div>
+                  {errors.phone && (
+                    <p className="text-[#DC2626] text-sm mt-2 flex items-center space-x-1.5 font-medium">
+                      <AlertCircle className="w-4 h-4" />
+                      <span>{errors.phone}</span>
+                    </p>
+                  )}
+                </div>
+
+                {/* Service Category */}
+                <div>
+                  <label className="block text-sm font-bold text-[#1E293B] mb-3 flex items-center space-x-2">
+                    <div className="bg-gradient-to-br from-[#2563EB]/10 to-[#1E40AF]/10 p-2 rounded-lg">
+                      <Briefcase className="w-4 h-4 text-[#2563EB]" />
+                    </div>
+                    <span>Service Category <span className="text-[#DC2626]">*</span></span>
+                  </label>
+                  <select
+                    value={profileData.category}
+                    onChange={(e) => handleInputChange('category', e.target.value)}
+                    disabled={!isEditing}
+                    className="w-full px-5 py-4 border-2 border-[#CBD5E1] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2563EB] disabled:bg-[#F1F5F9] disabled:text-[#64748B] transition-all duration-200 text-base font-medium"
+                  >
+                    <option value="Electrician">Electrician</option>
+                    <option value="Plumber">Plumber</option>
+                    <option value="Carpenter">Carpenter</option>
+                    <option value="Painter">Painter</option>
+                    <option value="AC Technician">AC Technician</option>
+                    <option value="Appliance Repair">Appliance Repair</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+
+                {/* Sub Category */}
+                <div>
+                  <label className="block text-sm font-bold text-[#1E293B] mb-3 flex items-center space-x-2">
+                    <div className="bg-gradient-to-br from-[#2563EB]/10 to-[#1E40AF]/10 p-2 rounded-lg">
+                      <Wrench className="w-4 h-4 text-[#2563EB]" />
+                    </div>
+                    <span>Sub Category</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={profileData.subCategory}
+                    onChange={(e) => handleInputChange('subCategory', e.target.value)}
+                    disabled={!isEditing}
+                    placeholder="e.g., Residential Wiring, Industrial"
+                    className="w-full px-5 py-4 border-2 border-[#CBD5E1] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2563EB] disabled:bg-[#F1F5F9] disabled:text-[#64748B] transition-all duration-200 text-base"
+                  />
+                </div>
+
+                {/* Years of Experience */}
+                <div>
+                  <label className="block text-sm font-bold text-[#1E293B] mb-3 flex items-center space-x-2">
+                    <div className="bg-gradient-to-br from-[#2563EB]/10 to-[#1E40AF]/10 p-2 rounded-lg">
+                      <Award className="w-4 h-4 text-[#2563EB]" />
+                    </div>
+                    <span>Years of Experience</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={profileData.experience}
+                    onChange={(e) => handleInputChange('experience', e.target.value.replace(/\D/g, '').slice(0, 2))}
+                    disabled={!isEditing}
+                    placeholder="5"
+                    maxLength={2}
+                    className="w-full px-5 py-4 border-2 border-[#CBD5E1] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2563EB] disabled:bg-[#F1F5F9] disabled:text-[#64748B] transition-all duration-200 text-base"
+                  />
+                </div>
+
+                {/* City */}
+                <div>
+                  <label className="block text-sm font-bold text-[#1E293B] mb-3 flex items-center space-x-2">
+                    <div className="bg-gradient-to-br from-[#2563EB]/10 to-[#1E40AF]/10 p-2 rounded-lg">
+                      <MapPin className="w-4 h-4 text-[#2563EB]" />
+                    </div>
+                    <span>City <span className="text-[#DC2626]">*</span></span>
+                  </label>
+                  <input
+                    type="text"
+                    value={profileData.city}
+                    onChange={(e) => handleInputChange('city', e.target.value)}
+                    disabled={!isEditing}
+                    placeholder="e.g., Mumbai"
+                    className={`w-full px-5 py-4 border-2 rounded-xl focus:outline-none focus:ring-2 disabled:bg-[#F1F5F9] disabled:text-[#64748B] transition-all duration-200 text-base ${
+                      errors.city ? 'border-[#DC2626] focus:ring-[#DC2626]' : 'border-[#CBD5E1] focus:ring-[#2563EB] focus:border-[#2563EB]'
+                    }`}
+                  />
+                  {errors.city && (
+                    <p className="text-[#DC2626] text-sm mt-2 flex items-center space-x-1.5 font-medium">
+                      <AlertCircle className="w-4 h-4" />
+                      <span>{errors.city}</span>
+                    </p>
+                  )}
+                </div>
+
+                {/* State */}
+                <div>
+                  <label className="block text-sm font-bold text-[#1E293B] mb-3 flex items-center space-x-2">
+                    <div className="bg-gradient-to-br from-[#2563EB]/10 to-[#1E40AF]/10 p-2 rounded-lg">
+                      <MapPin className="w-4 h-4 text-[#2563EB]" />
+                    </div>
+                    <span>State <span className="text-[#DC2626]">*</span></span>
+                  </label>
+                  <input
+                    type="text"
+                    value={profileData.state}
+                    onChange={(e) => handleInputChange('state', e.target.value)}
+                    disabled={!isEditing}
+                    placeholder="e.g., Maharashtra"
+                    className={`w-full px-5 py-4 border-2 rounded-xl focus:outline-none focus:ring-2 disabled:bg-[#F1F5F9] disabled:text-[#64748B] transition-all duration-200 text-base ${
+                      errors.state ? 'border-[#DC2626] focus:ring-[#DC2626]' : 'border-[#CBD5E1] focus:ring-[#2563EB] focus:border-[#2563EB]'
+                    }`}
+                  />
+                  {errors.state && (
+                    <p className="text-[#DC2626] text-sm mt-2 flex items-center space-x-1.5 font-medium">
+                      <AlertCircle className="w-4 h-4" />
+                      <span>{errors.state}</span>
+                    </p>
+                  )}
+                </div>
+
+                {/* PIN Code */}
+                <div>
+                  <label className="block text-sm font-bold text-[#1E293B] mb-3 flex items-center space-x-2">
+                    <div className="bg-gradient-to-br from-[#2563EB]/10 to-[#1E40AF]/10 p-2 rounded-lg">
+                      <MapPin className="w-4 h-4 text-[#2563EB]" />
+                    </div>
+                    <span>PIN Code <span className="text-[#DC2626]">*</span></span>
+                  </label>
+                  <input
+                    type="text"
+                    value={profileData.pincode}
+                    onChange={(e) => handleInputChange('pincode', e.target.value.replace(/\D/g, '').slice(0, 6))}
+                    disabled={!isEditing}
+                    placeholder="400001"
+                    maxLength={6}
+                    className={`w-full px-5 py-4 border-2 rounded-xl focus:outline-none focus:ring-2 disabled:bg-[#F1F5F9] disabled:text-[#64748B] transition-all duration-200 text-base ${
+                      errors.pincode ? 'border-[#DC2626] focus:ring-[#DC2626]' : 'border-[#CBD5E1] focus:ring-[#2563EB] focus:border-[#2563EB]'
+                    }`}
+                  />
+                  {errors.pincode && (
+                    <p className="text-[#DC2626] text-sm mt-2 flex items-center space-x-1.5 font-medium">
+                      <AlertCircle className="w-4 h-4" />
+                      <span>{errors.pincode}</span>
+                    </p>
+                  )}
+                </div>
+
+                {/* Hourly Rate */}
+                <div>
+                  <label className="block text-sm font-bold text-[#1E293B] mb-3 flex items-center space-x-2">
+                    <div className="bg-gradient-to-br from-[#2563EB]/10 to-[#1E40AF]/10 p-2 rounded-lg">
+                      <IndianRupee className="w-4 h-4 text-[#2563EB]" />
+                    </div>
+                    <span>Hourly Rate (₹)</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={profileData.hourlyRate}
+                    onChange={(e) => handleInputChange('hourlyRate', e.target.value.replace(/\D/g, '').slice(0, 5))}
+                    disabled={!isEditing}
+                    placeholder="500"
+                    className="w-full px-5 py-4 border-2 border-[#CBD5E1] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2563EB] disabled:bg-[#F1F5F9] disabled:text-[#64748B] transition-all duration-200 text-base"
+                  />
+                </div>
+
+                {/* Availability */}
+                <div>
+                  <label className="block text-sm font-bold text-[#1E293B] mb-3 flex items-center space-x-2">
+                    <div className="bg-gradient-to-br from-[#2563EB]/10 to-[#1E40AF]/10 p-2 rounded-lg">
+                      <Clock className="w-4 h-4 text-[#2563EB]" />
+                    </div>
+                    <span>Availability</span>
+                  </label>
+                  <select
+                    value={profileData.availability}
+                    onChange={(e) => handleInputChange('availability', e.target.value)}
+                    disabled={!isEditing}
+                    className="w-full px-5 py-4 border-2 border-[#CBD5E1] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2563EB] disabled:bg-[#F1F5F9] disabled:text-[#64748B] transition-all duration-200 text-base font-medium"
+                  >
+                    <option value="full-time">Full Time</option>
+                    <option value="part-time">Part Time</option>
+                    <option value="weekends">Weekends Only</option>
+                    <option value="flexible">Flexible</option>
+                  </select>
+                </div>
+
+                {/* Aadhar Number */}
+                <div>
+                  <label className="block text-sm font-bold text-[#1E293B] mb-3 flex items-center space-x-2">
+                    <div className="bg-gradient-to-br from-[#2563EB]/10 to-[#1E40AF]/10 p-2 rounded-lg">
+                      <FileText className="w-4 h-4 text-[#2563EB]" />
+                    </div>
+                    <span>Aadhar Number <span className="text-[#64748B] font-normal text-xs">(optional)</span></span>
+                  </label>
+                  <input
+                    type="text"
+                    value={profileData.aadharNumber}
+                    onChange={(e) => handleInputChange('aadharNumber', e.target.value.replace(/\D/g, '').slice(0, 12))}
+                    disabled={!isEditing}
+                    placeholder="123456789012"
+                    maxLength={12}
+                    className={`w-full px-5 py-4 border-2 rounded-xl focus:outline-none focus:ring-2 disabled:bg-[#F1F5F9] disabled:text-[#64748B] transition-all duration-200 text-base ${
+                      errors.aadharNumber ? 'border-[#DC2626] focus:ring-[#DC2626]' : 'border-[#CBD5E1] focus:ring-[#2563EB] focus:border-[#2563EB]'
+                    }`}
+                  />
+                  {errors.aadharNumber && (
+                    <p className="text-[#DC2626] text-sm mt-2 flex items-center space-x-1.5 font-medium">
+                      <AlertCircle className="w-4 h-4" />
+                      <span>{errors.aadharNumber}</span>
+                    </p>
+                  )}
+                  {!errors.aadharNumber && profileData.aadharNumber && profileData.aadharNumber.length === 12 && (
+                    <p className="text-[#10B981] text-sm mt-2 flex items-center space-x-1.5 font-medium">
+                      <CheckCircle2 className="w-4 h-4" />
+                      <span>Valid Aadhar number</span>
+                    </p>
+                  )}
+                </div>
+
+                {/* Full Address - Full Width */}
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-bold text-[#1E293B] mb-3 flex items-center space-x-2">
+                    <div className="bg-gradient-to-br from-[#2563EB]/10 to-[#1E40AF]/10 p-2 rounded-lg">
+                      <MapPin className="w-4 h-4 text-[#2563EB]" />
+                    </div>
+                    <span>Full Address <span className="text-[#DC2626]">*</span></span>
+                  </label>
+                  <textarea
+                    value={profileData.address}
+                    onChange={(e) => handleInputChange('address', e.target.value)}
+                    disabled={!isEditing}
+                    placeholder="House No., Street, Area, Landmark..."
+                    rows={3}
+                    className={`w-full px-5 py-4 border-2 rounded-xl focus:outline-none focus:ring-2 disabled:bg-[#F1F5F9] disabled:text-[#64748B] transition-all duration-200 resize-none text-base ${
+                      errors.address ? 'border-[#DC2626] focus:ring-[#DC2626]' : 'border-[#CBD5E1] focus:ring-[#2563EB] focus:border-[#2563EB]'
+                    }`}
+                  />
+                  {errors.address && (
+                    <p className="text-[#DC2626] text-sm mt-2 flex items-center space-x-1.5 font-medium">
+                      <AlertCircle className="w-4 h-4" />
+                      <span>{errors.address}</span>
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Skills Section */}
+            <div className="bg-white rounded-2xl shadow-lg border border-[#E2E8F0] p-6 md:p-8 lg:p-10 hover:shadow-xl transition-shadow duration-300">
+              <div className="flex items-center justify-between mb-8 pb-6 border-b border-gray-200">
+                <div className="flex items-center space-x-4">
+                  <div className="bg-gradient-to-br from-[#2563EB] to-[#1E40AF] p-4 rounded-2xl shadow-lg">
+                    <Wrench className="w-7 h-7 text-white" />
+                  </div>
+                  <div>
+                    <h2 className="text-xl lg:text-2xl font-bold text-[#1E293B]">Skills & Expertise</h2>
+                    <p className="text-sm text-[#64748B] mt-1">Add your professional skills</p>
+                  </div>
+                </div>
+              </div>
+
+              {isEditing && (
+                <div className="mb-6">
+                  <div className="flex gap-3">
+                    <input
+                      type="text"
+                      value={newSkill}
+                      onChange={(e) => setNewSkill(e.target.value)}
+                      onKeyPress={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          addSkill();
+                        }
+                      }}
+                      placeholder="e.g., Circuit Installation, Troubleshooting"
+                      className="flex-1 px-5 py-4 border-2 border-[#CBD5E1] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2563EB] transition-all duration-200 text-base"
+                    />
+                    <button
+                      onClick={addSkill}
+                      className="bg-gradient-to-r from-[#2563EB] to-[#1E40AF] text-white px-8 py-4 rounded-xl font-bold hover:from-[#1E40AF] hover:to-[#1E3A8A] transition-all duration-200 shadow-lg hover:shadow-xl flex items-center space-x-2 transform hover:scale-105"
+                    >
+                      <Plus className="w-5 h-5" />
+                      <span>Add</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex flex-wrap gap-3">
+                {profileData.skills.length > 0 ? (
+                  profileData.skills.map((skill, index) => (
+                    <div
+                      key={index}
+                      className="bg-gradient-to-r from-[#EFF6FF] to-[#DBEAFE] border-2 border-[#93C5FD] text-[#1E40AF] px-5 py-3 rounded-xl font-semibold flex items-center space-x-3 shadow-sm hover:shadow-md transition-all duration-200"
+                    >
+                      <span>{skill}</span>
+                      {isEditing && (
+                        <button
+                          onClick={() => removeSkill(skill)}
+                          className="hover:bg-[#DC2626] hover:text-white rounded-lg p-1 transition-all duration-200"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-center w-full py-8">
+                    <div className="bg-[#F1F5F9] p-6 rounded-xl inline-block">
+                      <Star className="w-12 h-12 text-[#94A3B8] mx-auto mb-3" />
+                      <p className="text-[#64748B] font-medium">No skills added yet</p>
+                      {isEditing && (
+                        <p className="text-sm text-[#94A3B8] mt-2">Add skills to showcase your expertise</p>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Languages Section */}
+            <div className="bg-white rounded-2xl shadow-lg border border-[#E2E8F0] p-6 md:p-8 lg:p-10 hover:shadow-xl transition-shadow duration-300">
+              <div className="flex items-center justify-between mb-8 pb-6 border-b border-gray-200">
+                <div className="flex items-center space-x-4">
+                  <div className="bg-gradient-to-br from-[#2563EB] to-[#1E40AF] p-4 rounded-2xl shadow-lg">
+                    <Languages className="w-7 h-7 text-white" />
+                  </div>
+                  <div>
+                    <h2 className="text-xl lg:text-2xl font-bold text-[#1E293B]">Languages</h2>
+                    <p className="text-sm text-[#64748B] mt-1">Select languages you can communicate in</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {['English', 'Hindi', 'Tamil', 'Telugu', 'Kannada', 'Malayalam', 'Bengali', 'Marathi'].map((lang) => (
+                  <button
+                    key={lang}
+                    onClick={() => isEditing && toggleLanguage(lang)}
+                    disabled={!isEditing}
+                    className={`px-5 py-4 rounded-xl font-semibold transition-all duration-200 text-base ${
+                      profileData.languages.includes(lang)
+                        ? 'bg-gradient-to-r from-[#2563EB] to-[#1E40AF] text-white shadow-lg transform scale-105'
+                        : 'bg-[#F1F5F9] text-[#64748B] hover:bg-[#E2E8F0]'
+                    } ${!isEditing ? 'cursor-default' : 'cursor-pointer hover:shadow-md'}`}
+                  >
+                    {profileData.languages.includes(lang) && (
+                      <CheckCircle2 className="w-5 h-5 inline-block mr-2" />
+                    )}
+                    {lang}
+                  </button>
+                ))}
+              </div>
+
+              {profileData.languages.length === 0 && (
+                <div className="text-center py-8 mt-6">
+                  <div className="bg-[#F1F5F9] p-6 rounded-xl inline-block">
+                    <Languages className="w-12 h-12 text-[#94A3B8] mx-auto mb-3" />
+                    <p className="text-[#64748B] font-medium">No languages selected</p>
+                    {isEditing && (
+                      <p className="text-sm text-[#94A3B8] mt-2">Select at least one language</p>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Bio Section */}
+            <div className="bg-white rounded-2xl shadow-lg border border-[#E2E8F0] p-6 md:p-8 lg:p-10 hover:shadow-xl transition-shadow duration-300">
+              <div className="flex items-center justify-between mb-8 pb-6 border-b border-gray-200">
+                <div className="flex items-center space-x-4">
+                  <div className="bg-gradient-to-br from-[#2563EB] to-[#1E40AF] p-4 rounded-2xl shadow-lg">
+                    <FileText className="w-7 h-7 text-white" />
+                  </div>
+                  <div>
+                    <h2 className="text-xl lg:text-2xl font-bold text-[#1E293B]">Professional Bio</h2>
+                    <p className="text-sm text-[#64748B] mt-1">Tell clients about yourself</p>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <textarea
+                  value={profileData.bio}
+                  onChange={(e) => handleInputChange('bio', e.target.value)}
+                  disabled={!isEditing}
+                  placeholder="Write a brief introduction about your professional background, expertise, and what makes you stand out..."
+                  rows={6}
+                  maxLength={500}
+                  className="w-full px-5 py-4 border-2 border-[#CBD5E1] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2563EB] disabled:bg-[#F1F5F9] disabled:text-[#64748B] transition-all duration-200 resize-none text-base"
+                />
+                <div className="flex items-center justify-between mt-3">
+                  <p className="text-sm text-[#64748B]">
+                    {profileData.bio ? (
+                      <span className="font-medium text-[#2563EB]">{profileData.bio.length}/500 characters</span>
+                    ) : (
+                      <span>Maximum 500 characters</span>
+                    )}
+                  </p>
+                  {isEditing && (
+                    <div className="bg-gradient-to-br from-[#EFF6FF] to-[#DBEAFE] px-4 py-2 rounded-lg border border-[#93C5FD]">
+                      <p className="text-xs text-[#1E40AF] font-medium">💡 Tip: Highlight your unique skills and achievements</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            {isEditing && (
+              <div className="bg-white rounded-2xl shadow-lg border border-[#E2E8F0] p-6 md:p-8 flex items-center justify-end space-x-4 sticky bottom-4">
+                <button
+                  onClick={handleCancel}
+                  disabled={isSaving}
+                  className="px-8 py-4 border-2 border-[#CBD5E1] text-[#475569] rounded-xl font-bold hover:bg-[#F1F5F9] hover:border-[#94A3B8] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm hover:shadow-md transform hover:scale-105"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSave}
+                  disabled={isSaving}
+                  className="px-8 py-4 bg-gradient-to-r from-[#2563EB] to-[#1E40AF] text-white rounded-xl font-bold hover:from-[#1E40AF] hover:to-[#1E3A8A] transition-all duration-200 shadow-lg hover:shadow-xl flex items-center space-x-3 disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-105"
+                >
+                  {isSaving ? (
+                    <>
+                      <RefreshCw className="w-6 h-6 animate-spin" />
+                      <span>Saving Changes...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Save className="w-6 h-6" />
+                      <span>Save Changes</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
