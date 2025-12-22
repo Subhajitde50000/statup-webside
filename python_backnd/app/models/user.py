@@ -49,6 +49,14 @@ class PyObjectId(ObjectId):
         field_schema.update(type="string")
 
 
+class ApprovalStatus(str, Enum):
+    """Approval status for professionals and shopkeepers"""
+    PENDING = "pending"
+    APPROVED = "approved"
+    REJECTED = "rejected"
+    MORE_INFO_NEEDED = "more_info_needed"
+
+
 class UserBase(BaseModel):
     name: str = Field(..., min_length=2, max_length=100)
     email: Optional[EmailStr] = None
@@ -58,6 +66,14 @@ class UserBase(BaseModel):
     is_verified: bool = False
     is_active: bool = True
     profile_image: Optional[str] = None
+    
+    # Approval fields for professionals/shopkeepers
+    approval_status: Optional[str] = None  # pending, approved, rejected, more_info_needed
+    approval_data: Optional[dict] = None   # Stores professional/shop specific data
+    admin_notes: Optional[str] = None
+    rejection_reason: Optional[str] = None
+    reviewed_by: Optional[str] = None
+    reviewed_at: Optional[datetime] = None
 
 
 class UserInDB(UserBase):
@@ -90,6 +106,11 @@ class UserResponse(BaseModel):
     phone_verified: bool = False
     created_at: datetime
     
+    # Approval fields
+    approval_status: Optional[str] = None
+    approval_data: Optional[dict] = None
+    rejection_reason: Optional[str] = None
+    
     class Config:
         from_attributes = True
 
@@ -111,4 +132,9 @@ def user_helper(user: dict) -> dict:
         "created_at": user.get("created_at"),
         "updated_at": user.get("updated_at"),
         "last_login": user.get("last_login"),
+        
+        # Approval fields
+        "approval_status": user.get("approval_status"),
+        "approval_data": user.get("approval_data"),
+        "rejection_reason": user.get("rejection_reason"),
     }

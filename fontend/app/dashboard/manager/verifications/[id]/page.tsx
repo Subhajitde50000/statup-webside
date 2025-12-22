@@ -163,15 +163,15 @@ export default function VerificationDetailPage() {
                       {isProfessional ? verification.name : verification.shop_name}
                     </h1>
                     <p className="text-sm text-[#64748B] mt-1">
-                      {formatVerificationType(verification.verification_type)} Verification • ID: {verification.id.slice(-8).toUpperCase()}
+                      {formatVerificationType(verification.verification_type)} Verification • ID: {verification.id?.slice(-8).toUpperCase() || 'N/A'}
                     </p>
                   </div>
                   <div className="flex items-center gap-3">
                     <span className={`px-4 py-2 rounded-full text-sm font-bold ${getStatusColor(verification.status)}`}>
                       {formatStatus(verification.status)}
                     </span>
-                    <span className={`px-4 py-2 rounded-full text-sm font-bold border-2 ${getRiskScoreColor(verification.risk_score)}`}>
-                      {verification.risk_score.toUpperCase()} RISK
+                    <span className={`px-4 py-2 rounded-full text-sm font-bold border-2 ${getRiskScoreColor(verification.risk_score || 'low')}`}>
+                      {(verification.risk_score || 'low').toUpperCase()} RISK
                     </span>
                   </div>
                 </div>
@@ -284,9 +284,9 @@ export default function VerificationDetailPage() {
                   <div className="bg-white rounded-xl border border-[#E2E8F0] shadow-sm p-6">
                     <h2 className="text-lg font-semibold text-[#1E293B] mb-4 flex items-center gap-2">
                       <FileText className="w-5 h-5 text-[#0AA06E]" />
-                      Documents ({verification.documents_count})
+                      Documents ({verification.documents_count || 0})
                     </h2>
-                    {verification.documents.length === 0 ? (
+                    {(!verification.documents || verification.documents.length === 0) ? (
                       <div className="text-center py-8 text-[#64748B]">
                         <FileText className="w-12 h-12 mx-auto mb-2 opacity-50" />
                         <p>No documents uploaded</p>
@@ -443,8 +443,8 @@ export default function VerificationDetailPage() {
                         </div>
                         <div>
                           <label className="text-xs text-[#64748B] uppercase tracking-wider">Risk Score</label>
-                          <p className={`mt-1 inline-block px-3 py-1 rounded-full text-sm font-bold border-2 ${getRiskScoreColor(verification.risk_score)}`}>
-                            {verification.risk_score.toUpperCase()}
+                          <p className={`mt-1 inline-block px-3 py-1 rounded-full text-sm font-bold border-2 ${getRiskScoreColor(verification.risk_score || 'low')}`}>
+                            {(verification.risk_score || 'low').toUpperCase()}
                           </p>
                         </div>
                         {verification.admin_notes && (

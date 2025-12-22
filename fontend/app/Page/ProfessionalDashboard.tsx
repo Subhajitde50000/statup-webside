@@ -1,8 +1,9 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Bell, Calendar, Clock, AlertCircle } from 'lucide-react';
+import { Bell, Calendar, Clock, AlertCircle, Loader2 } from 'lucide-react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import {
   StatusToggle,
   EarningsOverview,
@@ -14,12 +15,49 @@ import {
   RecentReviews,
   ProfessionalNavbar
 } from '../professional/components';
+import { getCurrentUser, User } from '@/utils/auth';
 
 export default function ProfessionalDashboard() {
+  const router = useRouter();
   const [isOnline, setIsOnline] = useState(true);
   const [notificationCount, setNotificationCount] = useState(3);
   const [currentTime, setCurrentTime] = useState<string>('--:--');
   const [mounted, setMounted] = useState(false);
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [accessDenied, setAccessDenied] = useState(false);
+
+  // Check authentication and role
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const token = localStorage.getItem('access_token');
+        if (!token) {
+          router.push('/auth');
+          return;
+        }
+
+        const currentUser = await getCurrentUser();
+        setUser(currentUser);
+
+        // Check if user is a professional
+        if (currentUser.role === 'professional') {
+          setLoading(false);
+        } else if (currentUser.role === 'pending_professional') {
+          setAccessDenied(true);
+          setLoading(false);
+        } else {
+          // Not a professional at all - redirect to home
+          router.push('/');
+        }
+      } catch (error) {
+        console.error('Auth check failed:', error);
+        router.push('/auth');
+      }
+    };
+
+    checkAuth();
+  }, [router]);
 
   // Update time every minute after mounting
   useEffect(() => {
@@ -161,6 +199,55 @@ export default function ProfessionalDashboard() {
       alert('You are now OFFLINE. You will not receive new booking requests.');
     }
   };
+
+  // Loading state
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-teal-50 flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="w-12 h-12 animate-spin text-[#0AA06E] mx-auto mb-4" />
+          <p className="text-gray-600 font-medium">Loading your dashboard...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Access denied for pending professionals
+  if (accessDenied) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-teal-50 flex items-center justify-center p-4">
+        <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-8 text-center">
+          <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <Clock className="w-8 h-8 text-orange-600" />
+          </div>
+          <h1 className="text-2xl font-bold text-gray-900 mb-3">
+            Verification Pending
+          </h1>
+          <p className="text-gray-600 mb-6">
+            Your professional registration is currently being reviewed by our team. 
+            You'll be able to access the dashboard once your account is approved.
+          </p>
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+            <p className="text-sm text-blue-800">
+              <strong>💡 Tip:</strong> This usually takes 24-48 hours. We'll notify you via SMS and email once approved.
+            </p>
+          </div>
+          <div className="flex gap-3">
+            <Link href="/register/status?phone={user?.phone}" className="flex-1">
+              <button className="w-full px-4 py-3 bg-[#0AA06E] text-white rounded-lg hover:bg-[#098F5E] font-medium transition-colors">
+                Check Status
+              </button>
+            </Link>
+            <Link href="/" className="flex-1">
+              <button className="w-full px-4 py-3 border-2 border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium transition-colors">
+                Go Home
+              </button>
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-teal-50">

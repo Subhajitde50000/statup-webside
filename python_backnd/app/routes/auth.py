@@ -226,44 +226,30 @@ async def login(request: LoginRequest):
             detail="Account is deactivated"
         )
     
-    # Check verification status for shopkeepers and professionals
-    user_role = user.get("role", "customer")
-    if user_role in ["shopkeeper", "professional", "pending_shopkeeper", "pending_professional"]:
-        # Get verification status
-        verifications = get_database().verifications
-        verification_type = "shop" if "shop" in user_role else "professional"
-        verification = await verifications.find_one({
-            "phone": user.get("phone"),
-            "verification_type": verification_type
-        })
+    # Check approval status for shopkeepers and professionals
+    user_role = user.get("role", "user")
+    if user_role in ["shopkeeper", "professional"]:
+        approval_status = user.get("approval_status")
         
-        if not verification:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Verification not found. Please complete registration first."
-            )
-        
-        verification_status = verification.get("status", "pending")
-        
-        if verification_status == "pending":
+        if approval_status == "pending":
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Your registration is under review. You'll receive access once approved by our team."
             )
-        elif verification_status == "rejected":
+        elif approval_status == "rejected":
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Your registration was rejected. Please contact support for more information."
             )
-        elif verification_status == "more_info_needed":
+        elif approval_status == "more_info_needed":
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="More information required. Please update your registration and resubmit."
             )
-        elif verification_status != "approved":
+        elif approval_status != "approved":
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Account verification incomplete. Please complete the verification process."
+                detail="Account approval incomplete. Please wait for manager approval."
             )
     
     # Update last login

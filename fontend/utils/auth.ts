@@ -21,6 +21,9 @@ export interface User {
   email_verified: boolean;
   phone_verified: boolean;
   created_at: string;
+  approval_status?: 'pending' | 'approved' | 'rejected';
+  approval_data?: Record<string, any>;
+  rejected_reason?: string;
 }
 
 export interface AuthResponse {
@@ -386,7 +389,12 @@ export async function verifyPhone(otp_code: string): Promise<{ message: string; 
 /**
  * Get the appropriate landing page URL based on user role
  */
-export function getRoleBasedRedirectUrl(role: string): string {
+export function getRoleBasedRedirectUrl(role: string, approvalStatus?: string): string {
+  // For professional/shopkeeper with pending approval
+  if ((role === 'professional' || role === 'shopkeeper') && approvalStatus === 'pending') {
+    return '/register/status';
+  }
+  
   switch (role) {
     case 'admin':
       return '/dashboard/admin';
@@ -406,5 +414,12 @@ export function getRoleBasedRedirectUrl(role: string): string {
  * Redirect user to appropriate landing page based on role
  */
 export function redirectByRole(user: User): string {
-  return getRoleBasedRedirectUrl(user.role);
+  const baseUrl = getRoleBasedRedirectUrl(user.role, user.approval_status);
+  
+  // Add phone query param for pending users
+  if (user.approval_status === 'pending') {
+    return `${baseUrl}?phone=${user.phone}`;
+  }
+  
+  return baseUrl;
 }

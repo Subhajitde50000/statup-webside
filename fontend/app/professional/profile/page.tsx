@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   Edit2, MapPin, Upload, X, Camera, Award, Check, Calendar, Save, AlertCircle, 
   CheckCircle2, User, Mail, Phone as PhoneIcon, FileText, Briefcase, RefreshCw,
-  IndianRupee, Clock, Star, Shield, BadgeCheck, Wrench, Languages
+  IndianRupee, Clock, Star, Shield, BadgeCheck, Wrench, Languages, Plus
 } from 'lucide-react';
 import ProfessionalNavbar from '../components/ProfessionalNavbar';
 
