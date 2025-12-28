@@ -54,6 +54,15 @@ export default function ShopkeeperNavbar() {
                   <span>Product</span>
                 </Link>
                 <Link 
+                  href="/shopkeeper/subscription" 
+                  className={`flex items-center space-x-2 font-medium hover:text-[#00C897] transition ${
+                    pathname?.startsWith('/shopkeeper/subscription') ? 'text-[#00C897]' : 'text-[#555555]'
+                  }`}
+                >
+                  <Package className="w-5 h-5" />
+                  <span>Subscription</span>
+                </Link>
+                <Link 
                   href="/shopkeeper/profile" 
                   className={`flex items-center space-x-2 font-medium hover:text-[#00C897] transition ${
                     pathname?.startsWith('/shopkeeper/profile') ? 'text-[#00C897]' : 'text-[#555555]'
@@ -193,7 +202,7 @@ export default function ShopkeeperNavbar() {
             }`} />
             <span className={`text-xs ${
               pathname?.startsWith('/shopkeeper/products') ? 'text-[#00C897] font-medium' : 'text-[#555555]'
-            }`}>Inventory</span>
+            }`}>Products</span>
           </Link>
 
           {/* Profile */}

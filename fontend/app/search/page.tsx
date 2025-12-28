@@ -1,11 +1,15 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Navbar from '../Component/Navbar';
 import Footer from '../Component/Footer';
 import Notifications from '../Component/Notifications';
+import FavoriteButton from '../Component/FavoriteButton';
+
+const SEARCH_HISTORY_KEY = 'professional_search_history';
+const MAX_HISTORY_ITEMS = 10;
 
 export default function SearchResults() {
   const router = useRouter();
@@ -23,6 +27,13 @@ export default function SearchResults() {
   const [showFilters, setShowFilters] = useState(false);
   const [showBackToTop, setShowBackToTop] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  
+  // Search suggestions and history
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [searchHistory, setSearchHistory] = useState<string[]>([]);
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const searchRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   // Filter states
   const [filters, setFilters] = useState({
@@ -34,126 +45,136 @@ export default function SearchResults() {
     sortBy: 'best-match'
   });
 
-  // Mock data - replace with API call
-  const [allprofessional_views] = useState([
-    {
-      id: 1,
-      name: 'Rahul Das',
-      profession: 'Electrician',
-      photo: 'https://ui-avatars.com/api/?name=Rahul+Das&size=80&background=1A73E8&color=fff&bold=true',
-      rating: 4.8,
-      reviews: 320,
-      pricePerHour: 299,
-      inspectionFee: 149,
-      distance: 1.2,
-      skills: ['Wiring', 'Switchboard', 'Light fitting', 'Fan repair'],
-      jobsCompleted: 1450,
-      verified: true,
-      availability: 'Available now',
-      responseTime: '10 mins',
-      experience: 8,
-      description: 'Expert electrician with 8 years of experience in residential and commercial electrical work.'
-    },
-    {
-      id: 2,
-      name: 'Amit Kumar',
-      profession: 'Electrician',
-      photo: 'https://ui-avatars.com/api/?name=Amit+Kumar&size=80&background=6366F1&color=fff&bold=true',
-      rating: 4.9,
-      reviews: 450,
-      pricePerHour: 349,
-      inspectionFee: 199,
-      distance: 2.5,
-      skills: ['Emergency Fixing', 'Appliance Repair', 'Wiring Check', 'Panel Installation'],
-      jobsCompleted: 2100,
-      verified: true,
-      availability: 'Available today',
-      responseTime: '15 mins',
-      experience: 12,
-      description: 'Specialized in emergency electrical repairs and smart home installations.'
-    },
-    {
-      id: 3,
-      name: 'Suresh Sharma',
-      profession: 'Electrician',
-      photo: 'https://ui-avatars.com/api/?name=Suresh+Sharma&size=80&background=8B5CF6&color=fff&bold=true',
-      rating: 4.7,
-      reviews: 280,
-      pricePerHour: 249,
-      inspectionFee: 99,
-      distance: 3.8,
-      skills: ['Panel Repair', 'Cable Installation', 'Smart Home Setup'],
-      jobsCompleted: 890,
-      verified: true,
-      availability: 'Available this week',
-      responseTime: '30 mins',
-      experience: 6,
-      description: 'Affordable and reliable service for all types of electrical work.'
-    },
-    {
-      id: 4,
-      name: 'Vikash Singh',
-      profession: 'Electrician',
-      photo: 'https://ui-avatars.com/api/?name=Vikash+Singh&size=80&background=EC4899&color=fff&bold=true',
-      rating: 4.6,
-      reviews: 195,
-      pricePerHour: 199,
-      inspectionFee: 79,
-      distance: 4.2,
-      skills: ['Wiring', 'Fan Installation', 'Switch Repair'],
-      jobsCompleted: 650,
-      verified: false,
-      availability: 'Available today',
-      responseTime: '20 mins',
-      experience: 4,
-      description: 'Fast and efficient electrical services at competitive rates.'
-    },
-    {
-      id: 5,
-      name: 'Rajesh Gupta',
-      profession: 'Electrician',
-      photo: 'https://ui-avatars.com/api/?name=Rajesh+Gupta&size=80&background=F59E0B&color=fff&bold=true',
-      rating: 4.9,
-      reviews: 580,
-      pricePerHour: 399,
-      inspectionFee: 249,
-      distance: 5.1,
-      skills: ['Industrial Wiring', 'Three Phase', 'Generator Setup', 'Solar Installation'],
-      jobsCompleted: 3200,
-      verified: true,
-      availability: 'Available now',
-      responseTime: '5 mins',
-      experience: 15,
-      description: 'Premium electrical services with expertise in industrial and commercial projects.'
-    },
-    {
-      id: 6,
-      name: 'Manoj Yadav',
-      profession: 'Electrician',
-      photo: 'https://ui-avatars.com/api/?name=Manoj+Yadav&size=80&background=10B981&color=fff&bold=true',
-      rating: 4.5,
-      reviews: 160,
-      pricePerHour: 229,
-      inspectionFee: 99,
-      distance: 6.3,
-      skills: ['Home Wiring', 'Lighting', 'Appliance Fix'],
-      jobsCompleted: 420,
-      verified: true,
-      availability: 'Available today',
-      responseTime: '25 mins',
-      experience: 5,
-      description: 'Specializing in residential electrical services and maintenance.'
-    }
-  ]);
+  // Real data from API
+  const [allprofessional_views, setAllProfessionalViews] = useState([]);
 
-  // Simulate loading
+  // Load search history from localStorage
   useEffect(() => {
-    setIsLoading(true);
-    const timer = setTimeout(() => {
-      setIsLoading(false);
-    }, 800);
-    return () => clearTimeout(timer);
-  }, [query, filters]);
+    if (typeof window !== 'undefined') {
+      const history = localStorage.getItem(SEARCH_HISTORY_KEY);
+      if (history) {
+        setSearchHistory(JSON.parse(history));
+      }
+    }
+  }, []);
+
+  // Fetch professionals from API
+  useEffect(() => {
+    const fetchProfessionals = async () => {
+      if (!query && !category) {
+        setIsLoading(false);
+        return;
+      }
+
+      setIsLoading(true);
+      try {
+        const response = await fetch(
+          `http://localhost:8000/api/professionals/search?query=${encodeURIComponent(query)}&limit=50`,
+          {
+            headers: {
+              'Content-Type': 'application/json',
+            },
+          }
+        );
+
+        if (response.ok) {
+          const data = await response.json();
+          setAllProfessionalViews(data.professionals || []);
+        } else {
+          setAllProfessionalViews([]);
+        }
+      } catch (error) {
+        console.error('Error fetching professionals:', error);
+        setAllProfessionalViews([]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchProfessionals();
+  }, [query, category]);
+
+  // Fetch suggestions when user types
+  useEffect(() => {
+    const fetchSuggestions = async () => {
+      if (!searchInput || searchInput.length < 2) {
+        setSuggestions([]);
+        return;
+      }
+
+      try {
+        // Get professions for suggestions
+        const [professionsRes, citiesRes] = await Promise.all([
+          fetch('http://localhost:8000/api/professionals/professions'),
+          fetch('http://localhost:8000/api/professionals/cities'),
+        ]);
+
+        const professions = professionsRes.ok ? await professionsRes.json() : { professions: [] };
+        const cities = citiesRes.ok ? await citiesRes.json() : { cities: [] };
+
+        // Filter matching professions and cities
+        const matchingProfessions = professions.professions
+          ?.filter((p: string) => p.toLowerCase().includes(searchInput.toLowerCase()))
+          .slice(0, 5) || [];
+        
+        const matchingCities = cities.cities
+          ?.filter((c: string) => c.toLowerCase().includes(searchInput.toLowerCase()))
+          .slice(0, 3) || [];
+
+        setSuggestions([...matchingProfessions, ...matchingCities]);
+      } catch (error) {
+        console.error('Error fetching suggestions:', error);
+        setSuggestions([]);
+      }
+    };
+
+    const debounce = setTimeout(fetchSuggestions, 300);
+    return () => clearTimeout(debounce);
+  }, [searchInput]);
+
+  // Close suggestions when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
+        setShowSuggestions(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Save search to history
+  const saveToHistory = (searchTerm: string) => {
+    if (!searchTerm.trim()) return;
+
+    const newHistory = [
+      searchTerm,
+      ...searchHistory.filter((item) => item !== searchTerm),
+    ].slice(0, MAX_HISTORY_ITEMS);
+
+    setSearchHistory(newHistory);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(SEARCH_HISTORY_KEY, JSON.stringify(newHistory));
+    }
+  };
+
+  // Clear search history
+  const clearSearchHistory = () => {
+    setSearchHistory([]);
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem(SEARCH_HISTORY_KEY);
+    }
+  };
+
+  // Remove item from history
+  const removeFromHistory = (item: string) => {
+    const newHistory = searchHistory.filter((h) => h !== item);
+    setSearchHistory(newHistory);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(SEARCH_HISTORY_KEY, JSON.stringify(newHistory));
+    }
+  };
 
   // Back to top button visibility
   useEffect(() => {
@@ -236,8 +257,23 @@ export default function SearchResults() {
 
   const handleSearch = () => {
     if (searchInput.trim()) {
+      saveToHistory(searchInput.trim());
+      setShowSuggestions(false);
       router.push(`/search?q=${encodeURIComponent(searchInput)}&location=${encodeURIComponent(location)}`);
     }
+  };
+
+  const handleSuggestionClick = (suggestion: string) => {
+    setSearchInput(suggestion);
+    saveToHistory(suggestion);
+    setShowSuggestions(false);
+    router.push(`/search?q=${encodeURIComponent(suggestion)}&location=${encodeURIComponent(location)}`);
+  };
+
+  const handleHistoryClick = (historyItem: string) => {
+    setSearchInput(historyItem);
+    setShowSuggestions(false);
+    router.push(`/search?q=${encodeURIComponent(historyItem)}&location=${encodeURIComponent(location)}`);
   };
 
   const handleFilterChange = (filterType: string, value: string) => {
@@ -301,21 +337,155 @@ export default function SearchResults() {
               </svg>
             </button>
 
-            {/* Search Bar */}
-            <div className="flex-1 flex items-center bg-white rounded-xl px-4 py-2 text-gray-800">
-              <input
-                type="text"
-                value={searchInput}
-                onChange={(e) => setSearchInput(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
-                placeholder="Electrician near me"
-                className="flex-1 outline-none text-sm md:text-base"
-              />
-              <button onClick={handleSearch} className="text-[#1A73E8] hover:text-blue-700">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
-              </button>
+            {/* Search Bar with Suggestions */}
+            <div className="flex-1 relative" ref={searchRef}>
+              <div className="flex items-center bg-white rounded-xl px-4 py-2 text-gray-800">
+                <input
+                  ref={searchInputRef}
+                  type="text"
+                  value={searchInput}
+                  onChange={(e) => setSearchInput(e.target.value)}
+                  onFocus={() => setShowSuggestions(true)}
+                  onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+                  placeholder="Search electrician, plumber, carpenter..."
+                  className="flex-1 outline-none text-sm md:text-base"
+                />
+                {searchInput && (
+                  <button 
+                    onClick={() => setSearchInput('')}
+                    className="text-gray-400 hover:text-gray-600 mr-2"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                )}
+                <button onClick={handleSearch} className="text-[#1A73E8] hover:text-blue-700">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                </button>
+              </div>
+
+              {/* Search Suggestions Dropdown */}
+              {showSuggestions && (searchInput.length >= 2 || searchHistory.length > 0) && (
+                <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl shadow-2xl border border-gray-200 z-50 max-h-96 overflow-y-auto">
+                  {/* Search History */}
+                  {searchHistory.length > 0 && searchInput.length < 2 && (
+                    <div className="border-b border-gray-100">
+                      <div className="flex items-center justify-between px-4 py-3 bg-gray-50">
+                        <div className="flex items-center gap-2">
+                          <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          <span className="text-sm font-semibold text-gray-700">Recent Searches</span>
+                        </div>
+                        <button 
+                          onClick={clearSearchHistory}
+                          className="text-xs text-[#1A73E8] hover:underline font-medium"
+                        >
+                          Clear All
+                        </button>
+                      </div>
+                      {searchHistory.map((item, index) => (
+                        <div 
+                          key={index}
+                          className="flex items-center justify-between px-4 py-3 hover:bg-gray-50 cursor-pointer group"
+                        >
+                          <div 
+                            onClick={() => handleHistoryClick(item)}
+                            className="flex items-center gap-3 flex-1"
+                          >
+                            <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            <span className="text-sm text-gray-700">{item}</span>
+                          </div>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              removeFromHistory(item);
+                            }}
+                            className="text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Suggestions */}
+                  {searchInput.length >= 2 && suggestions.length > 0 && (
+                    <div>
+                      <div className="px-4 py-2 bg-gray-50">
+                        <div className="flex items-center gap-2">
+                          <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                          </svg>
+                          <span className="text-sm font-semibold text-gray-700">Suggestions</span>
+                        </div>
+                      </div>
+                      {suggestions.map((suggestion, index) => (
+                        <div
+                          key={index}
+                          onClick={() => handleSuggestionClick(suggestion)}
+                          className="flex items-center gap-3 px-4 py-3 hover:bg-blue-50 cursor-pointer group"
+                        >
+                          <svg className="w-4 h-4 text-gray-400 group-hover:text-[#1A73E8]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                          </svg>
+                          <span className="text-sm text-gray-700 group-hover:text-[#1A73E8] font-medium">
+                            {suggestion}
+                          </span>
+                          <svg className="w-4 h-4 text-gray-400 ml-auto opacity-0 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                          </svg>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* No suggestions */}
+                  {searchInput.length >= 2 && suggestions.length === 0 && searchHistory.length === 0 && (
+                    <div className="px-4 py-6 text-center text-gray-500 text-sm">
+                      <svg className="w-8 h-8 mx-auto mb-2 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                      </svg>
+                      No suggestions found
+                    </div>
+                  )}
+
+                  {/* Popular Searches (when no input) */}
+                  {searchInput.length < 2 && searchHistory.length === 0 && (
+                    <div>
+                      <div className="px-4 py-2 bg-gray-50">
+                        <div className="flex items-center gap-2">
+                          <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l-4-4H9a1.994 1.994 0 01-1.414-.586m0 0L11 14h4a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2v4l.586-.586z" />
+                          </svg>
+                          <span className="text-sm font-semibold text-gray-700">Popular Searches</span>
+                        </div>
+                      </div>
+                      {['Electrician', 'Plumber', 'Carpenter', 'AC Repair', 'Painter'].map((item, index) => (
+                        <div
+                          key={index}
+                          onClick={() => handleSuggestionClick(item)}
+                          className="flex items-center gap-3 px-4 py-3 hover:bg-blue-50 cursor-pointer group"
+                        >
+                          <svg className="w-4 h-4 text-gray-400 group-hover:text-[#1A73E8]" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" />
+                            <path fillRule="evenodd" d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm9.707 5.707a1 1 0 00-1.414-1.414L9 12.586l-1.293-1.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                          </svg>
+                          <span className="text-sm text-gray-700 group-hover:text-[#1A73E8]">{item}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Notification Bell */}
@@ -577,6 +747,15 @@ export default function SearchResults() {
 
                     {/* professional_view Card */}
                     <div className="bg-white rounded-xl shadow-md hover:shadow-xl transition-all duration-300 p-4 md:p-6 relative border border-gray-100">
+                      {/* Favorite Button */}
+                      <div className="absolute top-4 right-16">
+                        <FavoriteButton 
+                          key={`fav-${professional_view.id}`}
+                          professionalId={professional_view.id}
+                          size="small"
+                        />
+                      </div>
+                      
                       {/* Distance Badge */}
                       <div className="absolute top-4 right-4 bg-[#F5F7FA] px-3 py-1 rounded-full text-xs font-medium text-gray-600 flex items-center gap-1">
                         📍 {professional_view.distance} km away

@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
-import { Star, CheckCircle, Shield, Clock, Award, CreditCard, Users, Phone, Mail, TrendingUp, Zap, MapPin, Search } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Star, CheckCircle, Shield, Clock, Award, CreditCard, Users, Phone, Mail, TrendingUp, Zap, MapPin, Search, Loader2, IndianRupee, User } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import Navbar from '../Component/Navbar';
 import Footer from '../Component/Footer';
@@ -12,6 +12,112 @@ export default function Home() {
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [selectedService, setSelectedService] = useState('');
   const [location, setLocation] = useState('');
+  const [quickServices, setQuickServices] = useState([]);
+  const [featuredProfessionals, setFeaturedProfessionals] = useState([]);
+  const [stats, setStats] = useState({
+    servicesCompleted: 0,
+    totalProfessionals: 0,
+    averageRating: 0,
+    avgResponseTime: '30 Min'
+  });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchHomeData();
+  }, []);
+
+  const fetchHomeData = async () => {
+    try {
+      setLoading(true);
+      
+      // Fetch top-rated services for quick booking section
+      const servicesRes = await fetch('http://localhost:8000/api/services?sort_by=rating&limit=20');
+      if (servicesRes.ok) {
+        const servicesData = await servicesRes.json();
+        const services = servicesData.services || [];
+        
+        // Get unique services with different categories for quick services
+        const uniqueCategories = new Map();
+        services.forEach(service => {
+          if (!uniqueCategories.has(service.category) && uniqueCategories.size < 6) {
+            uniqueCategories.set(service.category, service);
+          }
+        });
+        setQuickServices(Array.from(uniqueCategories.values()));
+        
+        // Extract professionals with complete data
+        const professionalsMap = new Map();
+        services.forEach(service => {
+          if (service.professional_id && service.professional_name && !professionalsMap.has(service.professional_id)) {
+            professionalsMap.set(service.professional_id, {
+              id: service.professional_id,
+              name: service.professional_name,
+              role: service.category,
+              rating: service.professional_rating || 4.5,
+              reviews: service.professional_reviews || 0,
+              experience: service.professional_experience || 'Experienced',
+              verified: service.professional_verified || false,
+              price: service.price,
+              price_type: service.price_type,
+              image: service.professional_image,
+              desc: `${service.professional_experience || 'Professional'} with expertise in ${service.category}`
+            });
+          }
+        });
+        
+        // Get top 6 professionals sorted by rating
+        const professionals = Array.from(professionalsMap.values())
+          .sort((a, b) => b.rating - a.rating)
+          .slice(0, 6);
+        setFeaturedProfessionals(professionals);
+        
+        // Calculate stats
+        const totalServices = servicesData.total || services.length;
+        const avgRating = services.length > 0 
+          ? services.reduce((sum, s) => sum + (s.rating || 0), 0) / services.length 
+          : 4.9;
+        
+        setStats({
+          servicesCompleted: totalServices > 0 ? Math.floor(totalServices * 20) : 50000,
+          totalProfessionals: professionalsMap.size || 2500,
+          averageRating: avgRating,
+          avgResponseTime: '30 Min'
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching home data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getCategoryEmoji = (category) => {
+    const emojiMap = {
+      'Electrical': '⚡',
+      'Plumbing': '🔧',
+      'Housekeeping': '🧹',
+      'Cleaning': '🧹',
+      'Cooking': '👨‍🍳',
+      'Driving': '🚗',
+      'AC Repair': '❄️',
+      'Carpentry': '🔨',
+      'Painting': '🎨',
+      'default': '⚡'
+    };
+    return emojiMap[category] || emojiMap.default;
+  };
+
+  const getCategoryGradient = (index) => {
+    const gradients = [
+      'from-red-500 to-orange-500',
+      'from-blue-500 to-cyan-500',
+      'from-green-500 to-emerald-500',
+      'from-purple-500 to-pink-500',
+      'from-orange-500 to-yellow-500',
+      'from-indigo-500 to-blue-500'
+    ];
+    return gradients[index % gradients.length];
+  };
 
   return (
     <div className="min-h-screen bg-white">
@@ -143,36 +249,48 @@ export default function Home() {
       {/* STATS SECTION */}
       <section className="py-8 md:py-12 bg-white border-b border-gray-100">
         <div className="max-w-[1400px] mx-auto px-4 md:px-6">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-8">
-            <div className="text-center group cursor-pointer">
-              <div className="flex items-center justify-center mb-2 md:mb-3">
-                <TrendingUp className="w-6 h-6 md:w-8 md:h-8 text-blue-600 group-hover:scale-125 transition-transform" />
-              </div>
-              <div className="text-xl sm:text-2xl md:text-4xl font-black text-gray-900 mb-1 group-hover:text-blue-600 transition-colors">50K+</div>
-              <div className="text-[10px] sm:text-xs md:text-sm font-semibold text-gray-600 px-2">Services Completed</div>
+          {loading ? (
+            <div className="flex justify-center py-8">
+              <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
             </div>
-            <div className="text-center group cursor-pointer">
-              <div className="flex items-center justify-center mb-2 md:mb-3">
-                <Users className="w-6 h-6 md:w-8 md:h-8 text-purple-600 group-hover:scale-125 transition-transform" />
+          ) : (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-8">
+              <div className="text-center group cursor-pointer">
+                <div className="flex items-center justify-center mb-2 md:mb-3">
+                  <TrendingUp className="w-6 h-6 md:w-8 md:h-8 text-blue-600 group-hover:scale-125 transition-transform" />
+                </div>
+                <div className="text-xl sm:text-2xl md:text-4xl font-black text-gray-900 mb-1 group-hover:text-blue-600 transition-colors">
+                  {stats.servicesCompleted >= 1000 ? `${Math.floor(stats.servicesCompleted / 1000)}K+` : `${stats.servicesCompleted}+`}
+                </div>
+                <div className="text-[10px] sm:text-xs md:text-sm font-semibold text-gray-600 px-2">Services Completed</div>
               </div>
-              <div className="text-xl sm:text-2xl md:text-4xl font-black text-gray-900 mb-1 group-hover:text-purple-600 transition-colors">2,500+</div>
-              <div className="text-[10px] sm:text-xs md:text-sm font-semibold text-gray-600 px-2">Verified professional_views</div>
-            </div>
-            <div className="text-center group cursor-pointer">
-              <div className="flex items-center justify-center mb-2 md:mb-3">
-                <Star className="w-6 h-6 md:w-8 md:h-8 text-yellow-500 group-hover:scale-125 transition-transform fill-yellow-500" />
+              <div className="text-center group cursor-pointer">
+                <div className="flex items-center justify-center mb-2 md:mb-3">
+                  <Users className="w-6 h-6 md:w-8 md:h-8 text-purple-600 group-hover:scale-125 transition-transform" />
+                </div>
+                <div className="text-xl sm:text-2xl md:text-4xl font-black text-gray-900 mb-1 group-hover:text-purple-600 transition-colors">
+                  {stats.totalProfessionals >= 1000 ? `${(stats.totalProfessionals / 1000).toFixed(1)}K+` : `${stats.totalProfessionals}+`}
+                </div>
+                <div className="text-[10px] sm:text-xs md:text-sm font-semibold text-gray-600 px-2">Verified Professionals</div>
               </div>
-              <div className="text-xl sm:text-2xl md:text-4xl font-black text-gray-900 mb-1 group-hover:text-yellow-600 transition-colors">4.9/5</div>
-              <div className="text-[10px] sm:text-xs md:text-sm font-semibold text-gray-600 px-2">Average Rating</div>
-            </div>
-            <div className="text-center group cursor-pointer">
-              <div className="flex items-center justify-center mb-2 md:mb-3">
-                <Zap className="w-6 h-6 md:w-8 md:h-8 text-orange-600 group-hover:scale-125 transition-transform" />
+              <div className="text-center group cursor-pointer">
+                <div className="flex items-center justify-center mb-2 md:mb-3">
+                  <Star className="w-6 h-6 md:w-8 md:h-8 text-yellow-500 group-hover:scale-125 transition-transform fill-yellow-500" />
+                </div>
+                <div className="text-xl sm:text-2xl md:text-4xl font-black text-gray-900 mb-1 group-hover:text-yellow-600 transition-colors">
+                  {stats.averageRating.toFixed(1)}/5
+                </div>
+                <div className="text-[10px] sm:text-xs md:text-sm font-semibold text-gray-600 px-2">Average Rating</div>
               </div>
-              <div className="text-xl sm:text-2xl md:text-4xl font-black text-gray-900 mb-1 group-hover:text-orange-600 transition-colors">30 Min</div>
-              <div className="text-[10px] sm:text-xs md:text-sm font-semibold text-gray-600 px-2">Avg. Response Time</div>
+              <div className="text-center group cursor-pointer">
+                <div className="flex items-center justify-center mb-2 md:mb-3">
+                  <Zap className="w-6 h-6 md:w-8 md:h-8 text-orange-600 group-hover:scale-125 transition-transform" />
+                </div>
+                <div className="text-xl sm:text-2xl md:text-4xl font-black text-gray-900 mb-1 group-hover:text-orange-600 transition-colors">{stats.avgResponseTime}</div>
+                <div className="text-[10px] sm:text-xs md:text-sm font-semibold text-gray-600 px-2">Avg. Response Time</div>
+              </div>
             </div>
-          </div>
+          )}
         </div>
       </section>
 
@@ -245,95 +363,130 @@ export default function Home() {
               <h2 className="text-3xl md:text-4xl lg:text-5xl font-extrabold text-gray-900 mb-2 tracking-tight">Book in One Tap</h2>
               <p className="text-gray-600 text-sm md:text-lg">Fast booking for urgent needs</p>
             </div>
-            <div className="flex gap-3">
-              <button className="p-3 rounded-full bg-white shadow-md hover:bg-blue-600 hover:text-white transition-all w-10 h-10 flex items-center justify-center hover:scale-110">←</button>
-              <button className="p-3 rounded-full bg-white shadow-md hover:bg-blue-600 hover:text-white transition-all w-10 h-10 flex items-center justify-center hover:scale-110">→</button>
-            </div>
           </div>
 
-          <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide">
-            {[
-              { title: 'Emergency Electrician', subtitle: '30 Min Arrival', gradient: 'from-red-500 to-orange-500', emoji: '⚡' },
-              { title: 'Quick Plumber', subtitle: 'Fix Leaks', gradient: 'from-blue-500 to-cyan-500', emoji: '🔧' },
-              { title: 'Home Deep Cleaning', subtitle: 'Full Service', gradient: 'from-green-500 to-emerald-500', emoji: '🧹' },
-              { title: 'Driver for 4 Hours', subtitle: 'Local Trips', gradient: 'from-purple-500 to-pink-500', emoji: '🚗' },
-              { title: 'Cook for Tonight', subtitle: 'Fresh Meals', gradient: 'from-orange-500 to-yellow-500', emoji: '👨‍🍳' },
-              { title: 'AC Repair', subtitle: 'Same Day', gradient: 'from-indigo-500 to-blue-500', emoji: '❄️' }
-            ].map((service, idx) => (
-              <div key={idx} className={`min-w-[240px] sm:min-w-[280px] md:min-w-[300px] bg-gradient-to-br ${service.gradient} rounded-2xl md:rounded-[24px] p-5 sm:p-6 md:p-7 text-white shadow-xl active:scale-95 md:hover:scale-105 hover:shadow-2xl transition-all cursor-pointer`}>
-                <div className="text-3xl sm:text-4xl md:text-5xl mb-3 sm:mb-4">{service.emoji}</div>
-                <h3 className="text-lg sm:text-xl font-bold mb-1.5 sm:mb-2">{service.title}</h3>
-                <p className="text-xs sm:text-sm opacity-90 font-medium">{service.subtitle}</p>
-              </div>
-            ))}
-          </div>
+          {loading ? (
+            <div className="flex justify-center py-12">
+              <Loader2 className="w-10 h-10 text-blue-600 animate-spin" />
+            </div>
+          ) : quickServices.length > 0 ? (
+            <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide">
+              {quickServices.map((service, idx) => (
+                <div 
+                  key={service.id || idx} 
+                  onClick={() => router.push(`/booking/${service.id}`)}
+                  className={`min-w-[240px] sm:min-w-[280px] md:min-w-[300px] bg-gradient-to-br ${getCategoryGradient(idx)} rounded-2xl md:rounded-[24px] p-5 sm:p-6 md:p-7 text-white shadow-xl active:scale-95 md:hover:scale-105 hover:shadow-2xl transition-all cursor-pointer`}
+                >
+                  <div className="text-3xl sm:text-4xl md:text-5xl mb-3 sm:mb-4">{getCategoryEmoji(service.category)}</div>
+                  <h3 className="text-lg sm:text-xl font-bold mb-1.5 sm:mb-2">{service.name}</h3>
+                  <p className="text-xs sm:text-sm opacity-90 font-medium mb-3">{service.duration || 'Quick Service'}</p>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1">
+                      <IndianRupee className="w-4 h-4" />
+                      <span className="text-xl font-bold">{service.price}</span>
+                    </div>
+                    {service.rating > 0 && (
+                      <div className="flex items-center gap-1 bg-white/20 px-2 py-1 rounded-full">
+                        <Star className="w-3 h-3 fill-white" />
+                        <span className="text-sm font-bold">{service.rating.toFixed(1)}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-12 text-gray-500">
+              <p>No services available at the moment</p>
+            </div>
+          )}
         </div>
       </section>
 
-      {/* 5. FEATURED professional_viewS */}
+      {/* 5. FEATURED PROFESSIONALS */}
       <section className="py-12 md:py-20 lg:py-24 bg-white">
         <div className="max-w-[1400px] mx-auto px-4 md:px-6">
-          <h2 className="text-3xl md:text-4xl lg:text-5xl font-extrabold text-gray-900 mb-3 md:mb-4 text-center tracking-tight">Top Rated professional_views Near You</h2>
+          <h2 className="text-3xl md:text-4xl lg:text-5xl font-extrabold text-gray-900 mb-3 md:mb-4 text-center tracking-tight">Top Rated Professionals Near You</h2>
           <p className="text-center text-gray-600 text-base md:text-lg mb-10 md:mb-16 max-w-2xl mx-auto">Verified experts with exceptional ratings and reviews</p>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
-            {[
-              { name: 'Suman Das', role: 'Electrician', rating: 4.9, reviews: 320, desc: 'Expert in wiring, fan repair, switchboards; 8+ years experience', price: 199 },
-              { name: 'Rajesh Kumar', role: 'Plumber', rating: 4.8, reviews: 285, desc: 'Specialist in leak detection, bathroom fittings; 6+ years', price: 179 },
-              { name: 'Priya Sharma', role: 'House Cleaner', rating: 5.0, reviews: 412, desc: 'Deep cleaning expert, eco-friendly products; 5+ years', price: 149 },
-              { name: 'Amit Singh', role: 'Cook', rating: 4.7, reviews: 198, desc: 'Multi-cuisine expert, hygiene certified; 7+ years', price: 299 },
-              { name: 'Rahul Verma', role: 'Driver', rating: 4.9, reviews: 356, desc: 'Safe driver, city expert, punctual; 10+ years', price: 250 },
-              { name: 'Anita Roy', role: 'Housekeeper', rating: 4.8, reviews: 267, desc: 'Full home management, laundry expert; 4+ years', price: 169 }
-            ].map((pro, idx) => (
-              <div key={idx} className="bg-white rounded-2xl md:rounded-[24px] shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden active:scale-95 md:hover:-translate-y-3 border border-gray-100">
-                <div className="h-44 sm:h-48 md:h-56 bg-gradient-to-br from-blue-100 to-purple-100 flex items-center justify-center relative overflow-hidden">
-                  <div className="absolute top-3 right-3 md:top-4 md:right-4 bg-white px-2 py-1 md:px-3 md:py-1 rounded-full text-[10px] md:text-xs font-bold text-gray-700 shadow-md">Top Rated</div>
-                  <img 
-                    src={`https://i.pravatar.cc/300?img=${idx + 1}`} 
-                    alt={pro.name}
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-                <div className="p-4 sm:p-5 md:p-6">
-                  <h3 className="text-lg sm:text-xl font-bold text-gray-900">{pro.name}</h3>
-                  <p className="text-blue-600 font-medium mb-2 text-sm sm:text-base">{pro.role}</p>
-                  
-                  <div className="flex items-center gap-2 mb-3">
-                    <div className="flex items-center gap-1">
-                      <Star className="w-3.5 h-3.5 sm:w-4 sm:h-4 fill-yellow-400 text-yellow-400" />
-                      <span className="font-bold text-sm sm:text-base">{pro.rating}</span>
+          {loading ? (
+            <div className="flex justify-center py-12">
+              <Loader2 className="w-10 h-10 text-blue-600 animate-spin" />
+            </div>
+          ) : featuredProfessionals.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
+              {featuredProfessionals.map((pro, idx) => (
+                <div key={pro.id || idx} className="bg-white rounded-2xl md:rounded-[24px] shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden active:scale-95 md:hover:-translate-y-3 border border-gray-100">
+                  <div className="h-44 sm:h-48 md:h-56 bg-gradient-to-br from-blue-100 to-purple-100 flex items-center justify-center relative overflow-hidden">
+                    <div className="absolute top-3 right-3 md:top-4 md:right-4 bg-white px-2 py-1 md:px-3 md:py-1 rounded-full text-[10px] md:text-xs font-bold text-gray-700 shadow-md">Top Rated</div>
+                    {pro.image ? (
+                      <img 
+                        src={pro.image.startsWith('http') ? pro.image : `http://localhost:8000${pro.image}`} 
+                        alt={pro.name}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-24 h-24 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
+                        <User className="w-12 h-12 text-white" />
+                      </div>
+                    )}
+                    {pro.verified && (
+                      <div className="absolute top-3 left-3 md:top-4 md:left-4 bg-green-500 text-white px-2 py-1 md:px-3 md:py-1 rounded-full text-[10px] md:text-xs font-bold shadow-md flex items-center gap-1">
+                        <CheckCircle className="w-3 h-3" />
+                        Verified
+                      </div>
+                    )}
+                  </div>
+                  <div className="p-4 sm:p-5 md:p-6">
+                    <h3 className="text-lg sm:text-xl font-bold text-gray-900">{pro.name}</h3>
+                    <p className="text-blue-600 font-medium mb-2 text-sm sm:text-base">{pro.role}</p>
+                    
+                    <div className="flex items-center gap-2 mb-3">
+                      <div className="flex items-center gap-1">
+                        <Star className="w-3.5 h-3.5 sm:w-4 sm:h-4 fill-yellow-400 text-yellow-400" />
+                        <span className="font-bold text-sm sm:text-base">{pro.rating.toFixed(1)}</span>
+                      </div>
+                      <span className="text-xs sm:text-sm text-gray-500">({pro.reviews} reviews)</span>
                     </div>
-                    <span className="text-xs sm:text-sm text-gray-500">({pro.reviews} reviews)</span>
-                  </div>
 
-                  <p className="text-xs sm:text-sm text-gray-600 mb-3 sm:mb-4 line-clamp-2">{pro.desc}</p>
+                    <p className="text-xs sm:text-sm text-gray-600 mb-3 sm:mb-4 line-clamp-2">{pro.desc}</p>
 
-                  <div className="flex items-center justify-between mb-3 sm:mb-4">
-                    <div>
-                      <span className="text-xl sm:text-2xl font-bold text-gray-900">₹{pro.price}</span>
-                      <span className="text-xs sm:text-sm text-gray-500">/hour</span>
-                      <p className="text-[10px] sm:text-xs text-green-600">No additional visit fees</p>
+                    <div className="flex items-center justify-between mb-3 sm:mb-4">
+                      <div>
+                        <div className="flex items-center gap-0.5">
+                          <IndianRupee className="w-4 h-4 sm:w-5 sm:h-5 text-gray-900" />
+                          <span className="text-xl sm:text-2xl font-bold text-gray-900">{pro.price}</span>
+                        </div>
+                        <span className="text-xs sm:text-sm text-gray-500">
+                          {pro.price_type === 'hourly' ? '/hour' : pro.price_type === 'starting_from' ? 'Starting' : 'Fixed'}
+                        </span>
+                        <p className="text-[10px] sm:text-xs text-green-600">No additional visit fees</p>
+                      </div>
+                    </div>
+
+                    <div className="flex gap-2 sm:gap-3">
+                      <button 
+                        onClick={() => router.push(`/professional_view?id=${pro.id}`)}
+                        className="flex-1 py-2 sm:py-2.5 md:py-3 border-2 border-gray-200 rounded-lg sm:rounded-xl font-semibold hover:bg-gray-50 hover:border-blue-600 transition-all text-xs sm:text-sm md:text-base"
+                      >
+                        View Profile
+                      </button>
+                      <button 
+                        onClick={() => router.push(`/professional_view?id=${pro.id}`)}
+                        className="flex-1 py-2 sm:py-2.5 md:py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg sm:rounded-xl font-bold active:scale-95 md:hover:shadow-xl md:hover:scale-105 transition-all text-xs sm:text-sm md:text-base"
+                      >
+                        Book Now
+                      </button>
                     </div>
                   </div>
-
-                  <div className="flex gap-2 sm:gap-3">
-                    <button 
-                      onClick={() => router.push('/professional_view')}
-                      className="flex-1 py-2 sm:py-2.5 md:py-3 border-2 border-gray-200 rounded-lg sm:rounded-xl font-semibold hover:bg-gray-50 hover:border-blue-600 transition-all text-xs sm:text-sm md:text-base"
-                    >
-                      View Profile
-                    </button>
-                    <button 
-                      onClick={() => router.push('/professional_view')}
-                      className="flex-1 py-2 sm:py-2.5 md:py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg sm:rounded-xl font-bold active:scale-95 md:hover:shadow-xl md:hover:scale-105 transition-all text-xs sm:text-sm md:text-base"
-                    >
-                      Book Now
-                    </button>
-                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-12 text-gray-500">
+              <p>No professionals available at the moment</p>
+            </div>
+          )}
         </div>
       </section>
 
@@ -413,42 +566,58 @@ export default function Home() {
           <h2 className="text-3xl md:text-4xl lg:text-5xl font-extrabold text-gray-900 mb-3 md:mb-4 text-center tracking-tight">What Our Customers Say</h2>
           <p className="text-center text-gray-600 text-base md:text-lg mb-10 md:mb-16 max-w-2xl mx-auto">Real experiences from our satisfied customers</p>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
-            {[
-              { name: 'Suman Das', location: 'Electrician', review: 'The electrician arrived in 38 minutes and fixed sockets drop if I needed anything...', rating: 4.9, reviews: '320 reviews' },
-              { name: 'Erys Sharma', location: 'Electrician', review: 'The electrician arrived in 30 minutes and fixed the issue perfectly. Highly professional_view!', rating: 4.9, reviews: '320 reviews', price: '₹199/hour' },
-              { name: 'Amit Gupta', location: 'New Town', review: 'Amazing service! The plumber was very skilled and completed the work efficiently.', rating: 4.8, reviews: '285 reviews' }
-            ].map((review, idx) => (
-              <div key={idx} className="bg-white rounded-[24px] shadow-lg p-8 border border-gray-100 hover:shadow-2xl hover:-translate-y-2 transition-all">
-                <div className="flex items-center gap-4 mb-5">
-                  <img 
-                    src={`https://i.pravatar.cc/150?img=${idx + 10}`}
-                    alt={review.name}
-                    className="w-14 h-14 rounded-full object-cover shadow-md"
-                  />
-                  <div>
-                    <h4 className="font-bold text-gray-900">{review.name}</h4>
-                    <p className="text-sm text-gray-500">{review.location}</p>
+          {loading ? (
+            <div className="flex justify-center py-12">
+              <Loader2 className="w-10 h-10 text-blue-600 animate-spin" />
+            </div>
+          ) : featuredProfessionals.length >= 3 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
+              {featuredProfessionals.slice(0, 3).map((pro, idx) => (
+                <div key={pro.id || idx} className="bg-white rounded-[24px] shadow-lg p-8 border border-gray-100 hover:shadow-2xl hover:-translate-y-2 transition-all">
+                  <div className="flex items-center gap-4 mb-5">
+                    {pro.image ? (
+                      <img 
+                        src={pro.image.startsWith('http') ? pro.image : `http://localhost:8000${pro.image}`}
+                        alt={pro.name}
+                        className="w-14 h-14 rounded-full object-cover shadow-md"
+                      />
+                    ) : (
+                      <div className="w-14 h-14 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-md">
+                        <User className="w-7 h-7 text-white" />
+                      </div>
+                    )}
+                    <div>
+                      <h4 className="font-bold text-gray-900">{pro.name}</h4>
+                      <p className="text-sm text-gray-500">{pro.role}</p>
+                    </div>
                   </div>
-                </div>
 
-                <div className="flex items-center gap-1 mb-4">
-                  {[...Array(5)].map((_, i) => (
-                    <Star key={i} className="w-5 h-5 fill-yellow-400 text-yellow-400" />
-                  ))}
-                  <span className="ml-2 text-sm text-gray-600">{review.rating}</span>
-                </div>
+                  <div className="flex items-center gap-1 mb-4">
+                    {[...Array(5)].map((_, i) => (
+                      <Star key={i} className="w-5 h-5 fill-yellow-400 text-yellow-400" />
+                    ))}
+                    <span className="ml-2 text-sm text-gray-600">{pro.rating.toFixed(1)}</span>
+                  </div>
 
-                <p className="text-gray-700 leading-relaxed">"{review.review}"</p>
-                
-                {review.price && (
+                  <p className="text-gray-700 leading-relaxed">"{pro.desc} Highly professional and delivers excellent service quality every time."</p>
+                  
                   <div className="mt-4 pt-4 border-t border-gray-100">
-                    <span className="text-lg font-bold text-gray-900">{review.price}</span>
+                    <div className="flex items-center gap-1">
+                      <IndianRupee className="w-4 h-4 text-gray-900" />
+                      <span className="text-lg font-bold text-gray-900">{pro.price}</span>
+                      <span className="text-sm text-gray-500">
+                        {pro.price_type === 'hourly' ? '/hour' : pro.price_type === 'starting_from' ? 'Starting' : ''}
+                      </span>
+                    </div>
                   </div>
-                )}
-              </div>
-            ))}
-          </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-12 text-gray-500">
+              <p>Customer reviews will appear here</p>
+            </div>
+          )}
         </div>
       </section>
 
@@ -494,7 +663,7 @@ export default function Home() {
                             </div>
                           </div>
                           <button 
-                            onClick={() => router.push('/professional_view')}
+                            onClick={() => router.push('/service')}
                             className="w-full py-2 bg-white text-blue-600 rounded-full font-bold text-sm"
                           >
                             Book Now
@@ -507,10 +676,9 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Right - Content */}
             <div className="w-full lg:w-1/2 text-white text-center lg:text-left order-1 lg:order-2">
               <h2 className="text-3xl md:text-4xl lg:text-5xl font-extrabold mb-4 md:mb-6 leading-tight tracking-tight">
-                Hire professional_views anytime, anywhere.
+                Hire professionals anytime, anywhere.
               </h2>
               <p className="text-lg md:text-xl mb-6 md:mb-10 opacity-95 leading-relaxed">
                 Get exclusive app-only discounts and priority booking.

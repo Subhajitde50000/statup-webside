@@ -4,9 +4,11 @@ import React, { useState, useEffect } from 'react';
 import { 
   Edit2, MapPin, Upload, X, Camera, Award, Check, Calendar, Save, AlertCircle, 
   CheckCircle2, User, Mail, Phone as PhoneIcon, FileText, Briefcase, RefreshCw,
-  IndianRupee, Clock, Star, Shield, BadgeCheck, Wrench, Languages, Plus
+  IndianRupee, Clock, Star, Shield, BadgeCheck, Wrench, Languages, Plus, Globe,
+  Building, Zap, MapPinned, CalendarDays, CreditCard, ShieldCheck
 } from 'lucide-react';
 import ProfessionalNavbar from '../components/ProfessionalNavbar';
+import Link from 'next/link';
 
 interface UserProfile {
   id: string;
@@ -19,7 +21,38 @@ interface UserProfile {
   profile_image?: string;
   created_at: string;
   updated_at: string;
+  approval_data?: {
+    bio?: string;
+    experience?: string;
+    hourly_rate?: number;
+    service_areas?: string[];
+    skills?: string[];
+    languages?: string[];
+    certifications?: string[];
+    working_hours_start?: string;
+    working_hours_end?: string;
+    working_days?: string[];
+    emergency_available?: boolean;
+    address?: string;
+    city?: string;
+    state?: string;
+    pincode?: string;
+    category?: string;
+    sub_category?: string;
+  };
 }
+
+// Days of the week for working days selection
+const DAYS_OF_WEEK = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+
+// Available languages
+const AVAILABLE_LANGUAGES = ['Hindi', 'English', 'Bengali', 'Telugu', 'Marathi', 'Tamil', 'Gujarati', 'Kannada', 'Malayalam', 'Punjabi', 'Odia'];
+
+// Service categories
+const SERVICE_CATEGORIES = [
+  'Electrician', 'Plumber', 'Carpenter', 'Painter', 'AC Technician', 
+  'Appliance Repair', 'Cleaning', 'Pest Control', 'Home Renovation', 'Security Systems', 'Solar Installation', 'Other'
+];
 
 export default function ProfessionalProfilePage() {
   const [isEditing, setIsEditing] = useState(false);
@@ -31,6 +64,8 @@ export default function ProfessionalProfilePage() {
   const [profilePhotoFile, setProfilePhotoFile] = useState<File | null>(null);
   const [profilePhotoPreview, setProfilePhotoPreview] = useState<string | null>(null);
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+  const [isSavingBusinessProfile, setIsSavingBusinessProfile] = useState(false);
+  const [activeTab, setActiveTab] = useState<'personal' | 'business'>('personal');
   
   const [profileData, setProfileData] = useState({
     fullName: '',
@@ -50,9 +85,18 @@ export default function ProfessionalProfilePage() {
     skills: [] as string[],
     bio: '',
     aadharNumber: '',
+    // Business profile fields
+    serviceAreas: [] as string[],
+    certifications: [] as string[],
+    workingDays: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'] as string[],
+    workingHoursStart: '09:00',
+    workingHoursEnd: '18:00',
+    emergencyAvailable: false,
   });
 
   const [newSkill, setNewSkill] = useState('');
+  const [newServiceArea, setNewServiceArea] = useState('');
+  const [newCertification, setNewCertification] = useState('');
 
   useEffect(() => {
     fetchUserProfile();
@@ -82,25 +126,35 @@ export default function ProfessionalProfilePage() {
       const data = await response.json();
       setUserProfile(data);
       
+      // Get approval_data for business profile
+      const approvalData = data.approval_data || {};
+      
       // Populate form with user data
       setProfileData({
         fullName: data.name || '',
         email: data.email || '',
         phone: data.phone?.replace(/^\+91/, '') || '',
         countryCode: '+91',
-        address: '',
-        city: '',
-        state: '',
-        pincode: '',
-        category: 'Electrician',
-        subCategory: '',
-        experience: '',
-        hourlyRate: '',
+        address: approvalData.address || '',
+        city: approvalData.city || '',
+        state: approvalData.state || '',
+        pincode: approvalData.pincode || '',
+        category: approvalData.category || 'Electrician',
+        subCategory: approvalData.sub_category || '',
+        experience: approvalData.experience || '',
+        hourlyRate: approvalData.hourly_rate?.toString() || '',
         availability: 'full-time',
-        languages: [],
-        skills: [],
-        bio: '',
+        languages: approvalData.languages || [],
+        skills: approvalData.skills || [],
+        bio: approvalData.bio || '',
         aadharNumber: '',
+        // Business profile
+        serviceAreas: approvalData.service_areas || [],
+        certifications: approvalData.certifications || [],
+        workingDays: approvalData.working_days || ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'],
+        workingHoursStart: approvalData.working_hours_start || '09:00',
+        workingHoursEnd: approvalData.working_hours_end || '18:00',
+        emergencyAvailable: approvalData.emergency_available || false,
       });
     } catch (err) {
       console.error('Error fetching profile:', err);
@@ -120,11 +174,94 @@ export default function ProfessionalProfilePage() {
     setProfileData({ ...profileData, skills: profileData.skills.filter(s => s !== skill) });
   };
 
+  const addServiceArea = () => {
+    if (newServiceArea.trim() && !profileData.serviceAreas.includes(newServiceArea.trim())) {
+      setProfileData({ ...profileData, serviceAreas: [...profileData.serviceAreas, newServiceArea.trim()] });
+      setNewServiceArea('');
+    }
+  };
+
+  const removeServiceArea = (area: string) => {
+    setProfileData({ ...profileData, serviceAreas: profileData.serviceAreas.filter(a => a !== area) });
+  };
+
+  const addCertification = () => {
+    if (newCertification.trim() && !profileData.certifications.includes(newCertification.trim())) {
+      setProfileData({ ...profileData, certifications: [...profileData.certifications, newCertification.trim()] });
+      setNewCertification('');
+    }
+  };
+
+  const removeCertification = (cert: string) => {
+    setProfileData({ ...profileData, certifications: profileData.certifications.filter(c => c !== cert) });
+  };
+
+  const toggleWorkingDay = (day: string) => {
+    if (profileData.workingDays.includes(day)) {
+      setProfileData({ ...profileData, workingDays: profileData.workingDays.filter(d => d !== day) });
+    } else {
+      setProfileData({ ...profileData, workingDays: [...profileData.workingDays, day] });
+    }
+  };
+
   const toggleLanguage = (lang: string) => {
     if (profileData.languages.includes(lang)) {
       setProfileData({ ...profileData, languages: profileData.languages.filter(l => l !== lang) });
     } else {
       setProfileData({ ...profileData, languages: [...profileData.languages, lang] });
+    }
+  };
+
+  // Save business profile to backend
+  const saveBusinessProfile = async () => {
+    setIsSavingBusinessProfile(true);
+    
+    try {
+      const token = localStorage.getItem('access_token');
+      if (!token) {
+        alert('Please login again');
+        return;
+      }
+
+      // Build query params for the business profile update
+      const params = new URLSearchParams();
+      
+      if (profileData.bio) params.append('bio', profileData.bio);
+      if (profileData.experience) params.append('experience', profileData.experience);
+      if (profileData.hourlyRate) params.append('hourly_rate', profileData.hourlyRate);
+      profileData.serviceAreas.forEach(area => params.append('service_areas', area));
+      profileData.skills.forEach(skill => params.append('skills', skill));
+      profileData.languages.forEach(lang => params.append('languages', lang));
+      profileData.certifications.forEach(cert => params.append('certifications', cert));
+      if (profileData.workingHoursStart) params.append('working_hours_start', profileData.workingHoursStart);
+      if (profileData.workingHoursEnd) params.append('working_hours_end', profileData.workingHoursEnd);
+      profileData.workingDays.forEach(day => params.append('working_days', day));
+      params.append('emergency_available', String(profileData.emergencyAvailable));
+      if (profileData.address) params.append('address', profileData.address);
+      if (profileData.city) params.append('city', profileData.city);
+      if (profileData.state) params.append('state', profileData.state);
+      if (profileData.pincode) params.append('pincode', profileData.pincode);
+
+      const response = await fetch(`http://localhost:8000/api/users/professional-profile?${params.toString()}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Failed to update business profile');
+      }
+
+      await fetchUserProfile();
+      setShowSuccessMessage(true);
+      setTimeout(() => setShowSuccessMessage(false), 4000);
+    } catch (err) {
+      console.error('Error saving business profile:', err);
+      alert(err instanceof Error ? err.message : 'Failed to save business profile');
+    } finally {
+      setIsSavingBusinessProfile(false);
     }
   };
 
@@ -306,6 +443,12 @@ export default function ProfessionalProfilePage() {
           skills: [],
           bio: '',
           aadharNumber: '',
+          serviceAreas: [],
+          certifications: [],
+          workingDays: [],
+          workingHoursStart: '09:00',
+          workingHoursEnd: '18:00',
+          emergencyAvailable: false,
         });
       }
       setIsEditing(false);
@@ -370,7 +513,453 @@ export default function ProfessionalProfilePage() {
 
         {/* Content */}
         <div className="px-4 lg:px-8 py-6 lg:py-8">
-          <div className="max-w-7xl mx-auto space-y-6">{/* Profile Photo Section */}
+          <div className="max-w-7xl mx-auto">
+            {/* Tab Navigation */}
+            <div className="flex gap-2 mb-6 bg-white p-2 rounded-2xl shadow-lg border border-gray-100">
+              <button
+                onClick={() => setActiveTab('personal')}
+                className={`flex-1 flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl font-bold transition-all ${
+                  activeTab === 'personal'
+                    ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg'
+                    : 'text-gray-600 hover:bg-gray-100'
+                }`}
+              >
+                <User className="w-5 h-5" />
+                Personal Info
+              </button>
+              <button
+                onClick={() => setActiveTab('business')}
+                className={`flex-1 flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl font-bold transition-all ${
+                  activeTab === 'business'
+                    ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg'
+                    : 'text-gray-600 hover:bg-gray-100'
+                }`}
+              >
+                <Briefcase className="w-5 h-5" />
+                Business Profile
+              </button>
+            </div>
+
+            {/* Business Profile Tab Content */}
+            {activeTab === 'business' && (
+              <div className="space-y-6">
+                {/* Bio Section */}
+                <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6 md:p-8">
+                  <div className="flex items-center gap-4 mb-6 pb-4 border-b border-gray-100">
+                    <div className="bg-gradient-to-br from-purple-500 to-indigo-600 p-3 rounded-xl shadow-lg">
+                      <FileText className="w-6 h-6 text-white" />
+                    </div>
+                    <div>
+                      <h2 className="text-xl font-bold text-gray-900">About You</h2>
+                      <p className="text-sm text-gray-500">Tell customers about yourself and your services</p>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">Professional Bio</label>
+                      <textarea
+                        value={profileData.bio}
+                        onChange={(e) => setProfileData({ ...profileData, bio: e.target.value })}
+                        rows={4}
+                        placeholder="Describe your experience, expertise, and what makes you stand out..."
+                        className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all resize-none"
+                      />
+                      <p className="text-xs text-gray-400 mt-1">{profileData.bio.length}/500 characters</p>
+                    </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">Experience</label>
+                        <select
+                          value={profileData.experience}
+                          onChange={(e) => setProfileData({ ...profileData, experience: e.target.value })}
+                          className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-blue-500 bg-white"
+                        >
+                          <option value="">Select experience</option>
+                          <option value="0-1 years">0-1 years</option>
+                          <option value="1-3 years">1-3 years</option>
+                          <option value="3-5 years">3-5 years</option>
+                          <option value="5-10 years">5-10 years</option>
+                          <option value="10+ years">10+ years</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">Hourly Rate (₹)</label>
+                        <div className="relative">
+                          <IndianRupee className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                          <input
+                            type="number"
+                            value={profileData.hourlyRate}
+                            onChange={(e) => setProfileData({ ...profileData, hourlyRate: e.target.value })}
+                            placeholder="e.g., 500"
+                            className="w-full pl-12 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-blue-500"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Service Areas Section */}
+                <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6 md:p-8">
+                  <div className="flex items-center gap-4 mb-6 pb-4 border-b border-gray-100">
+                    <div className="bg-gradient-to-br from-green-500 to-emerald-600 p-3 rounded-xl shadow-lg">
+                      <MapPinned className="w-6 h-6 text-white" />
+                    </div>
+                    <div>
+                      <h2 className="text-xl font-bold text-gray-900">Service Areas</h2>
+                      <p className="text-sm text-gray-500">Where do you provide your services?</p>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-4">
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={newServiceArea}
+                        onChange={(e) => setNewServiceArea(e.target.value)}
+                        placeholder="e.g., Mumbai, Thane, Navi Mumbai"
+                        className="flex-1 px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-blue-500"
+                        onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addServiceArea())}
+                      />
+                      <button
+                        onClick={addServiceArea}
+                        className="bg-green-500 hover:bg-green-600 text-white px-6 py-3 rounded-xl font-semibold transition-colors flex items-center gap-2"
+                      >
+                        <Plus className="w-5 h-5" />
+                        Add
+                      </button>
+                    </div>
+                    
+                    <div className="flex flex-wrap gap-2">
+                      {profileData.serviceAreas.map((area, idx) => (
+                        <span
+                          key={idx}
+                          className="inline-flex items-center gap-2 bg-green-100 text-green-800 px-4 py-2 rounded-full font-medium"
+                        >
+                          <MapPin className="w-4 h-4" />
+                          {area}
+                          <button
+                            onClick={() => removeServiceArea(area)}
+                            className="hover:bg-green-200 rounded-full p-0.5 transition-colors"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </span>
+                      ))}
+                      {profileData.serviceAreas.length === 0 && (
+                        <p className="text-gray-400 text-sm italic">No service areas added yet</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Skills Section */}
+                <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6 md:p-8">
+                  <div className="flex items-center gap-4 mb-6 pb-4 border-b border-gray-100">
+                    <div className="bg-gradient-to-br from-blue-500 to-cyan-600 p-3 rounded-xl shadow-lg">
+                      <Wrench className="w-6 h-6 text-white" />
+                    </div>
+                    <div>
+                      <h2 className="text-xl font-bold text-gray-900">Skills & Expertise</h2>
+                      <p className="text-sm text-gray-500">Highlight your technical skills</p>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-4">
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={newSkill}
+                        onChange={(e) => setNewSkill(e.target.value)}
+                        placeholder="e.g., Wiring, Fan Repair, AC Installation"
+                        className="flex-1 px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-blue-500"
+                        onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addSkill())}
+                      />
+                      <button
+                        onClick={addSkill}
+                        className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 rounded-xl font-semibold transition-colors flex items-center gap-2"
+                      >
+                        <Plus className="w-5 h-5" />
+                        Add
+                      </button>
+                    </div>
+                    
+                    <div className="flex flex-wrap gap-2">
+                      {profileData.skills.map((skill, idx) => (
+                        <span
+                          key={idx}
+                          className="inline-flex items-center gap-2 bg-blue-100 text-blue-800 px-4 py-2 rounded-full font-medium"
+                        >
+                          {skill}
+                          <button
+                            onClick={() => removeSkill(skill)}
+                            className="hover:bg-blue-200 rounded-full p-0.5 transition-colors"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </span>
+                      ))}
+                      {profileData.skills.length === 0 && (
+                        <p className="text-gray-400 text-sm italic">No skills added yet</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Languages Section */}
+                <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6 md:p-8">
+                  <div className="flex items-center gap-4 mb-6 pb-4 border-b border-gray-100">
+                    <div className="bg-gradient-to-br from-orange-500 to-red-500 p-3 rounded-xl shadow-lg">
+                      <Globe className="w-6 h-6 text-white" />
+                    </div>
+                    <div>
+                      <h2 className="text-xl font-bold text-gray-900">Languages</h2>
+                      <p className="text-sm text-gray-500">Languages you can communicate in</p>
+                    </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    {AVAILABLE_LANGUAGES.map((lang) => {
+                      const isSelected = profileData.languages.includes(lang);
+                      return (
+                        <button
+                          key={lang}
+                          onClick={() => toggleLanguage(lang)}
+                          className={`px-4 py-3 rounded-xl font-medium transition-all ${
+                            isSelected
+                              ? 'bg-orange-500 text-white shadow-lg'
+                              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                          }`}
+                        >
+                          {lang}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Certifications Section */}
+                <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6 md:p-8">
+                  <div className="flex items-center gap-4 mb-6 pb-4 border-b border-gray-100">
+                    <div className="bg-gradient-to-br from-yellow-500 to-amber-600 p-3 rounded-xl shadow-lg">
+                      <Award className="w-6 h-6 text-white" />
+                    </div>
+                    <div>
+                      <h2 className="text-xl font-bold text-gray-900">Certifications</h2>
+                      <p className="text-sm text-gray-500">Professional certifications you hold</p>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-4">
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={newCertification}
+                        onChange={(e) => setNewCertification(e.target.value)}
+                        placeholder="e.g., Electrical Safety Certificate, ITI Diploma"
+                        className="flex-1 px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-blue-500"
+                        onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addCertification())}
+                      />
+                      <button
+                        onClick={addCertification}
+                        className="bg-amber-500 hover:bg-amber-600 text-white px-6 py-3 rounded-xl font-semibold transition-colors flex items-center gap-2"
+                      >
+                        <Plus className="w-5 h-5" />
+                        Add
+                      </button>
+                    </div>
+                    
+                    <div className="flex flex-wrap gap-2">
+                      {profileData.certifications.map((cert, idx) => (
+                        <span
+                          key={idx}
+                          className="inline-flex items-center gap-2 bg-amber-100 text-amber-800 px-4 py-2 rounded-full font-medium"
+                        >
+                          <Award className="w-4 h-4" />
+                          {cert}
+                          <button
+                            onClick={() => removeCertification(cert)}
+                            className="hover:bg-amber-200 rounded-full p-0.5 transition-colors"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </span>
+                      ))}
+                      {profileData.certifications.length === 0 && (
+                        <p className="text-gray-400 text-sm italic">No certifications added yet</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Working Hours & Availability Section */}
+                <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6 md:p-8">
+                  <div className="flex items-center gap-4 mb-6 pb-4 border-b border-gray-100">
+                    <div className="bg-gradient-to-br from-indigo-500 to-violet-600 p-3 rounded-xl shadow-lg">
+                      <CalendarDays className="w-6 h-6 text-white" />
+                    </div>
+                    <div>
+                      <h2 className="text-xl font-bold text-gray-900">Working Hours & Availability</h2>
+                      <p className="text-sm text-gray-500">Set your working schedule</p>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-6">
+                    {/* Working Days */}
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-3">Working Days</label>
+                      <div className="flex flex-wrap gap-2">
+                        {DAYS_OF_WEEK.map((day) => {
+                          const isSelected = profileData.workingDays.includes(day);
+                          return (
+                            <button
+                              key={day}
+                              onClick={() => toggleWorkingDay(day)}
+                              className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                                isSelected
+                                  ? 'bg-indigo-500 text-white shadow-md'
+                                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                              }`}
+                            >
+                              {day.slice(0, 3)}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                    
+                    {/* Working Hours */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">Start Time</label>
+                        <input
+                          type="time"
+                          value={profileData.workingHoursStart}
+                          onChange={(e) => setProfileData({ ...profileData, workingHoursStart: e.target.value })}
+                          className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-blue-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">End Time</label>
+                        <input
+                          type="time"
+                          value={profileData.workingHoursEnd}
+                          onChange={(e) => setProfileData({ ...profileData, workingHoursEnd: e.target.value })}
+                          className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-blue-500"
+                        />
+                      </div>
+                    </div>
+                    
+                    {/* Emergency Availability */}
+                    <div className="flex items-center justify-between p-4 bg-red-50 rounded-xl border-2 border-red-200">
+                      <div className="flex items-center gap-3">
+                        <Zap className="w-6 h-6 text-red-500" />
+                        <div>
+                          <h4 className="font-semibold text-gray-900">Emergency Services</h4>
+                          <p className="text-sm text-gray-500">Available for urgent/emergency calls</p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => setProfileData({ ...profileData, emergencyAvailable: !profileData.emergencyAvailable })}
+                        className={`relative w-14 h-8 rounded-full transition-colors ${
+                          profileData.emergencyAvailable ? 'bg-red-500' : 'bg-gray-300'
+                        }`}
+                      >
+                        <span
+                          className={`absolute top-1 w-6 h-6 bg-white rounded-full shadow-md transition-transform ${
+                            profileData.emergencyAvailable ? 'right-1' : 'left-1'
+                          }`}
+                        />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Address Section */}
+                <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6 md:p-8">
+                  <div className="flex items-center gap-4 mb-6 pb-4 border-b border-gray-100">
+                    <div className="bg-gradient-to-br from-teal-500 to-cyan-600 p-3 rounded-xl shadow-lg">
+                      <Building className="w-6 h-6 text-white" />
+                    </div>
+                    <div>
+                      <h2 className="text-xl font-bold text-gray-900">Business Address</h2>
+                      <p className="text-sm text-gray-500">Your workshop/office location</p>
+                    </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">Street Address</label>
+                      <input
+                        type="text"
+                        value={profileData.address}
+                        onChange={(e) => setProfileData({ ...profileData, address: e.target.value })}
+                        placeholder="Enter your full address"
+                        className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">City</label>
+                      <input
+                        type="text"
+                        value={profileData.city}
+                        onChange={(e) => setProfileData({ ...profileData, city: e.target.value })}
+                        placeholder="e.g., Mumbai"
+                        className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">State</label>
+                      <input
+                        type="text"
+                        value={profileData.state}
+                        onChange={(e) => setProfileData({ ...profileData, state: e.target.value })}
+                        placeholder="e.g., Maharashtra"
+                        className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">Pincode</label>
+                      <input
+                        type="text"
+                        value={profileData.pincode}
+                        onChange={(e) => setProfileData({ ...profileData, pincode: e.target.value })}
+                        placeholder="e.g., 400001"
+                        maxLength={6}
+                        className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-blue-500"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Save Button */}
+                <div className="flex justify-end">
+                  <button
+                    onClick={saveBusinessProfile}
+                    disabled={isSavingBusinessProfile}
+                    className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-8 py-4 rounded-xl font-bold shadow-lg hover:shadow-xl transition-all flex items-center gap-2 disabled:opacity-50"
+                  >
+                    {isSavingBusinessProfile ? (
+                      <>
+                        <RefreshCw className="w-5 h-5 animate-spin" />
+                        Saving...
+                      </>
+                    ) : (
+                      <>
+                        <Save className="w-5 h-5" />
+                        Save Business Profile
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Personal Info Tab Content */}
+            {activeTab === 'personal' && (
+              <div className="space-y-6">{/* Profile Photo Section */}
             <div className="bg-white rounded-2xl shadow-lg border border-[#E2E8F0] p-6 md:p-8 lg:p-10 hover:shadow-xl transition-shadow duration-300">
               <div className="flex items-center justify-between mb-8 pb-6 border-b border-gray-200">
                 <div className="flex items-center space-x-4">
@@ -1021,6 +1610,28 @@ export default function ProfessionalProfilePage() {
                 </button>
               </div>
             )}
+              </div>
+            )}
+
+            {/* Subscription Section - Mobile Only */}
+            <div className="lg:hidden mt-6">
+              <Link href="/professional/subscription">
+                <div className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl shadow-lg p-6 hover:shadow-xl transition-all">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      <div className="bg-white/20 p-3 rounded-xl backdrop-blur-sm">
+                        <CreditCard className="w-6 h-6 text-white" />
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-bold text-white">Subscription Plans</h3>
+                        <p className="text-sm text-blue-100 mt-1">Manage your subscription</p>
+                      </div>
+                    </div>
+                    <ShieldCheck className="w-6 h-6 text-white" />
+                  </div>
+                </div>
+              </Link>
+            </div>
           </div>
         </div>
       </div>

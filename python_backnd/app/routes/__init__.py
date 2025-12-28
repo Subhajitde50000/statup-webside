@@ -4,3 +4,6 @@ from app.routes.oauth import router as oauth_router
 from app.routes.vacancies import router as vacancies_router
 from app.routes.applications import router as applications_router
 from app.routes.verifications import router as verifications_router
+from app.routes.subscriptions import router as subscriptions_router
+from app.routes.favorites import router as favorites_router
+from app.routes.professionals import router as professionals_router

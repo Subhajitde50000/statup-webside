@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Bell, User, Home, Calendar, Briefcase, MessageSquare, Clock } from 'lucide-react';
+import { Bell, User, Home, Calendar, Briefcase, MessageSquare, Clock, DollarSign } from 'lucide-react';
 import Link from 'next/link';
 
 interface ProfessionalNavbarProps {
@@ -98,6 +98,30 @@ export default function ProfessionalNavbar({
               </Link>
 
               <Link
+                href="/professional/offers"
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg font-bold transition-all ${
+                  activeTab === 'offers'
+                    ? 'bg-teal-600 text-white'
+                    : 'text-gray-600 hover:bg-gray-100'
+                }`}
+              >
+                <DollarSign className="w-5 h-5" />
+                <span>Offers</span>
+              </Link>
+
+              <Link
+                href="/professional/subscription"
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg font-bold transition-all ${
+                  activeTab === 'subscription'
+                    ? 'bg-teal-600 text-white'
+                    : 'text-gray-600 hover:bg-gray-100'
+                }`}
+              >
+                <Briefcase className="w-5 h-5" />
+                <span>Subscription</span>
+              </Link>
+
+              <Link
                 href="/professional/profile"
                 className={`flex items-center gap-2 px-4 py-2 rounded-lg font-bold transition-all ${
                   activeTab === 'profile'
@@ -133,11 +157,11 @@ export default function ProfessionalNavbar({
 
       {/* Footer Navigation - Only visible on mobile/tablet, hidden on desktop */}
       <footer className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t-2 border-gray-200 shadow-lg z-50">
-        <div className="max-w-7xl mx-auto px-4">
+        <div className="max-w-7xl mx-auto px-2">
           <div className="flex items-center justify-around h-16">
             <Link
               href="/professional"
-              className={`flex flex-col items-center gap-1 px-4 py-2 transition-colors ${
+              className={`flex flex-col items-center gap-1 px-3 py-2 transition-colors ${
                 activeTab === 'home' ? 'text-teal-600' : 'text-gray-500 hover:text-gray-700'
               }`}
             >
@@ -147,7 +171,7 @@ export default function ProfessionalNavbar({
 
             <Link
               href="/bookings"
-              className={`flex flex-col items-center gap-1 px-4 py-2 transition-colors ${
+              className={`flex flex-col items-center gap-1 px-3 py-2 transition-colors ${
                 activeTab === 'bookings' ? 'text-teal-600' : 'text-gray-500 hover:text-gray-700'
               }`}
             >
@@ -157,7 +181,7 @@ export default function ProfessionalNavbar({
 
             <Link
               href="/services"
-              className={`flex flex-col items-center gap-1 px-4 py-2 transition-colors ${
+              className={`flex flex-col items-center gap-1 px-3 py-2 transition-colors ${
                 activeTab === 'services' ? 'text-teal-600' : 'text-gray-500 hover:text-gray-700'
               }`}
             >
@@ -166,8 +190,18 @@ export default function ProfessionalNavbar({
             </Link>
 
             <Link
+              href="/professional/offers"
+              className={`flex flex-col items-center gap-1 px-3 py-2 transition-colors ${
+                activeTab === 'offers' ? 'text-teal-600' : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              <DollarSign className="w-6 h-6" />
+              <span className="text-xs font-bold">Offers</span>
+            </Link>
+
+            <Link
               href="/messages"
-              className={`flex flex-col items-center gap-1 px-4 py-2 transition-colors ${
+              className={`flex flex-col items-center gap-1 px-3 py-2 transition-colors ${
                 activeTab === 'messages' ? 'text-teal-600' : 'text-gray-500 hover:text-gray-700'
               }`}
             >
@@ -176,8 +210,8 @@ export default function ProfessionalNavbar({
             </Link>
 
             <Link
-              href="/profile"
-              className={`flex flex-col items-center gap-1 px-4 py-2 transition-colors ${
+              href="/professional/profile"
+              className={`flex flex-col items-center gap-1 px-3 py-2 transition-colors ${
                 activeTab === 'profile' ? 'text-teal-600' : 'text-gray-500 hover:text-gray-700'
               }`}
             >

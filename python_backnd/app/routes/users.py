@@ -6,7 +6,7 @@ from fastapi import APIRouter, HTTPException, status, Depends, Query, UploadFile
 from fastapi.responses import FileResponse
 from datetime import datetime
 from bson import ObjectId
-from typing import Optional
+from typing import Optional, List
 import os
 import uuid
 import shutil
@@ -334,6 +334,197 @@ async def verify_phone(
         message="Phone verified successfully",
         success=True
     )
+
+
+# ============ PROFESSIONAL BUSINESS PROFILE ============
+
+@router.put("/professional-profile", response_model=dict)
+async def update_professional_profile(
+    current_user: dict = Depends(get_current_user),
+    bio: Optional[str] = None,
+    experience: Optional[str] = None,
+    hourly_rate: Optional[float] = None,
+    service_areas: Optional[List[str]] = None,
+    skills: Optional[List[str]] = None,
+    languages: Optional[List[str]] = None,
+    certifications: Optional[List[str]] = None,
+    working_hours_start: Optional[str] = None,
+    working_hours_end: Optional[str] = None,
+    working_days: Optional[List[str]] = None,
+    emergency_available: Optional[bool] = None,
+    address: Optional[str] = None,
+    city: Optional[str] = None,
+    state: Optional[str] = None,
+    pincode: Optional[str] = None
+):
+    """Update professional business profile details"""
+    # Check if user is a professional
+    if current_user.get("role") != "professional":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only professionals can update business profile"
+        )
+    
+    users = get_users_collection()
+    
+    # Get existing approval_data or create new
+    approval_data = current_user.get("approval_data", {})
+    
+    # Update business profile fields
+    if bio is not None:
+        approval_data["bio"] = bio
+    if experience is not None:
+        approval_data["experience"] = experience
+    if hourly_rate is not None:
+        approval_data["hourly_rate"] = hourly_rate
+    if service_areas is not None:
+        approval_data["service_areas"] = service_areas
+    if skills is not None:
+        approval_data["skills"] = skills
+    if languages is not None:
+        approval_data["languages"] = languages
+    if certifications is not None:
+        approval_data["certifications"] = certifications
+    if working_hours_start is not None:
+        approval_data["working_hours_start"] = working_hours_start
+    if working_hours_end is not None:
+        approval_data["working_hours_end"] = working_hours_end
+    if working_days is not None:
+        approval_data["working_days"] = working_days
+    if emergency_available is not None:
+        approval_data["emergency_available"] = emergency_available
+    if address is not None:
+        approval_data["address"] = address
+    if city is not None:
+        approval_data["city"] = city
+    if state is not None:
+        approval_data["state"] = state
+    if pincode is not None:
+        approval_data["pincode"] = pincode
+    
+    # Update user
+    await users.update_one(
+        {"_id": current_user["_id"]},
+        {"$set": {"approval_data": approval_data, "updated_at": datetime.utcnow()}}
+    )
+    
+    # Fetch updated user
+    updated_user = await users.find_one({"_id": current_user["_id"]})
+    
+    return {
+        "message": "Professional profile updated successfully",
+        "user": user_helper(updated_user)
+    }
+
+
+@router.get("/professional-profile", response_model=dict)
+async def get_professional_profile(current_user: dict = Depends(get_current_user)):
+    """Get professional business profile details"""
+    if current_user.get("role") != "professional":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only professionals can access business profile"
+        )
+    
+    approval_data = current_user.get("approval_data", {})
+    
+    return {
+        "profile": {
+            "id": str(current_user["_id"]),
+            "name": current_user.get("name"),
+            "email": current_user.get("email"),
+            "phone": current_user.get("phone"),
+            "profile_image": current_user.get("profile_image"),
+            "is_verified": current_user.get("is_verified", False),
+            "approval_status": current_user.get("approval_status"),
+            
+            # Business Profile
+            "bio": approval_data.get("bio", ""),
+            "experience": approval_data.get("experience", ""),
+            "hourly_rate": approval_data.get("hourly_rate"),
+            "service_areas": approval_data.get("service_areas", []),
+            "skills": approval_data.get("skills", []),
+            "languages": approval_data.get("languages", []),
+            "certifications": approval_data.get("certifications", []),
+            "working_hours_start": approval_data.get("working_hours_start", "09:00"),
+            "working_hours_end": approval_data.get("working_hours_end", "18:00"),
+            "working_days": approval_data.get("working_days", ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]),
+            "emergency_available": approval_data.get("emergency_available", False),
+            
+            # Address
+            "address": approval_data.get("address", ""),
+            "city": approval_data.get("city", ""),
+            "state": approval_data.get("state", ""),
+            "pincode": approval_data.get("pincode", ""),
+            
+            # Professional category from registration
+            "category": approval_data.get("category", ""),
+            "sub_category": approval_data.get("sub_category", ""),
+            
+            # Stats
+            "rating": approval_data.get("rating", 0),
+            "total_reviews": approval_data.get("total_reviews", 0),
+            "total_bookings": approval_data.get("total_bookings", 0),
+            "member_since": current_user.get("created_at").isoformat() if current_user.get("created_at") else None
+        }
+    }
+
+
+@router.get("/professional/{professional_id}/public", response_model=dict)
+async def get_professional_public_profile(professional_id: str):
+    """Get public professional profile (for customers viewing professional details)"""
+    if not ObjectId.is_valid(professional_id):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid professional ID"
+        )
+    
+    users = get_users_collection()
+    professional = await users.find_one({"_id": ObjectId(professional_id), "role": "professional"})
+    
+    if not professional:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Professional not found"
+        )
+    
+    approval_data = professional.get("approval_data", {})
+    
+    return {
+        "professional": {
+            "id": str(professional["_id"]),
+            "name": professional.get("name"),
+            "phone": professional.get("phone"),
+            "profile_image": professional.get("profile_image"),
+            "is_verified": professional.get("is_verified", False),
+            "approval_status": professional.get("approval_status"),
+            
+            # Business Profile (public info only)
+            "bio": approval_data.get("bio", ""),
+            "experience": approval_data.get("experience", ""),
+            "hourly_rate": approval_data.get("hourly_rate"),
+            "category": approval_data.get("category", ""),
+            "sub_category": approval_data.get("sub_category", ""),
+            "service_areas": approval_data.get("service_areas", []),
+            "skills": approval_data.get("skills", []),
+            "languages": approval_data.get("languages", []),
+            "certifications": approval_data.get("certifications", []),
+            "working_hours_start": approval_data.get("working_hours_start", "09:00"),
+            "working_hours_end": approval_data.get("working_hours_end", "18:00"),
+            "working_days": approval_data.get("working_days", []),
+            "emergency_available": approval_data.get("emergency_available", False),
+            
+            # Location (city only for privacy)
+            "city": approval_data.get("city", ""),
+            "state": approval_data.get("state", ""),
+            
+            # Stats
+            "rating": approval_data.get("rating", 0),
+            "total_reviews": approval_data.get("total_reviews", 0),
+            "total_bookings": approval_data.get("total_bookings", 0),
+            "member_since": professional.get("created_at").isoformat() if professional.get("created_at") else None
+        }
+    }
 
 
 # ============ ADMIN ROUTES ============

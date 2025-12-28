@@ -22,7 +22,7 @@ from app.models.otp import OTPPurpose, OTPType
 from app.utils.security import (
     hash_password, verify_password, 
     create_tokens_for_user, refresh_access_token,
-    get_current_user
+    get_current_user, get_optional_current_user
 )
 from app.utils.otp import create_otp, verify_otp, send_otp
 

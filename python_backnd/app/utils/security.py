@@ -145,6 +145,39 @@ async def get_current_active_user(current_user: dict = Depends(get_current_user)
     return current_user
 
 
+async def get_optional_current_user(
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(HTTPBearer(auto_error=False))
+):
+    """
+    Get the current user if authenticated, or None if not authenticated.
+    This dependency doesn't raise an error if no token is provided.
+    """
+    if not credentials:
+        return None
+    
+    token = credentials.credentials
+    
+    try:
+        payload = decode_token(token)
+        user_id: str = payload.get("sub")
+        token_type: str = payload.get("type")
+        
+        if user_id is None or token_type != "access":
+            return None
+            
+    except JWTError:
+        return None
+    
+    # Fetch user from database
+    users = get_users_collection()
+    user = await users.find_one({"_id": ObjectId(user_id)})
+    
+    if user is None or not user.get("is_active", True):
+        return None
+    
+    return user
+
+
 def create_tokens_for_user(user: dict) -> dict:
     """Create both access and refresh tokens for a user"""
     user_id = str(user["_id"])

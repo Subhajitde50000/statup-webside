@@ -10,7 +10,8 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from app.database import connect_to_mongo, close_mongo_connection
-from app.routes import auth, users, oauth, vacancies, applications, verifications, upload
+from app.routes import auth, users, oauth, vacancies, applications, verifications, upload, subscriptions
+from app.routes import services, offers, favorites, professionals
 
 
 @asynccontextmanager
@@ -52,6 +53,11 @@ app.include_router(vacancies.router, prefix="/api/vacancies", tags=["Vacancies"]
 app.include_router(applications.router, prefix="/api/applications", tags=["Applications"])
 app.include_router(verifications.router, prefix="/api", tags=["Verifications"])
 app.include_router(upload.router, prefix="/api", tags=["Upload"])
+app.include_router(services.router, prefix="/api/services", tags=["Services"])
+app.include_router(subscriptions.router, prefix="/api/subscriptions", tags=["Subscriptions"])
+app.include_router(offers.router, prefix="/api/offers", tags=["Offers"])
+app.include_router(favorites.router, prefix="/api", tags=["Favorites"])
+app.include_router(professionals.router, prefix="/api", tags=["Professionals"])
 
 # Mount static files for uploads
 uploads_dir = Path("uploads")

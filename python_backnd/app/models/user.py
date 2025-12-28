@@ -74,6 +74,9 @@ class UserBase(BaseModel):
     rejection_reason: Optional[str] = None
     reviewed_by: Optional[str] = None
     reviewed_at: Optional[datetime] = None
+    
+    # Favorites
+    favorite_professionals: List[str] = Field(default_factory=list)  # List of professional user IDs
 
 
 class UserInDB(UserBase):
@@ -137,4 +140,7 @@ def user_helper(user: dict) -> dict:
         "approval_status": user.get("approval_status"),
         "approval_data": user.get("approval_data"),
         "rejection_reason": user.get("rejection_reason"),
+        
+        # Favorites
+        "favorite_professionals": user.get("favorite_professionals", []),
     }

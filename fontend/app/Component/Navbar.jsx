@@ -1,10 +1,11 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { ChevronDown, MapPin, Search, Bell, Bookmark, Menu, Home, Briefcase, Calendar, User, LogOut, Settings } from 'lucide-react';
+import { ChevronDown, MapPin, Search, Bell, Bookmark, Menu, Home, Briefcase, Calendar, User, LogOut, Settings, Heart } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/utils/AuthContext';
+import { getFavoritesCount } from '@/utils/favorites';
 
 export default function Navbar({ onNotificationClick, isNotificationsOpen }) {
   const pathname = usePathname();
@@ -15,6 +16,7 @@ export default function Navbar({ onNotificationClick, isNotificationsOpen }) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
+  const [favoritesCount, setFavoritesCount] = useState(0);
   const profileDropdownRef = useRef(null);
 
   useEffect(() => {
@@ -24,6 +26,25 @@ export default function Navbar({ onNotificationClick, isNotificationsOpen }) {
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+
+  // Fetch favorites count
+  useEffect(() => {
+    const fetchFavCount = async () => {
+      if (isAuthenticated) {
+        try {
+          const result = await getFavoritesCount();
+          setFavoritesCount(result.count || 0);
+        } catch (error) {
+          console.error('Error fetching favorites count:', error);
+        }
+      }
+    };
+    fetchFavCount();
+    
+    // Refresh count every 10 seconds
+    const interval = setInterval(fetchFavCount, 10000);
+    return () => clearInterval(interval);
+  }, [isAuthenticated]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -189,6 +210,22 @@ export default function Navbar({ onNotificationClick, isNotificationsOpen }) {
                     <span className="text-sm font-medium">My Bookings</span>
                   </Link>
                   <Link
+                    href="/favorites"
+                    onClick={() => setIsProfileDropdownOpen(false)}
+                    className="flex items-center gap-3 px-4 py-2.5 text-gray-700 hover:bg-gray-50 transition-colors"
+                  >
+                    <Heart className="w-4 h-4" />
+                    <span className="text-sm font-medium">My Favorites</span>
+                  </Link>
+                  <Link
+                    href="/offers"
+                    onClick={() => setIsProfileDropdownOpen(false)}
+                    className="flex items-center gap-3 px-4 py-2.5 text-gray-700 hover:bg-gray-50 transition-colors"
+                  >
+                    <Briefcase className="w-4 h-4" />
+                    <span className="text-sm font-medium">My Offers</span>
+                  </Link>
+                  <Link
                     href="/profile"
                     onClick={() => setIsProfileDropdownOpen(false)}
                     className="flex items-center gap-3 px-4 py-2.5 text-gray-700 hover:bg-gray-50 transition-colors"
@@ -214,9 +251,14 @@ export default function Navbar({ onNotificationClick, isNotificationsOpen }) {
               Login/Sign Up
             </Link>
           )}
-          <button className="hidden md:block p-2.5 hover:bg-gradient-to-br hover:from-blue-50 hover:to-purple-50 rounded-xl transition-all group border border-transparent hover:border-blue-200">
-            <Bookmark className="w-5 h-5 text-gray-600 group-hover:text-blue-600 transition-colors group-hover:scale-110" />
-          </button>
+          <Link href="/favorites" className="hidden md:block p-2.5 hover:bg-gradient-to-br hover:from-blue-50 hover:to-purple-50 rounded-xl transition-all group border border-transparent hover:border-blue-200 relative">
+            <Heart className="w-5 h-5 text-gray-600 group-hover:text-red-600 transition-colors group-hover:scale-110" />
+            {favoritesCount > 0 && (
+              <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center shadow-lg">
+                {favoritesCount > 9 ? '9+' : favoritesCount}
+              </span>
+            )}
+          </Link>
           
           {/* Notification - Always Visible */}
           <button 

@@ -1,110 +1,134 @@
 'use client';
 
-import React, { useState } from 'react';
-import { ArrowLeft, Heart, Phone, MessageCircle, Calendar, Star, CheckCircle, Clock, MapPin, ChevronDown, Award, Briefcase, Zap, Wrench, Lightbulb, Home as HomeIcon, Shield, Settings } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
+import { 
+  ArrowLeft, Heart, Phone, MessageCircle, Calendar, Star, CheckCircle, Clock, 
+  MapPin, Award, Briefcase, Zap, Shield, User, Loader2, AlertCircle,
+  Globe, BadgeCheck, ChevronRight, Wrench, IndianRupee, DollarSign
+} from 'lucide-react';
 import Link from 'next/link';
 import Navbar from '../Component/Navbar';
 import Footer from '../Component/Footer';
 import Notifications from '../Component/Notifications';
 import BookingForm from '../Component/BookingForm';
+import PriceOfferModal from '../Component/PriceOfferModal';
+import FavoriteButton from '../Component/FavoriteButton';
+import { getProfessionalPublicProfile } from '../../utils/services';
+
+const SKILL_ICONS = {
+  'Wiring': Zap,
+  'Rewiring': Zap,
+  'Electrical': Zap,
+  'Plumbing': Wrench,
+  'Repair': Wrench,
+  'Installation': Wrench,
+  'default': Wrench
+};
+
+const getSkillIcon = (skillName) => {
+  for (const [key, icon] of Object.entries(SKILL_ICONS)) {
+    if (skillName.toLowerCase().includes(key.toLowerCase())) {
+      return icon;
+    }
+  }
+  return SKILL_ICONS.default;
+};
 
 export default function Professional() {
+  const searchParams = useSearchParams();
+  const professionalId = searchParams.get('id');
+  
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
-  const [isSaved, setIsSaved] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [professional, setProfessional] = useState(null);
+  const [services, setServices] = useState([]);
+  const [isPriceOfferModalOpen, setIsPriceOfferModalOpen] = useState(false);
 
-  const professional = {
-    name: 'Rahul Das',
-    title: 'Electrician',
-    certified: true,
-    rating: 4.8,
-    reviews: 320,
-    jobsCompleted: 1450,
-    hourlyRate: 299,
-    inspectionFee: 149,
-    image: 'https://i.pravatar.cc/300?img=12',
-    about: 'Rahul has a malaxr.honetonil\'s experience in r.ratting the kow drivim.rt. hite.light experience & switchboard repair. Fo a practure for Light fitting mwa performance and home electrical ano.ronage gaven wiring.',
-    expertiseLevel: 'Advanced',
-    languages: ['Bengali', 'Hindi', 'English'],
-    location: 'Salt Lake, Sector 2, Kolkata',
-    serviceRadius: 7,
-    distanceFromUser: 1.2
-  };
+  useEffect(() => {
+    const fetchProfessionalData = async () => {
+      if (!professionalId) {
+        setError('Professional ID not provided');
+        setLoading(false);
+        return;
+      }
 
-  const skills = [
-    { icon: Zap, name: 'Wiring & Rewiring', color: 'text-yellow-600' },
-    { icon: Settings, name: 'Switchboard Repair', color: 'text-blue-600' },
-    { icon: Lightbulb, name: 'Light Fitting', color: 'text-yellow-500' },
-    { icon: Wrench, name: 'Appliance Repair', color: 'text-gray-700' },
-    { icon: Shield, name: 'Short Circuit Fix', color: 'text-red-600' },
-    { icon: HomeIcon, name: 'Home Electrical Audit', color: 'text-green-600' }
-  ];
+      try {
+        setLoading(true);
+        setError(null);
+        
+        const response = await getProfessionalPublicProfile(professionalId);
+        setProfessional(response.professional);
+        
+        try {
+          const servicesRes = await fetch(`http://localhost:8000/api/services?professional_id=${professionalId}&limit=10`);
+          if (servicesRes.ok) {
+            const servicesData = await servicesRes.json();
+            setServices(servicesData.services || []);
+          }
+        } catch (err) {
+          console.error('Error fetching services:', err);
+        }
+        
+      } catch (err) {
+        console.error('Error fetching professional:', err);
+        setError(err.message || 'Failed to load professional profile');
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  const experience = [
-    {
-      role: 'Senior Electrician',
-      company: 'UrbanFix Solutions',
-      period: '2019–Present',
-      description: 'Handled 1200+ home visits and large wiring projects.'
-    },
-    {
-      role: 'Electrician',
-      company: 'HomeCare Services',
-      period: '2016–2019',
-      description: 'Performed appliance repairs, emergency fault resolution.'
-    }
-  ];
+    fetchProfessionalData();
+  }, [professionalId]);
 
-  const packages = [
-    {
-      name: 'Fan Repair',
-      price: 199,
-      features: ['Motor check', 'Vibration fix', 'Blade replacement']
-    },
-    {
-      name: 'Switchboard Installation',
-      price: 249,
-      features: ['Wiring', 'Socket fitting', 'Testing with tools']
-    },
-    {
-      name: 'Full Home Wiring Check',
-      price: 499,
-      features: ['Load inspection', 'Safety assessment', 'Fuse & MCB check']
-    }
-  ];
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Navbar />
+        <div className="flex items-center justify-center min-h-[70vh]">
+          <div className="text-center">
+            <Loader2 className="w-12 h-12 text-blue-600 animate-spin mx-auto mb-4" />
+            <p className="text-gray-600 font-medium">Loading professional profile...</p>
+          </div>
+        </div>
+        <Footer />
+      </div>
+    );
+  }
 
-  const reviews = [
-    {
-      name: 'Pooja Sharma',
-      rating: 5,
-      comment: 'Thank you for rating to comness and wearly to service and staller reviews.',
-      avatar: 'https://i.pravatar.cc/100?img=1'
-    },
-    {
-      name: 'Dev Raj',
-      rating: 5,
-      comment: 'Devm Dan was switchboard and bunched as his chalctered number fro in their rning.',
-      avatar: 'https://i.pravatar.cc/100?img=2'
-    },
-    {
-      name: 'Ananya Paul',
-      rating: 5,
-      comment: 'Rahul Das electricted a Home Evolting and really resting.',
-      avatar: 'https://i.pravatar.cc/100?img=3'
-    }
-  ];
+  if (error || !professional) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Navbar />
+        <div className="flex items-center justify-center min-h-[70vh]">
+          <div className="text-center max-w-md mx-auto px-4">
+            <div className="bg-red-100 rounded-full w-20 h-20 flex items-center justify-center mx-auto mb-4">
+              <AlertCircle className="w-10 h-10 text-red-500" />
+            </div>
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">Profile Not Found</h2>
+            <p className="text-gray-600 mb-6">{error || 'The professional profile you are looking for could not be found.'}</p>
+            <Link 
+              href="/service"
+              className="inline-flex items-center gap-2 bg-blue-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-blue-700 transition-colors"
+            >
+              <ArrowLeft className="w-5 h-5" />
+              Back to Services
+            </Link>
+          </div>
+        </div>
+        <Footer />
+      </div>
+    );
+  }
 
-  const availability = [
-    { day: 'Monday', hours: '10 am - 1:0 pm' },
-    { day: 'Tuesday', hours: '10 am - 1:0 pm' },
-    { day: 'Wednesday', hours: '10 am - 1:0 pm' },
-    { day: 'Thursday', hours: '10 am - 1:0 pm' },
-    { day: 'Friday', hours: '10 am - 1:0 pm' }
-  ];
-
-  const ratingBreakdown = {
-    quality: 4.9,
-    timing: 4.8,
-    behaviour: 4.9
+  const formatTime = (time) => {
+    if (!time) return '';
+    const [hours, minutes] = time.split(':');
+    const hour = parseInt(hours);
+    const ampm = hour >= 12 ? 'PM' : 'AM';
+    const displayHour = hour % 12 || 12;
+    return `${displayHour}:${minutes} ${ampm}`;
   };
 
   return (
@@ -114,311 +138,361 @@ export default function Professional() {
         isNotificationsOpen={isNotificationsOpen}
       />
 
-      {/* 1. HEADER SECTION */}
-      <div className="fixed top-[70px] left-0 right-0 bg-blue-600 z-40 shadow-lg">
+      <div className="fixed top-[70px] left-0 right-0 bg-gradient-to-r from-blue-600 to-indigo-600 z-40 shadow-lg">
         <div className="max-w-[1400px] mx-auto px-4 md:px-6 h-16 flex items-center justify-between">
           <Link href="/service" className="flex items-center gap-2 text-white hover:text-blue-100 transition-colors">
             <ArrowLeft className="w-5 h-5" />
             <span className="font-bold hidden sm:inline">Back</span>
           </Link>
-          <h1 className="text-lg md:text-xl font-black text-white text-center flex-1">
-            {professional.name} — {professional.title}
+          <h1 className="text-lg md:text-xl font-black text-white text-center flex-1 truncate px-4">
+            {professional.name} {professional.category && `- ${professional.category}`}
           </h1>
-          <button 
-            onClick={() => setIsSaved(!isSaved)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-full transition-all ${
-              isSaved ? 'bg-red-500 text-white' : 'bg-white/20 text-white hover:bg-white/30'
-            }`}
-          >
-            <Heart className={`w-5 h-5 ${isSaved ? 'fill-white' : ''}`} />
-            <span className="hidden sm:inline font-bold">Save</span>
-          </button>
+          <div className="flex items-center gap-2">
+            <FavoriteButton 
+              key={`fav-${professionalId}`}
+              professionalId={professionalId}
+              size="md"
+            />
+          </div>
         </div>
       </div>
 
-      {/* Main Content */}
       <div className="pt-[126px] pb-12">
         <div className="max-w-[1400px] mx-auto px-4 md:px-6">
           <div className="grid lg:grid-cols-[1fr_400px] gap-8">
-            {/* Left Column */}
             <div className="space-y-6">
-              {/* 2. PROVIDER HERO CARD */}
               <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
                 <div className="bg-gradient-to-r from-blue-600 to-purple-600 h-24"></div>
                 <div className="px-6 pb-6">
-                  {/* Profile Photo */}
                   <div className="relative -mt-16 mb-4">
-                    <div className="w-32 h-32 rounded-full border-4 border-yellow-400 overflow-hidden shadow-xl mx-auto bg-white">
-                      <img
-                        src={professional.image}
-                        alt={professional.name}
-                        className="w-full h-full object-cover"
-                      />
+                    <div className="w-32 h-32 rounded-full border-4 border-white overflow-hidden shadow-xl mx-auto bg-gradient-to-br from-blue-500 to-purple-600">
+                      {professional.profile_image ? (
+                        <img
+                          src={professional.profile_image.startsWith('http') ? professional.profile_image : `http://localhost:8000${professional.profile_image}`}
+                          alt={professional.name}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <User className="w-16 h-16 text-white" />
+                        </div>
+                      )}
                     </div>
-                  </div>
-
-                  {/* Name + Badge */}
-                  <div className="text-center mb-4">
-                    <h2 className="text-3xl font-black text-gray-900 mb-2">
-                      {professional.name}
-                    </h2>
-                    {professional.certified && (
-                      <div className="inline-flex items-center gap-2 bg-blue-100 text-blue-700 px-4 py-1.5 rounded-full">
-                        <CheckCircle className="w-4 h-4" />
-                        <span className="font-bold text-sm">Certified {professional.title}</span>
+                    {professional.is_verified && (
+                      <div className="absolute bottom-0 right-1/2 translate-x-1/2 translate-y-1/2 bg-green-500 rounded-full p-2 border-4 border-white shadow-lg">
+                        <BadgeCheck className="w-5 h-5 text-white" />
                       </div>
                     )}
                   </div>
 
-                  {/* Ratings + Jobs */}
+                  <div className="text-center mb-4 mt-6">
+                    <h2 className="text-3xl font-black text-gray-900 mb-2">
+                      {professional.name}
+                    </h2>
+                    <div className="flex items-center justify-center gap-2 flex-wrap">
+                      {professional.is_verified && (
+                        <span className="inline-flex items-center gap-2 bg-green-100 text-green-700 px-4 py-1.5 rounded-full">
+                          <CheckCircle className="w-4 h-4" />
+                          <span className="font-bold text-sm">Verified Professional</span>
+                        </span>
+                      )}
+                      {professional.category && (
+                        <span className="inline-flex items-center gap-2 bg-blue-100 text-blue-700 px-4 py-1.5 rounded-full">
+                          <Briefcase className="w-4 h-4" />
+                          <span className="font-bold text-sm">{professional.category}</span>
+                        </span>
+                      )}
+                      {professional.emergency_available && (
+                        <span className="inline-flex items-center gap-2 bg-red-100 text-red-700 px-4 py-1.5 rounded-full">
+                          <Zap className="w-4 h-4" />
+                          <span className="font-bold text-sm">24/7 Available</span>
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
                   <div className="flex flex-wrap items-center justify-center gap-4 mb-6">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 bg-yellow-50 px-4 py-2 rounded-xl">
                       <Star className="w-5 h-5 text-yellow-400 fill-yellow-400" />
                       <span className="font-bold text-gray-900">
-                        {professional.rating} ({professional.reviews} reviews)
+                        {(professional.rating || 0).toFixed(1)}
                       </span>
+                      <span className="text-gray-500">({professional.total_reviews || 0} reviews)</span>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <CheckCircle className="w-5 h-5 text-green-600" />
-                      <span className="font-bold text-gray-900">
-                        {professional.jobsCompleted}+ jobs completed
-                      </span>
-                    </div>
+                    {professional.total_bookings > 0 && (
+                      <div className="flex items-center gap-2 bg-green-50 px-4 py-2 rounded-xl">
+                        <CheckCircle className="w-5 h-5 text-green-600" />
+                        <span className="font-bold text-gray-900">
+                          {professional.total_bookings}+ jobs completed
+                        </span>
+                      </div>
+                    )}
                   </div>
 
-                  {/* Price */}
-                  <div className="text-center mb-6">
-                    <div className="text-4xl font-black text-blue-600 mb-1">
-                      ₹{professional.hourlyRate} / hour
+                  {professional.hourly_rate && (
+                    <div className="text-center mb-6">
+                      <div className="text-4xl font-black text-blue-600 mb-1 flex items-center justify-center gap-1">
+                        <IndianRupee className="w-8 h-8" />
+                        {professional.hourly_rate} / hour
+                      </div>
+                      <p className="text-gray-500 font-medium">Service charges may vary based on requirements</p>
                     </div>
-                    <p className="text-gray-600 font-semibold">
-                      ₹{professional.inspectionFee} for inspection visit
-                      <span className="ml-2 text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full font-bold">
-                        Optional offer
-                      </span>
-                    </p>
-                  </div>
+                  )}
 
-                  {/* 3. QUICK ACTION BUTTONS */}
                   <div className="grid grid-cols-3 gap-3">
-                    <button className="flex items-center justify-center gap-2 px-4 py-3 border-2 border-gray-300 rounded-xl hover:border-blue-600 hover:bg-blue-50 transition-all font-bold text-blue-600">
-                      <Phone className="w-5 h-5" />
-                      <span className="hidden sm:inline">Call</span>
-                    </button>
-                    <button className="flex items-center justify-center gap-2 px-4 py-3 border-2 border-gray-300 rounded-xl hover:border-blue-600 hover:bg-blue-50 transition-all font-bold text-blue-600">
+                    {professional.phone && (
+                      <a 
+                        href={`tel:${professional.phone}`}
+                        className="flex items-center justify-center gap-2 px-4 py-3 border-2 border-gray-200 rounded-xl hover:border-blue-600 hover:bg-blue-50 transition-all font-bold text-blue-600"
+                      >
+                        <Phone className="w-5 h-5" />
+                        <span className="hidden sm:inline">Call</span>
+                      </a>
+                    )}
+                    <Link
+                      href={`/messages/${professionalId}`}
+                      className="flex items-center justify-center gap-2 px-4 py-3 border-2 border-gray-200 rounded-xl hover:border-blue-600 hover:bg-blue-50 transition-all font-bold text-blue-600"
+                    >
                       <MessageCircle className="w-5 h-5" />
                       <span className="hidden sm:inline">Chat</span>
+                    </Link>
+                    <button
+                      onClick={() => setIsPriceOfferModalOpen(true)}
+                      className="flex items-center justify-center gap-2 px-4 py-3 border-2 border-green-600 rounded-xl hover:bg-green-600 hover:text-white transition-all font-bold text-green-600 col-span-3 sm:col-span-3"
+                    >
+                      <DollarSign className="w-5 h-5" />
+                      <span>Make Price Offer</span>
                     </button>
-                    <button className="flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all font-bold shadow-lg col-span-3 sm:col-span-1">
+                    <Link
+                      href={services.length > 0 ? `/booking/${services[0].id}` : '#booking-form'}
+                      className="flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all font-bold shadow-lg col-span-3 sm:col-span-3"
+                    >
                       <Calendar className="w-5 h-5" />
                       <span>Book Now</span>
-                    </button>
+                    </Link>
                   </div>
                 </div>
               </div>
 
-              {/* 4. ABOUT THE PROFESSIONAL */}
-              <div className="bg-white rounded-2xl shadow-md p-6">
-                <h3 className="text-2xl font-black text-gray-900 mb-4">About the Professional</h3>
-                <p className="text-gray-700 leading-relaxed mb-4 font-medium">
-                  {professional.about}
-                </p>
-                <div className="grid md:grid-cols-2 gap-4">
-                  <div>
-                    <span className="font-bold text-gray-900">Expertise Level:</span>
-                    <span className="ml-2 text-gray-700 font-semibold">{professional.expertiseLevel}</span>
-                  </div>
-                  <div>
-                    <span className="font-bold text-gray-900">Languages:</span>
-                    <span className="ml-2 text-gray-700 font-semibold">{professional.languages.join(', ')}</span>
+              {professional.bio && (
+                <div className="bg-white rounded-2xl shadow-md p-6">
+                  <h3 className="text-2xl font-black text-gray-900 mb-4">About</h3>
+                  <p className="text-gray-700 leading-relaxed mb-4 font-medium whitespace-pre-wrap">
+                    {professional.bio}
+                  </p>
+                  <div className="grid md:grid-cols-2 gap-4">
+                    {professional.experience && (
+                      <div className="flex items-center gap-3 p-3 bg-blue-50 rounded-xl">
+                        <Briefcase className="w-5 h-5 text-blue-600" />
+                        <div>
+                          <span className="font-bold text-gray-900">Experience</span>
+                          <p className="text-gray-600">{professional.experience}</p>
+                        </div>
+                      </div>
+                    )}
+                    {professional.languages && professional.languages.length > 0 && (
+                      <div className="flex items-center gap-3 p-3 bg-purple-50 rounded-xl">
+                        <Globe className="w-5 h-5 text-purple-600" />
+                        <div>
+                          <span className="font-bold text-gray-900">Languages</span>
+                          <p className="text-gray-600">{professional.languages.join(', ')}</p>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
-              </div>
+              )}
 
-              {/* 5. SKILLS & SPECIALIZATIONS */}
-              <div className="bg-white rounded-2xl shadow-md p-6">
-                <h3 className="text-2xl font-black text-gray-900 mb-6">Skills & Specializations</h3>
-                <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-4">
-                  {skills.map((skill, idx) => {
-                    const Icon = skill.icon;
-                    return (
+              {professional.skills && professional.skills.length > 0 && (
+                <div className="bg-white rounded-2xl shadow-md p-6">
+                  <h3 className="text-2xl font-black text-gray-900 mb-6">Skills & Specializations</h3>
+                  <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-4">
+                    {professional.skills.map((skill, idx) => {
+                      const SkillIcon = getSkillIcon(skill);
+                      return (
+                        <div
+                          key={idx}
+                          className="flex items-center gap-3 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border-2 border-blue-100 hover:border-blue-300 transition-all"
+                        >
+                          <div className="w-10 h-10 rounded-lg bg-blue-600 flex items-center justify-center">
+                            <SkillIcon className="w-5 h-5 text-white" />
+                          </div>
+                          <span className="font-bold text-gray-900 text-sm">{skill}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {professional.certifications && professional.certifications.length > 0 && (
+                <div className="bg-white rounded-2xl shadow-md p-6">
+                  <h3 className="text-2xl font-black text-gray-900 mb-6">Certifications</h3>
+                  <div className="grid sm:grid-cols-2 gap-4">
+                    {professional.certifications.map((cert, idx) => (
                       <div
                         key={idx}
-                        className="flex items-center gap-3 p-4 bg-yellow-50 rounded-xl border-2 border-yellow-200 hover:border-yellow-400 transition-all"
+                        className="flex items-center gap-3 p-4 bg-gradient-to-r from-amber-50 to-yellow-50 rounded-xl border-2 border-amber-200"
                       >
-                        <Icon className={`w-6 h-6 ${skill.color}`} />
-                        <span className="font-bold text-gray-900 text-sm">{skill.name}</span>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* 6. EXPERIENCE TIMELINE */}
-              <div className="bg-white rounded-2xl shadow-md p-6">
-                <h3 className="text-2xl font-black text-gray-900 mb-6">Experience Timeline</h3>
-                <div className="space-y-6">
-                  {experience.map((exp, idx) => (
-                    <div key={idx} className="flex gap-4">
-                      <div className="flex flex-col items-center">
-                        <div className={`w-3 h-3 rounded-full ${idx === 0 ? 'bg-blue-600' : 'bg-gray-400'}`}></div>
-                        {idx < experience.length - 1 && (
-                          <div className="w-0.5 h-full bg-blue-300 mt-2"></div>
-                        )}
-                      </div>
-                      <div className="flex-1 pb-6">
-                        <div className="flex items-start justify-between mb-2">
-                          <h4 className="font-black text-gray-900 text-lg">
-                            {exp.role} — {exp.company}
-                          </h4>
-                          <span className="text-sm text-gray-600 font-semibold whitespace-nowrap ml-2">
-                            {exp.period}
-                          </span>
+                        <div className="w-10 h-10 rounded-lg bg-amber-500 flex items-center justify-center">
+                          <Award className="w-5 h-5 text-white" />
                         </div>
-                        <p className="text-gray-700 font-medium">{exp.description}</p>
+                        <span className="font-bold text-gray-900">{cert}</span>
                       </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* 7. SERVICE PACKAGES & PRICING */}
-              <div className="bg-white rounded-2xl shadow-md p-6">
-                <div className="flex items-center justify-between mb-6">
-                  <h3 className="text-2xl font-black text-gray-900">Service Packages & Pricing</h3>
-                  <span className="bg-yellow-400 text-gray-900 px-3 py-1.5 rounded-full text-xs font-black">
-                    💰 Save 15%
-                  </span>
-                </div>
-                <p className="text-gray-600 font-medium mb-6">Salve packages reacion on offer services</p>
-                <div className="space-y-4">
-                  {packages.map((pkg, idx) => (
-                    <div key={idx} className="border-2 border-gray-200 rounded-xl p-4 hover:border-blue-400 hover:bg-blue-50 transition-all">
-                      <div className="flex items-center justify-between mb-3">
-                        <h4 className="font-black text-gray-900 text-lg">{pkg.name}</h4>
-                        <span className="text-2xl font-black text-blue-600">₹{pkg.price}</span>
-                      </div>
-                      <ul className="space-y-2">
-                        {pkg.features.map((feature, fidx) => (
-                          <li key={fidx} className="flex items-center gap-2 text-gray-700 font-medium">
-                            <span className="text-yellow-600">●</span>
-                            {feature}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* 8. CUSTOMER REVIEWS & RATINGS */}
-              <div className="bg-white rounded-2xl shadow-md p-6">
-                <h3 className="text-2xl font-black text-gray-900 mb-2">Customer Reviews & Ratings</h3>
-                <p className="text-gray-600 font-medium mb-6">Reviews and 2 ratings</p>
-
-                {/* Summary Bar */}
-                <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl p-6 mb-6">
-                  <div className="flex items-center gap-4 mb-4">
-                    <div className="text-5xl font-black text-gray-900">{professional.rating}</div>
-                    <div className="flex-1">
-                      <div className="flex items-center gap-1 mb-2">
-                        {[...Array(5)].map((_, i) => (
-                          <Star key={i} className={`w-6 h-6 ${i < Math.floor(professional.rating) ? 'text-yellow-400 fill-yellow-400' : 'text-gray-300'}`} />
-                        ))}
-                      </div>
-                      <p className="text-gray-700 font-bold">{professional.reviews} Reviews</p>
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-3 gap-4">
-                    <div className="text-center">
-                      <div className="text-2xl font-black text-gray-900">{ratingBreakdown.quality}</div>
-                      <div className="text-xs text-gray-600 font-semibold">Quality</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-2xl font-black text-gray-900">{ratingBreakdown.timing}</div>
-                      <div className="text-xs text-gray-600 font-semibold">Timing</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-2xl font-black text-gray-900">{ratingBreakdown.behaviour}</div>
-                      <div className="text-xs text-gray-600 font-semibold">Behaviour</div>
-                    </div>
+                    ))}
                   </div>
                 </div>
+              )}
 
-                {/* Review Cards */}
-                <div className="space-y-4">
-                  {reviews.map((review, idx) => (
-                    <div key={idx} className="border-2 border-gray-100 rounded-xl p-4 hover:border-blue-200 transition-all">
-                      <div className="flex items-start gap-3 mb-3">
-                        <img
-                          src={review.avatar}
-                          alt={review.name}
-                          className="w-12 h-12 rounded-full"
-                        />
-                        <div className="flex-1">
-                          <div className="flex items-center justify-between mb-1">
-                            <h4 className="font-bold text-gray-900">{review.name}</h4>
-                            <div className="flex items-center gap-1">
-                              {[...Array(review.rating)].map((_, i) => (
-                                <Star key={i} className="w-4 h-4 text-yellow-400 fill-yellow-400" />
-                              ))}
+              {services.length > 0 && (
+                <div className="bg-white rounded-2xl shadow-md p-6">
+                  <div className="flex items-center justify-between mb-6">
+                    <h3 className="text-2xl font-black text-gray-900">Services Offered</h3>
+                    <span className="bg-blue-100 text-blue-700 px-3 py-1.5 rounded-full text-sm font-bold">
+                      {services.length} Services
+                    </span>
+                  </div>
+                  <div className="space-y-4">
+                    {services.map((service, idx) => (
+                      <Link
+                        key={idx}
+                        href={`/booking/${service.id}`}
+                        className="flex items-center justify-between p-4 border-2 border-gray-100 rounded-xl hover:border-blue-400 hover:bg-blue-50 transition-all group"
+                      >
+                        <div className="flex items-center gap-4">
+                          {service.image ? (
+                            <img src={service.image} alt={service.name} className="w-16 h-16 rounded-xl object-cover" />
+                          ) : (
+                            <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
+                              <Wrench className="w-8 h-8 text-white" />
                             </div>
+                          )}
+                          <div>
+                            <h4 className="font-bold text-gray-900 group-hover:text-blue-600 transition-colors">{service.name}</h4>
+                            <p className="text-sm text-gray-500">{service.duration}</p>
+                            {service.features && service.features.length > 0 && (
+                              <div className="flex flex-wrap gap-1 mt-1">
+                                {service.features.slice(0, 2).map((f, i) => (
+                                  <span key={i} className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded">{f}</span>
+                                ))}
+                              </div>
+                            )}
                           </div>
                         </div>
+                        <div className="text-right">
+                          <div className="text-xl font-black text-blue-600 flex items-center gap-0.5">
+                            <IndianRupee className="w-4 h-4" />
+                            {service.price?.toLocaleString('en-IN')}
+                          </div>
+                          <span className="text-xs text-gray-500">
+                            {service.price_type === 'starting_from' ? 'Starting' : service.price_type === 'hourly' ? '/hour' : 'Fixed'}
+                          </span>
+                          <ChevronRight className="w-5 h-5 text-gray-400 group-hover:text-blue-600 mt-1 ml-auto" />
+                        </div>
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {(professional.city || (professional.service_areas && professional.service_areas.length > 0)) && (
+                <div className="bg-white rounded-2xl shadow-md p-6">
+                  <h3 className="text-2xl font-black text-gray-900 mb-6">Service Area</h3>
+                  
+                  {professional.city && (
+                    <div className="flex items-center gap-3 mb-4 p-4 bg-orange-50 rounded-xl border border-orange-200">
+                      <MapPin className="w-6 h-6 text-orange-600" />
+                      <div>
+                        <span className="font-bold text-gray-900">Location</span>
+                        <p className="text-gray-600">{professional.city}{professional.state && `, ${professional.state}`}</p>
                       </div>
-                      <p className="text-gray-700 font-medium">{review.comment}</p>
                     </div>
-                  ))}
+                  )}
+                  
+                  {professional.service_areas && professional.service_areas.length > 0 && (
+                    <div>
+                      <p className="font-bold text-gray-900 mb-3">Areas Covered:</p>
+                      <div className="flex flex-wrap gap-2">
+                        {professional.service_areas.map((area, idx) => (
+                          <span key={idx} className="bg-green-100 text-green-700 px-4 py-2 rounded-full font-medium">
+                            <MapPin className="w-4 h-4 inline mr-1" />
+                            {area}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
+              )}
 
-                <button className="w-full mt-6 py-3 border-2 border-blue-600 text-blue-600 rounded-xl font-bold hover:bg-blue-50 transition-all">
-                  Show All Reviews
-                </button>
-              </div>
-
-              {/* 9. LOCATION & SERVICE AREA */}
-              <div className="bg-white rounded-2xl shadow-md p-6">
-                <h3 className="text-2xl font-black text-gray-900 mb-6">Service Area</h3>
-                <div className="bg-gray-200 rounded-xl h-64 mb-4 flex items-center justify-center relative overflow-hidden">
-                  <img
-                    src="https://images.unsplash.com/photo-1569336415962-a4bd9f69cd83?w=600&h=300&fit=crop"
-                    alt="Map"
-                    className="w-full h-full object-cover opacity-60"
-                  />
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <MapPin className="w-16 h-16 text-red-600 drop-shadow-lg" />
+              {professional.working_days && professional.working_days.length > 0 && (
+                <div className="bg-white rounded-2xl shadow-md p-6">
+                  <h3 className="text-2xl font-black text-gray-900 mb-6">Availability</h3>
+                  
+                  {professional.working_hours_start && professional.working_hours_end && (
+                    <div className="flex items-center gap-3 mb-4 p-4 bg-indigo-50 rounded-xl border border-indigo-200">
+                      <Clock className="w-6 h-6 text-indigo-600" />
+                      <div>
+                        <span className="font-bold text-gray-900">Working Hours</span>
+                        <p className="text-gray-600">
+                          {formatTime(professional.working_hours_start)} - {formatTime(professional.working_hours_end)}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                  
+                  <div>
+                    <p className="font-bold text-gray-900 mb-3">Available Days:</p>
+                    <div className="grid grid-cols-4 sm:grid-cols-7 gap-2">
+                      {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map((day) => {
+                        const isAvailable = professional.working_days.includes(day);
+                        return (
+                          <div
+                            key={day}
+                            className={`text-center p-3 rounded-xl font-medium ${
+                              isAvailable 
+                                ? 'bg-green-100 text-green-700 border-2 border-green-300' 
+                                : 'bg-gray-100 text-gray-400 border-2 border-gray-200'
+                            }`}
+                          >
+                            <span className="text-sm">{day.slice(0, 3)}</span>
+                            {isAvailable && <CheckCircle className="w-4 h-4 mx-auto mt-1" />}
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
                 </div>
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2 text-gray-700 font-semibold">
-                    <MapPin className="w-5 h-5 text-blue-600" />
-                    <span>Service area. Radius: {professional.serviceRadius} km</span>
-                  </div>
-                  <p className="text-gray-700 font-semibold ml-7">
-                    Distance from you: <span className="text-blue-600 font-black">{professional.distanceFromUser} km</span>
-                  </p>
-                </div>
-              </div>
+              )}
 
-              {/* 10. AVAILABILITY SCHEDULE */}
-              <div className="bg-white rounded-2xl shadow-md p-6">
-                <h3 className="text-2xl font-black text-gray-900 mb-6">Availability Schedule</h3>
-                <div className="space-y-3">
-                  {availability.map((slot, idx) => (
-                    <div key={idx} className="flex items-center justify-between p-4 bg-blue-50 rounded-xl border-2 border-blue-200">
-                      <span className="font-bold text-gray-900">{slot.day}</span>
-                      <span className="font-semibold text-blue-600">{slot.hours}</span>
+              {professional.member_since && (
+                <div className="bg-white rounded-2xl shadow-md p-6">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-xl bg-purple-100 flex items-center justify-center">
+                      <Award className="w-6 h-6 text-purple-600" />
                     </div>
-                  ))}
+                    <div>
+                      <span className="text-gray-500">Member Since</span>
+                      <p className="font-bold text-gray-900">
+                        {new Date(professional.member_since).toLocaleDateString('en-IN', { 
+                          month: 'long', 
+                          year: 'numeric' 
+                        })}
+                      </p>
+                    </div>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
 
-            {/* Right Column - Booking Form */}
-            <BookingForm 
-              professionalName={professional.name}
-              hourlyRate={professional.hourlyRate}
-            />
+            <div id="booking-form">
+              <BookingForm 
+                professionalName={professional.name}
+                hourlyRate={professional.hourly_rate || 299}
+                professionalId={professionalId}
+                services={services}
+              />
+            </div>
           </div>
         </div>
       </div>
@@ -427,6 +501,12 @@ export default function Professional() {
       <Notifications
         isOpen={isNotificationsOpen}
         onClose={() => setIsNotificationsOpen(false)}
+      />
+      <PriceOfferModal
+        isOpen={isPriceOfferModalOpen}
+        onClose={() => setIsPriceOfferModalOpen(false)}
+        professionalId={professionalId}
+        professionalName={professional?.name || 'Professional'}
       />
     </div>
   );

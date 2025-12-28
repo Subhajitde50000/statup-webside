@@ -1,8 +1,9 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Edit2, MapPin, Upload, X, Camera, Clock, Check, Copy, Calendar, Save, AlertCircle, CheckCircle2, Building2, Mail, Phone as PhoneIcon, FileText, Image as ImageIcon, RefreshCw } from 'lucide-react';
+import { Edit2, MapPin, Upload, X, Camera, Clock, Check, Copy, Calendar, Save, AlertCircle, CheckCircle2, Building2, Mail, Phone as PhoneIcon, FileText, Image as ImageIcon, RefreshCw, CreditCard, ShieldCheck } from 'lucide-react';
 import ShopkeeperNavbar from '../components/ShopkeeperNavbar';
+import Link from 'next/link';
 
 interface UserProfile {
   id: string;
@@ -921,6 +922,26 @@ export default function ShopProfilePage() {
             </div>
           </div>
         )}
+      </div>
+
+      {/* Subscription Section - Mobile Only */}
+      <div className="lg:hidden px-4 pb-6">
+        <Link href="/shopkeeper/subscription">
+          <div className="bg-gradient-to-r from-[#FF7A22] to-[#E66A12] rounded-2xl shadow-lg p-6 hover:shadow-xl transition-all">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="bg-white/20 p-3 rounded-xl backdrop-blur-sm">
+                  <CreditCard className="w-6 h-6 text-white" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-white">Subscription Plans</h3>
+                  <p className="text-sm text-orange-100 mt-1">Manage your subscription</p>
+                </div>
+              </div>
+              <ShieldCheck className="w-6 h-6 text-white" />
+            </div>
+          </div>
+        </Link>
       </div>
     </>
   );
