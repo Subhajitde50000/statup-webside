@@ -13,7 +13,7 @@ import {
 import Link from 'next/link';
 import Navbar from '../../Component/Navbar';
 import Footer from '../../Component/Footer';
-import { getProfessionalPublicProfile } from '../../../utils/services';
+import { getProfessionalPublicProfile, getServicesByProfessional, getServiceById, Service } from '../../../utils/services';
 import { 
   getUserAddresses, 
   addUserAddress, 
@@ -53,6 +53,7 @@ export default function BookingFlowPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const professionalId = params.id as string;
+  const serviceIdFromUrl = searchParams.get('serviceId');
 
   const [currentStep, setCurrentStep] = useState(1);
   const [loading, setLoading] = useState(true);
@@ -60,8 +61,11 @@ export default function BookingFlowPage() {
   const [error, setError] = useState<string | null>(null);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
 
-  // Step 1: Professional Selection (Auto-filled)
+  // Step 1: Professional & Service Selection
   const [selectedProfessional, setSelectedProfessional] = useState<any>(null);
+  const [professionalServices, setProfessionalServices] = useState<Service[]>([]);
+  const [selectedService, setSelectedService] = useState<Service | null>(null);
+  const [loadingServices, setLoadingServices] = useState(false);
 
   // Step 2: Address & Schedule & Contact
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
@@ -113,9 +117,9 @@ export default function BookingFlowPage() {
     evening: ['05:00 PM', '06:00 PM', '07:00 PM', '08:00 PM'],
   };
 
-  // Fetch professional data
+  // Fetch professional data and services
   useEffect(() => {
-    const fetchProfessional = async () => {
+    const fetchProfessionalAndServices = async () => {
       if (!professionalId) {
         setError('Professional ID not provided');
         setLoading(false);
@@ -124,20 +128,74 @@ export default function BookingFlowPage() {
 
       try {
         setLoading(true);
+        
+        // Fetch professional data
         const data = await getProfessionalPublicProfile(professionalId);
         setProfessional(data.professional);
         setSelectedProfessional(data.professional);
         
-        // Calculate initial pricing
-        const baseCost = data.professional.hourly_rate || 500;
-        const tax = baseCost * 0.18; // 18% GST
-        setPricing({
-          serviceCost: baseCost,
-          discount: 0,
-          platformFee: 50,
-          tax: tax,
-          total: baseCost + 50 + tax,
-        });
+        // Fetch professional's services
+        setLoadingServices(true);
+        try {
+          const servicesResponse = await getServicesByProfessional(professionalId);
+          const services = servicesResponse.services || [];
+          setProfessionalServices(services);
+          
+          // If serviceId is provided in URL, auto-select that service
+          if (serviceIdFromUrl) {
+            const preSelectedService = services.find((s: Service) => s.id === serviceIdFromUrl);
+            if (preSelectedService) {
+              setSelectedService(preSelectedService);
+              // Update pricing based on selected service
+              const baseCost = preSelectedService.price || data.professional.hourly_rate || 500;
+              const tax = baseCost * 0.18;
+              setPricing({
+                serviceCost: baseCost,
+                discount: 0,
+                platformFee: 50,
+                tax: tax,
+                total: baseCost + 50 + tax,
+              });
+            }
+          } else if (services.length === 1) {
+            // Auto-select if only one service
+            setSelectedService(services[0]);
+            const baseCost = services[0].price || data.professional.hourly_rate || 500;
+            const tax = baseCost * 0.18;
+            setPricing({
+              serviceCost: baseCost,
+              discount: 0,
+              platformFee: 50,
+              tax: tax,
+              total: baseCost + 50 + tax,
+            });
+          } else {
+            // Default pricing
+            const baseCost = data.professional.hourly_rate || 500;
+            const tax = baseCost * 0.18;
+            setPricing({
+              serviceCost: baseCost,
+              discount: 0,
+              platformFee: 50,
+              tax: tax,
+              total: baseCost + 50 + tax,
+            });
+          }
+        } catch (serviceErr) {
+          console.error('Error fetching services:', serviceErr);
+          // Continue without services
+          const baseCost = data.professional.hourly_rate || 500;
+          const tax = baseCost * 0.18;
+          setPricing({
+            serviceCost: baseCost,
+            discount: 0,
+            platformFee: 50,
+            tax: tax,
+            total: baseCost + 50 + tax,
+          });
+        } finally {
+          setLoadingServices(false);
+        }
 
       } catch (err: any) {
         console.error('Error fetching professional:', err);
@@ -147,10 +205,10 @@ export default function BookingFlowPage() {
       }
     };
 
-    fetchProfessional();
+    fetchProfessionalAndServices();
     fetchOffers();
     fetchUserAddresses();
-  }, [professionalId]);
+  }, [professionalId, serviceIdFromUrl]);
 
   // Fetch available offers
   const fetchOffers = async () => {
@@ -530,6 +588,189 @@ export default function BookingFlowPage() {
                     </div>
                   </div>
                 </div>
+
+                {/* Service Selection - Only show if professional has services */}
+                {professionalServices.length > 0 && (
+                  <div className="mt-6">
+                    <h3 className="text-lg font-bold mb-4 flex items-center gap-2" style={{ color: colors.textMain }}>
+                      <Sparkles className="w-5 h-5" style={{ color: colors.accent }} />
+                      {serviceIdFromUrl ? 'Selected Service' : 'Select a Service'}
+                    </h3>
+                    
+                    {loadingServices ? (
+                      <div className="flex items-center justify-center py-8">
+                        <Loader2 className="w-8 h-8 animate-spin" style={{ color: colors.primary }} />
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {professionalServices.map((service) => (
+                          <div
+                            key={service.id}
+                            onClick={() => {
+                              setSelectedService(service);
+                              // Update pricing based on selected service
+                              const baseCost = service.price || professional.hourly_rate || 500;
+                              const tax = baseCost * 0.18;
+                              setPricing({
+                                serviceCost: baseCost,
+                                discount: selectedOffer ? (selectedOffer.discount || 0) : 0,
+                                platformFee: 50,
+                                tax: tax,
+                                total: baseCost + 50 + tax - (selectedOffer ? (selectedOffer.discount || 0) : 0),
+                              });
+                            }}
+                            className="p-4 rounded-xl border-2 cursor-pointer transition-all hover:shadow-md"
+                            style={{
+                              borderColor: selectedService?.id === service.id ? colors.secondary : colors.divider,
+                              backgroundColor: selectedService?.id === service.id ? `${colors.secondary}10` : colors.card,
+                              boxShadow: selectedService?.id === service.id ? `0 0 0 4px ${colors.secondary}30` : 'none',
+                            }}
+                          >
+                            <div className="flex items-start gap-4">
+                              {/* Service Image/Icon */}
+                              <div 
+                                className="w-16 h-16 rounded-xl flex items-center justify-center flex-shrink-0"
+                                style={{ backgroundColor: `${colors.primary}15` }}
+                              >
+                                {service.image ? (
+                                  <img 
+                                    src={service.image} 
+                                    alt={service.name}
+                                    className="w-full h-full object-cover rounded-xl"
+                                  />
+                                ) : (
+                                  <Sparkles className="w-7 h-7" style={{ color: colors.primary }} />
+                                )}
+                              </div>
+                              
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-start justify-between gap-2">
+                                  <div>
+                                    <h4 className="font-bold text-base" style={{ color: colors.textMain }}>
+                                      {service.name}
+                                    </h4>
+                                    {service.category && (
+                                      <span 
+                                        className="inline-block px-2 py-0.5 rounded-full text-xs font-medium mt-1"
+                                        style={{ backgroundColor: `${colors.accent}20`, color: colors.accent }}
+                                      >
+                                        {service.category}
+                                      </span>
+                                    )}
+                                  </div>
+                                  
+                                  {/* Selection Indicator */}
+                                  <div 
+                                    className="w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0"
+                                    style={{ 
+                                      borderColor: selectedService?.id === service.id ? colors.secondary : colors.divider,
+                                      backgroundColor: selectedService?.id === service.id ? colors.secondary : 'transparent'
+                                    }}
+                                  >
+                                    {selectedService?.id === service.id && (
+                                      <Check className="w-4 h-4 text-white" />
+                                    )}
+                                  </div>
+                                </div>
+                                
+                                {service.description && (
+                                  <p className="text-sm mt-1 line-clamp-2" style={{ color: colors.textMuted }}>
+                                    {service.description}
+                                  </p>
+                                )}
+                                
+                                <div className="flex flex-wrap items-center gap-3 mt-2">
+                                  {/* Price */}
+                                  <div className="flex items-center gap-1">
+                                    <IndianRupee className="w-4 h-4" style={{ color: colors.success }} />
+                                    <span className="font-bold text-sm" style={{ color: colors.success }}>
+                                      {service.price?.toLocaleString('en-IN') || 'Quote'}
+                                      {service.price_type === 'hourly' && '/hr'}
+                                    </span>
+                                  </div>
+                                  
+                                  {/* Duration */}
+                                  {service.duration && (
+                                    <div className="flex items-center gap-1">
+                                      <Clock className="w-4 h-4" style={{ color: colors.textMuted }} />
+                                      <span className="text-sm" style={{ color: colors.textMuted }}>
+                                        {service.duration}
+                                      </span>
+                                    </div>
+                                  )}
+                                  
+                                  {/* Rating */}
+                                  {service.rating && (
+                                    <div className="flex items-center gap-1">
+                                      <Star className="w-4 h-4" style={{ color: colors.warning, fill: colors.warning }} />
+                                      <span className="text-sm font-medium" style={{ color: colors.textMain }}>
+                                        {service.rating.toFixed(1)}
+                                      </span>
+                                    </div>
+                                  )}
+                                </div>
+                                
+                                {/* Features Preview */}
+                                {service.features && service.features.length > 0 && (
+                                  <div className="flex flex-wrap gap-1.5 mt-2">
+                                    {service.features.slice(0, 3).map((feature, idx) => (
+                                      <span 
+                                        key={idx}
+                                        className="text-xs px-2 py-0.5 rounded-full"
+                                        style={{ backgroundColor: `${colors.primary}10`, color: colors.primary }}
+                                      >
+                                        {feature}
+                                      </span>
+                                    ))}
+                                    {service.features.length > 3 && (
+                                      <span className="text-xs" style={{ color: colors.textMuted }}>
+                                        +{service.features.length - 3} more
+                                      </span>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    
+                    {/* No service selected warning */}
+                    {!selectedService && professionalServices.length > 1 && (
+                      <div 
+                        className="mt-4 p-3 rounded-xl flex items-center gap-2"
+                        style={{ backgroundColor: `${colors.warning}15` }}
+                      >
+                        <AlertCircle className="w-5 h-5" style={{ color: colors.warning }} />
+                        <p className="text-sm font-medium" style={{ color: colors.warning }}>
+                          Please select a service to continue
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Continue Button for Step 1 */}
+                <div className="mt-6 flex justify-end">
+                  <button
+                    onClick={() => {
+                      if (professionalServices.length > 1 && !selectedService) {
+                        return; // Don't allow continue without service selection
+                      }
+                      setCurrentStep(2);
+                    }}
+                    disabled={professionalServices.length > 1 && !selectedService}
+                    className="px-8 py-3 rounded-xl font-bold flex items-center gap-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    style={{ 
+                      backgroundColor: (professionalServices.length > 1 && !selectedService) ? colors.divider : colors.primary, 
+                      color: colors.card 
+                    }}
+                  >
+                    Continue to Schedule
+                    <ChevronRight className="w-5 h-5" />
+                  </button>
+                </div>
               </div>
             )}
 
@@ -670,7 +911,7 @@ export default function BookingFlowPage() {
                             placeholder="e.g., 12A, Block B"
                             value={newAddress.house_no}
                             onChange={(e) => setNewAddress({ ...newAddress, house_no: e.target.value })}
-                            className="w-full px-4 py-3 rounded-xl border-2 font-medium focus:outline-none focus:ring-4 transition-all"
+                            className="w-full px-4 py-3 text-gray-900 rounded-xl border-2 font-medium focus:outline-none focus:ring-4 transition-all"
                             style={{ borderColor: colors.divider, backgroundColor: colors.card }}
                           />
                         </div>
@@ -683,7 +924,7 @@ export default function BookingFlowPage() {
                             placeholder="e.g., MG Road"
                             value={newAddress.area}
                             onChange={(e) => setNewAddress({ ...newAddress, area: e.target.value })}
-                            className="w-full px-4 py-3 rounded-xl border-2 font-medium focus:outline-none focus:ring-4 transition-all"
+                            className="w-full px-4 py-3 text-gray-900 rounded-xl border-2 font-medium focus:outline-none focus:ring-4 transition-all"
                             style={{ borderColor: colors.divider, backgroundColor: colors.card }}
                           />
                         </div>
@@ -698,7 +939,7 @@ export default function BookingFlowPage() {
                           placeholder="e.g., Near City Mall"
                           value={newAddress.landmark || ''}
                           onChange={(e) => setNewAddress({ ...newAddress, landmark: e.target.value })}
-                          className="w-full px-4 py-3 rounded-xl border-2 font-medium focus:outline-none focus:ring-4 transition-all"
+                          className="w-full px-4 py-3 text-gray-900 rounded-xl border-2 font-medium focus:outline-none focus:ring-4 transition-all"
                           style={{ borderColor: colors.divider, backgroundColor: colors.card }}
                         />
                       </div>
@@ -713,7 +954,7 @@ export default function BookingFlowPage() {
                             placeholder="e.g., Mumbai"
                             value={newAddress.city}
                             onChange={(e) => setNewAddress({ ...newAddress, city: e.target.value })}
-                            className="w-full px-4 py-3 rounded-xl border-2 font-medium focus:outline-none focus:ring-4 transition-all"
+                            className="w-full px-4 py-3 text-gray-900 rounded-xl border-2 font-medium focus:outline-none focus:ring-4 transition-all"
                             style={{ borderColor: colors.divider, backgroundColor: colors.card }}
                           />
                         </div>
@@ -726,7 +967,7 @@ export default function BookingFlowPage() {
                             placeholder="e.g., Maharashtra"
                             value={newAddress.state || ''}
                             onChange={(e) => setNewAddress({ ...newAddress, state: e.target.value })}
-                            className="w-full px-4 py-3 rounded-xl border-2 font-medium focus:outline-none focus:ring-4 transition-all"
+                            className="w-full px-4 py-3 text-gray-900 rounded-xl border-2 font-medium focus:outline-none focus:ring-4 transition-all"
                             style={{ borderColor: colors.divider, backgroundColor: colors.card }}
                           />
                         </div>
@@ -739,7 +980,7 @@ export default function BookingFlowPage() {
                             placeholder="e.g., 400001"
                             value={newAddress.pincode}
                             onChange={(e) => setNewAddress({ ...newAddress, pincode: e.target.value })}
-                            className="w-full px-4 py-3 rounded-xl border-2 font-medium focus:outline-none focus:ring-4 transition-all"
+                            className="w-full px-4 py-3 text-gray-900 rounded-xl border-2 font-medium focus:outline-none focus:ring-4 transition-all"
                             style={{ borderColor: colors.divider, backgroundColor: colors.card }}
                           />
                         </div>
@@ -815,7 +1056,7 @@ export default function BookingFlowPage() {
                       placeholder="Enter your phone number"
                       value={contactNumber}
                       onChange={(e) => setContactNumber(e.target.value)}
-                      className="w-full px-4 py-3 rounded-xl border-2 font-medium focus:outline-none focus:ring-4 transition-all"
+                      className="w-full px-4 py-3 text-gray-900 rounded-xl border-2 font-medium focus:outline-none focus:ring-4 transition-all"
                       style={{ borderColor: colors.divider, backgroundColor: colors.card }}
                     />
                   </div>
@@ -829,7 +1070,7 @@ export default function BookingFlowPage() {
                       value={notes}
                       onChange={(e) => setNotes(e.target.value)}
                       rows={3}
-                      className="w-full px-4 py-3 rounded-xl border-2 font-medium focus:outline-none focus:ring-4 transition-all resize-none"
+                      className="w-full px-4 py-3 text-gray-900 rounded-xl border-2 font-medium focus:outline-none focus:ring-4 transition-all resize-none"
                       style={{ borderColor: colors.divider, backgroundColor: colors.card }}
                     />
                   </div>
@@ -1301,9 +1542,40 @@ export default function BookingFlowPage() {
             <div className="lg:col-span-1">
               <div className="rounded-2xl shadow-lg p-6 sticky top-[170px]" style={{ backgroundColor: colors.card }}>
                 <h3 className="text-xl font-bold mb-6" style={{ color: colors.textMain }}>
-                  Price Summary
+                  Booking Summary
                 </h3>
 
+                {/* Selected Service Info */}
+                {selectedService && (
+                  <div className="mb-6 pb-4" style={{ borderBottom: `1px solid ${colors.divider}` }}>
+                    <div className="flex items-start gap-3">
+                      <div 
+                        className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0"
+                        style={{ backgroundColor: `${colors.primary}15` }}
+                      >
+                        <Sparkles className="w-6 h-6" style={{ color: colors.primary }} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h4 className="font-bold text-sm" style={{ color: colors.textMain }}>
+                          {selectedService.name}
+                        </h4>
+                        {selectedService.category && (
+                          <span className="text-xs" style={{ color: colors.textMuted }}>
+                            {selectedService.category}
+                          </span>
+                        )}
+                        {selectedService.duration && (
+                          <p className="text-xs mt-1 flex items-center gap-1" style={{ color: colors.textMuted }}>
+                            <Clock className="w-3 h-3" />
+                            {selectedService.duration}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                <h4 className="font-bold mb-4" style={{ color: colors.textMain }}>Price Details</h4>
                 <div className="space-y-4 mb-6">
                   <div className="flex items-center justify-between">
                     <span style={{ color: colors.textMuted }}>Service Cost</span>

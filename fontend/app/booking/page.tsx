@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Calendar,
@@ -27,162 +27,141 @@ import {
   FileText,
   TrendingUp,
   Lock,
-  LogIn
+  LogIn,
+  Loader2,
+  X
 } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 import Navbar from '@/app/Component/Navbar';
 import Footer from '@/app/Component/Footer';
 import { getAccessToken } from '@/utils/auth';
+import { getUserBookings, cancelBooking, rateBooking, Booking } from '@/utils/bookings';
 
-// TypeScript Interfaces
-interface Booking {
-  id: string;
-  bookingId: string;
-  serviceType: string;
-  category: 'Electrical' | 'Plumbing' | 'Cleaning' | 'Appliance' | 'Other';
-  status: 'upcoming' | 'ongoing' | 'completed' | 'cancelled';
-  date: string;
-  time: string;
-  address: string;
-  professional: {
-    name: string;
-    photo: string;
-    rating: number;
-  };
-  price: number;
-  rating?: number;
-  otp?: string;
-  cancellationReason?: string;
-  refundStatus?: string;
-}
-
-// Mock Data - Replace with actual API
-const mockBookings: Booking[] = [
-  {
-    id: 'ELX-824412',
-    bookingId: '#ELX-824412',
-    serviceType: 'Fan Repair',
-    category: 'Electrical',
-    status: 'upcoming',
-    date: '12 Oct 2025',
-    time: '3:00 PM',
-    address: 'HSR Layout, Bangalore',
-    professional: {
-      name: 'Rahul Das',
-      photo: 'https://ui-avatars.com/api/?name=Rahul+Das&size=80&background=1E2A5E&color=fff',
-      rating: 4.9
-    },
-    price: 350,
-    otp: '64382'
-  },
-  {
-    id: 'PLB-829341',
-    bookingId: '#PLB-829341',
-    serviceType: 'Pipe Leak Repair',
-    category: 'Plumbing',
-    status: 'ongoing',
-    date: '10 Oct 2025',
-    time: '11:00 AM',
-    address: 'Koramangala, Bangalore',
-    professional: {
-      name: 'Amit Kumar',
-      photo: 'https://ui-avatars.com/api/?name=Amit+Kumar&size=80&background=00BFA6&color=fff',
-      rating: 4.8
-    },
-    price: 450,
-    otp: '92847'
-  },
-  {
-    id: 'CLN-819234',
-    bookingId: '#CLN-819234',
-    serviceType: 'Deep Cleaning',
-    category: 'Cleaning',
-    status: 'completed',
-    date: '5 Oct 2025',
-    time: '9:00 AM',
-    address: 'Indiranagar, Bangalore',
-    professional: {
-      name: 'Priya Sharma',
-      photo: 'https://ui-avatars.com/api/?name=Priya+Sharma&size=80&background=22C55E&color=fff',
-      rating: 4.7
-    },
-    price: 800,
-    rating: 5
-  },
-  {
-    id: 'ELX-812945',
-    bookingId: '#ELX-812945',
-    serviceType: 'AC Service',
-    category: 'Appliance',
-    status: 'completed',
-    date: '28 Sep 2025',
-    time: '2:00 PM',
-    address: 'Whitefield, Bangalore',
-    professional: {
-      name: 'Suresh Reddy',
-      photo: 'https://ui-avatars.com/api/?name=Suresh+Reddy&size=80&background=FF9F43&color=fff',
-      rating: 4.9
-    },
-    price: 600,
-    rating: 4
-  },
-  {
-    id: 'PLB-801234',
-    bookingId: '#PLB-801234',
-    serviceType: 'Bathroom Plumbing',
-    category: 'Plumbing',
-    status: 'cancelled',
-    date: '20 Sep 2025',
-    time: '10:00 AM',
-    address: 'Electronic City, Bangalore',
-    professional: {
-      name: 'Rajesh Singh',
-      photo: 'https://ui-avatars.com/api/?name=Rajesh+Singh&size=80&background=EF4444&color=fff',
-      rating: 4.6
-    },
-    price: 500,
-    cancellationReason: 'Rescheduled by customer',
-    refundStatus: 'Refunded ₹500'
-  }
-];
+// API Base URL for images
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'http://localhost:8000';
 
 export default function BookingHistoryPage() {
   const router = useRouter();
+  const [bookings, setBookings] = useState<Booking[]>([]);
+  const [statusCounts, setStatusCounts] = useState({
+    all: 0,
+    pending: 0,
+    confirmed: 0,
+    upcoming: 0,
+    ongoing: 0,
+    completed: 0,
+    cancelled: 0
+  });
   const [activeTab, setActiveTab] = useState<'all' | 'upcoming' | 'ongoing' | 'completed' | 'cancelled'>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [showFilters, setShowFilters] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [filters, setFilters] = useState({
     category: 'all',
     dateRange: 'all',
     priceRange: 'all'
   });
 
-  // Check authentication status
+  // Cancel Modal State
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [cancellingBooking, setCancellingBooking] = useState<Booking | null>(null);
+  const [cancelReason, setCancelReason] = useState('');
+  const [isCancelling, setIsCancelling] = useState(false);
+
+  // Rating Modal State
+  const [showRatingModal, setShowRatingModal] = useState(false);
+  const [ratingBooking, setRatingBooking] = useState<Booking | null>(null);
+  const [selectedRating, setSelectedRating] = useState(0);
+  const [reviewText, setReviewText] = useState('');
+  const [isSubmittingRating, setIsSubmittingRating] = useState(false);
+
+  // Fetch bookings from API
+  const fetchBookings = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      const response = await getUserBookings({
+        status: activeTab === 'all' ? undefined : activeTab,
+        category: filters.category === 'all' ? undefined : filters.category,
+        search: searchQuery || undefined,
+        limit: 50
+      });
+      setBookings(response.bookings);
+      setStatusCounts(response.status_counts);
+    } catch (err) {
+      console.error('Error fetching bookings:', err);
+      setError(err instanceof Error ? err.message : 'Failed to fetch bookings');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [activeTab, filters.category, searchQuery]);
+
+  // Check authentication and fetch bookings
   useEffect(() => {
     const token = getAccessToken();
     setIsAuthenticated(!!token);
-    setIsLoading(false);
-  }, []);
+    if (token) {
+      fetchBookings();
+    } else {
+      setIsLoading(false);
+    }
+  }, [fetchBookings]);
+
+  // Handle cancel booking
+  const handleCancelBooking = async () => {
+    if (!cancellingBooking) return;
+    
+    try {
+      setIsCancelling(true);
+      await cancelBooking(cancellingBooking.id, cancelReason);
+      setShowCancelModal(false);
+      setCancellingBooking(null);
+      setCancelReason('');
+      // Refresh bookings
+      fetchBookings();
+    } catch (err) {
+      console.error('Error cancelling booking:', err);
+      alert(err instanceof Error ? err.message : 'Failed to cancel booking');
+    } finally {
+      setIsCancelling(false);
+    }
+  };
+
+  // Handle rate booking
+  const handleRateBooking = async () => {
+    if (!ratingBooking || selectedRating === 0) return;
+    
+    try {
+      setIsSubmittingRating(true);
+      await rateBooking(ratingBooking.id, selectedRating, reviewText);
+      setShowRatingModal(false);
+      setRatingBooking(null);
+      setSelectedRating(0);
+      setReviewText('');
+      // Refresh bookings
+      fetchBookings();
+    } catch (err) {
+      console.error('Error rating booking:', err);
+      alert(err instanceof Error ? err.message : 'Failed to submit rating');
+    } finally {
+      setIsSubmittingRating(false);
+    }
+  };
 
   // Filter bookings based on active tab and search
   const filteredBookings = useMemo(() => {
-    let filtered = mockBookings;
+    let filtered = bookings;
 
-    // Filter by tab
-    if (activeTab !== 'all') {
-      filtered = filtered.filter(b => b.status === activeTab);
-    }
-
-    // Filter by search query
+    // Filter by search query (additional client-side filtering)
     if (searchQuery) {
       filtered = filtered.filter(b =>
-        b.bookingId.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        b.serviceType.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        b.professional.name.toLowerCase().includes(searchQuery.toLowerCase())
+        b.booking_id.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        b.service_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (b.professional?.name || '').toLowerCase().includes(searchQuery.toLowerCase())
       );
     }
 
@@ -192,17 +171,19 @@ export default function BookingHistoryPage() {
     }
 
     return filtered;
-  }, [activeTab, searchQuery, filters]);
+  }, [bookings, searchQuery, filters]);
 
   // Get status badge styling
   const getStatusBadge = (status: string) => {
     const badges = {
+      'pending': { bg: 'bg-[#FFA500]', text: 'text-white', label: '🟠 Pending' },
+      'confirmed': { bg: 'bg-[#00BFA6]', text: 'text-white', label: '✅ Confirmed' },
       'upcoming': { bg: 'bg-[#00BFA6]', text: 'text-white', label: '🟨 Upcoming' },
       'ongoing': { bg: 'bg-[#FF9F43]', text: 'text-white', label: '🟧 Ongoing' },
       'completed': { bg: 'bg-[#22C55E]', text: 'text-white', label: '🟩 Completed' },
       'cancelled': { bg: 'bg-[#EF4444]', text: 'text-white', label: '🟥 Cancelled' }
     };
-    return badges[status as keyof typeof badges] || badges['upcoming'];
+    return badges[status as keyof typeof badges] || badges['pending'];
   };
 
   // Get category icon
@@ -216,10 +197,29 @@ export default function BookingHistoryPage() {
     return icons[category] || <Wrench className="w-5 h-5 text-gray-600" />;
   };
 
-  // Get tab count
+  // Get tab count from status_counts
   const getTabCount = (status: string) => {
-    if (status === 'all') return mockBookings.length;
-    return mockBookings.filter(b => b.status === status).length;
+    return statusCounts[status as keyof typeof statusCounts] || 0;
+  };
+
+  // Helper to get professional photo URL
+  const getProfessionalPhoto = (professional?: Booking['professional']) => {
+    if (!professional) return 'https://ui-avatars.com/api/?name=Unknown&size=80&background=1E2A5E&color=fff';
+    if (professional.photo) {
+      if (professional.photo.startsWith('http')) return professional.photo;
+      return `${API_BASE_URL}${professional.photo}`;
+    }
+    return `https://ui-avatars.com/api/?name=${encodeURIComponent(professional.name || 'Unknown')}&size=80&background=1E2A5E&color=fff`;
+  };
+
+  // Helper to format date
+  const formatDate = (dateStr: string) => {
+    try {
+      const date = new Date(dateStr);
+      return date.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+    } catch {
+      return dateStr;
+    }
   };
 
   return (
@@ -410,6 +410,20 @@ export default function BookingHistoryPage() {
 
       {/* Booking List */}
       <div className="max-w-7xl mx-auto px-4 py-6">
+        {/* Error State */}
+        {error && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6 flex items-center gap-3">
+            <AlertCircle className="w-5 h-5 text-red-600" />
+            <span className="text-red-700">{error}</span>
+            <button
+              onClick={() => fetchBookings()}
+              className="ml-auto text-red-600 hover:text-red-800 font-medium"
+            >
+              Retry
+            </button>
+          </div>
+        )}
+
         {filteredBookings.length > 0 ? (
           <div className="grid grid-cols-1 gap-4">
             {filteredBookings.map((booking) => {
@@ -428,8 +442,8 @@ export default function BookingHistoryPage() {
                         {getCategoryIcon(booking.category)}
                       </div>
                       <div>
-                        <h3 className="font-bold text-[#1F2937] text-lg">{booking.serviceType}</h3>
-                        <p className="text-sm text-[#6B7280]">{booking.bookingId}</p>
+                        <h3 className="font-bold text-[#1F2937] text-lg">{booking.service_name}</h3>
+                        <p className="text-sm text-[#6B7280]">#{booking.booking_id}</p>
                       </div>
                     </div>
                     <span className={`${statusBadge.bg} ${statusBadge.text} px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap`}>
@@ -442,27 +456,27 @@ export default function BookingHistoryPage() {
                     {/* Date & Time */}
                     <div className="flex items-center gap-2 text-sm text-[#6B7280]">
                       <Calendar className="w-4 h-4 text-[#00BFA6]" />
-                      <span>{booking.date} • {booking.time}</span>
+                      <span>{formatDate(booking.date)} • {booking.time}</span>
                     </div>
 
                     {/* Address */}
                     <div className="flex items-center gap-2 text-sm text-[#6B7280]">
                       <MapPin className="w-4 h-4 text-[#00BFA6]" />
-                      <span className="truncate">{booking.address}</span>
+                      <span className="truncate">{booking.address_display || 'Address not specified'}</span>
                     </div>
 
                     {/* Professional */}
                     <div className="flex items-center gap-2">
                       <img
-                        src={booking.professional.photo}
-                        alt={booking.professional.name}
-                        className="w-8 h-8 rounded-full"
+                        src={getProfessionalPhoto(booking.professional)}
+                        alt={booking.professional?.name || 'Professional'}
+                        className="w-8 h-8 rounded-full object-cover"
                       />
                       <div className="text-sm">
-                        <p className="font-medium text-[#1F2937]">{booking.professional.name}</p>
+                        <p className="font-medium text-[#1F2937]">{booking.professional?.name || 'Assigned Professional'}</p>
                         <p className="text-xs text-[#6B7280] flex items-center gap-1">
                           <Star className="w-3 h-3 fill-yellow-500 text-yellow-500" />
-                          {booking.professional.rating}
+                          {booking.professional?.rating?.toFixed(1) || '4.5'}
                         </p>
                       </div>
                     </div>
@@ -476,6 +490,39 @@ export default function BookingHistoryPage() {
 
                   {/* Bottom Section - Actions */}
                   <div className="flex flex-wrap gap-2 pt-4 border-t border-gray-100">
+                    {/* Pending/Confirmed Actions */}
+                    {(booking.status === 'pending' || booking.status === 'confirmed') && (
+                      <>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            router.push(`/booking/${booking.id}`);
+                          }}
+                          className="flex-1 min-w-[120px] px-4 py-2 bg-[#00BFA6] text-white rounded-lg font-medium hover:bg-[#00A890] transition text-sm flex items-center justify-center gap-2"
+                        >
+                          <Eye className="w-4 h-4" />
+                          View Details
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setCancellingBooking(booking);
+                            setShowCancelModal(true);
+                          }}
+                          className="px-4 py-2 border-2 border-red-200 text-red-600 rounded-lg font-medium hover:bg-red-50 transition text-sm flex items-center justify-center gap-2"
+                        >
+                          <XCircle className="w-4 h-4" />
+                          Cancel
+                        </button>
+                        {booking.otp && (
+                          <div className="w-full mt-2 p-3 bg-blue-50 border border-blue-200 rounded-lg text-center">
+                            <p className="text-xs text-blue-700 mb-1">OTP for Professional</p>
+                            <p className="text-2xl font-bold text-blue-900 tracking-wider">{booking.otp}</p>
+                          </div>
+                        )}
+                      </>
+                    )}
+
                     {/* Upcoming Actions */}
                     {booking.status === 'upcoming' && (
                       <>
@@ -502,7 +549,8 @@ export default function BookingHistoryPage() {
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            console.log('Cancel', booking.id);
+                            setCancellingBooking(booking);
+                            setShowCancelModal(true);
                           }}
                           className="px-4 py-2 border-2 border-red-200 text-red-600 rounded-lg font-medium hover:bg-red-50 transition text-sm flex items-center justify-center gap-2"
                         >
@@ -528,7 +576,9 @@ export default function BookingHistoryPage() {
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            window.location.href = `tel:${booking.professional.name}`;
+                            if (booking.professional?.phone) {
+                              window.location.href = `tel:${booking.professional.phone}`;
+                            }
                           }}
                           className="flex-1 min-w-[100px] px-4 py-2 border-2 border-gray-200 text-gray-700 rounded-lg font-medium hover:border-[#00BFA6] hover:text-[#00BFA6] transition text-sm flex items-center justify-center gap-2"
                         >
@@ -538,7 +588,7 @@ export default function BookingHistoryPage() {
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            router.push(`/chat/${booking.id}`);
+                            router.push(`/messages/${booking.id}`);
                           }}
                           className="flex-1 min-w-[100px] px-4 py-2 border-2 border-gray-200 text-gray-700 rounded-lg font-medium hover:border-[#00BFA6] hover:text-[#00BFA6] transition text-sm flex items-center justify-center gap-2"
                         >
@@ -587,7 +637,10 @@ export default function BookingHistoryPage() {
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            console.log('Rebook', booking.serviceType);
+                            // Navigate to booking flow with professional and service pre-selected
+                            if (booking.professional?.id) {
+                              router.push(`/booking-flow/${booking.professional.id}?serviceId=${booking.service?.id || ''}`);
+                            }
                           }}
                           className="flex-1 min-w-[120px] px-4 py-2 border-2 border-gray-200 text-gray-700 rounded-lg font-medium hover:border-[#00BFA6] hover:text-[#00BFA6] transition text-sm flex items-center justify-center gap-2"
                         >
@@ -598,7 +651,8 @@ export default function BookingHistoryPage() {
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
-                              router.push(`/booking/${booking.id}#review`);
+                              setRatingBooking(booking);
+                              setShowRatingModal(true);
                             }}
                             className="flex-1 min-w-[120px] px-4 py-2 border-2 border-gray-200 text-gray-700 rounded-lg font-medium hover:border-[#00BFA6] hover:text-[#00BFA6] transition text-sm flex items-center justify-center gap-2"
                           >
@@ -612,14 +666,14 @@ export default function BookingHistoryPage() {
                     {/* Cancelled Actions */}
                     {booking.status === 'cancelled' && (
                       <>
-                        {booking.cancellationReason && (
+                        {booking.cancellation_reason && (
                           <div className="w-full mb-2 p-3 bg-red-50 border border-red-200 rounded-lg">
                             <p className="text-xs text-red-700 mb-1">Cancellation Reason</p>
-                            <p className="text-sm font-medium text-red-900">{booking.cancellationReason}</p>
-                            {booking.refundStatus && (
+                            <p className="text-sm font-medium text-red-900">{booking.cancellation_reason}</p>
+                            {booking.refund_status && (
                               <p className="text-xs text-red-600 mt-2">
                                 <CheckCircle className="w-3 h-3 inline mr-1" />
-                                {booking.refundStatus}
+                                {booking.refund_status}
                               </p>
                             )}
                           </div>
@@ -627,7 +681,9 @@ export default function BookingHistoryPage() {
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            console.log('Rebook', booking.serviceType);
+                            if (booking.professional?.id) {
+                              router.push(`/booking-flow/${booking.professional.id}?serviceId=${booking.service?.id || ''}`);
+                            }
                           }}
                           className="flex-1 min-w-[120px] px-4 py-2 bg-[#00BFA6] text-white rounded-lg font-medium hover:bg-[#00A890] transition text-sm flex items-center justify-center gap-2"
                         >
@@ -675,6 +731,184 @@ export default function BookingHistoryPage() {
         )}
       </div>
         </>
+      )}
+
+      {/* Cancel Booking Modal */}
+      {showCancelModal && cancellingBooking && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-bold text-gray-900">Cancel Booking</h3>
+              <button
+                onClick={() => {
+                  setShowCancelModal(false);
+                  setCancellingBooking(null);
+                  setCancelReason('');
+                }}
+                className="p-2 hover:bg-gray-100 rounded-full"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <p className="text-gray-600 mb-4">
+              Are you sure you want to cancel the booking for <span className="font-semibold">{cancellingBooking.service_name}</span>?
+            </p>
+            
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Reason for cancellation (optional)
+              </label>
+              <textarea
+                value={cancelReason}
+                onChange={(e) => setCancelReason(e.target.value)}
+                placeholder="Please provide a reason..."
+                className="w-full p-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[#00BFA6] resize-none"
+                rows={3}
+              />
+            </div>
+            
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-4">
+              <p className="text-sm text-yellow-800">
+                <AlertCircle className="w-4 h-4 inline mr-2" />
+                Cancellation may attract charges based on timing. Refunds will be processed within 5-7 business days.
+              </p>
+            </div>
+            
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setShowCancelModal(false);
+                  setCancellingBooking(null);
+                  setCancelReason('');
+                }}
+                className="flex-1 px-4 py-3 border-2 border-gray-200 rounded-lg font-medium text-gray-700 hover:bg-gray-50"
+              >
+                Keep Booking
+              </button>
+              <button
+                onClick={handleCancelBooking}
+                disabled={isCancelling}
+                className="flex-1 px-4 py-3 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {isCancelling ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Cancelling...
+                  </>
+                ) : (
+                  <>
+                    <XCircle className="w-4 h-4" />
+                    Cancel Booking
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Rating Modal */}
+      {showRatingModal && ratingBooking && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-bold text-gray-900">Rate Your Experience</h3>
+              <button
+                onClick={() => {
+                  setShowRatingModal(false);
+                  setRatingBooking(null);
+                  setSelectedRating(0);
+                  setReviewText('');
+                }}
+                className="p-2 hover:bg-gray-100 rounded-full"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <div className="text-center mb-6">
+              <p className="text-gray-600 mb-2">How was your experience with</p>
+              <p className="font-semibold text-gray-900">{ratingBooking.professional?.name || 'the professional'}?</p>
+              <p className="text-sm text-gray-500">{ratingBooking.service_name}</p>
+            </div>
+            
+            {/* Star Rating */}
+            <div className="flex justify-center gap-2 mb-6">
+              {[1, 2, 3, 4, 5].map((star) => (
+                <button
+                  key={star}
+                  onClick={() => setSelectedRating(star)}
+                  className="p-1 transition-transform hover:scale-110"
+                >
+                  <Star
+                    className={`w-10 h-10 ${
+                      star <= selectedRating
+                        ? 'fill-yellow-500 text-yellow-500'
+                        : 'text-gray-300'
+                    }`}
+                  />
+                </button>
+              ))}
+            </div>
+            
+            {/* Rating Labels */}
+            {selectedRating > 0 && (
+              <p className="text-center text-sm font-medium text-gray-700 mb-4">
+                {selectedRating === 1 && 'Poor'}
+                {selectedRating === 2 && 'Fair'}
+                {selectedRating === 3 && 'Good'}
+                {selectedRating === 4 && 'Very Good'}
+                {selectedRating === 5 && 'Excellent!'}
+              </p>
+            )}
+            
+            {/* Review Text */}
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Write a review (optional)
+              </label>
+              <textarea
+                value={reviewText}
+                onChange={(e) => setReviewText(e.target.value)}
+                placeholder="Share your experience..."
+                className="w-full p-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[#00BFA6] resize-none"
+                rows={3}
+              />
+            </div>
+            
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setShowRatingModal(false);
+                  setRatingBooking(null);
+                  setSelectedRating(0);
+                  setReviewText('');
+                }}
+                className="flex-1 px-4 py-3 border-2 border-gray-200 rounded-lg font-medium text-gray-700 hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleRateBooking}
+                disabled={isSubmittingRating || selectedRating === 0}
+                className="flex-1 px-4 py-3 bg-[#00BFA6] text-white rounded-lg font-medium hover:bg-[#00A890] disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {isSubmittingRating ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Submitting...
+                  </>
+                ) : (
+                  <>
+                    <Star className="w-4 h-4" />
+                    Submit Rating
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Footer */}

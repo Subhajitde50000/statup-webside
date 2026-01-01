@@ -340,7 +340,7 @@ export default function Service() {
           {/* Action Buttons - Book Now & View Profile */}
           <div className="flex gap-2 mt-4">
             <Link 
-              href={`/booking/${service.id}`}
+              href={`/booking-flow/${service.professional_id}?serviceId=${service.id}`}
               className="flex-1 flex items-center justify-center gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold py-3 px-4 rounded-xl transition-all shadow-lg shadow-blue-500/25 hover:shadow-xl hover:shadow-blue-500/30"
             >
               <Calendar className="w-4 h-4" />
@@ -646,7 +646,7 @@ export default function Service() {
               View Profile
             </Link>
             <Link 
-              href={`/booking/${selectedService.id}`}
+              href={`/booking-flow/${selectedService.professional_id}?serviceId=${selectedService.id}`}
               className="flex-[2] flex items-center justify-center gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold py-4 px-6 rounded-xl transition-all shadow-lg shadow-blue-500/25"
             >
               <Calendar className="w-5 h-5" />

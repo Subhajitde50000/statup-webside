@@ -28,10 +28,17 @@ import {
   User,
   CreditCard,
   Package,
-  Loader2
+  Loader2,
+  RefreshCw,
+  Info
 } from 'lucide-react';
 import Image from 'next/image';
 import { useRouter, useParams } from 'next/navigation';
+import { getBookingById, cancelBooking, rateBooking, Booking as APIBooking } from '@/utils/bookings';
+import { getAccessToken } from '@/utils/auth';
+
+// API Base URL for images
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'http://localhost:8000';
 
 // TypeScript Interfaces
 interface Booking {
@@ -85,70 +92,148 @@ interface Booking {
   };
 }
 
-// Sample Data
-const sampleBooking: Booking = {
-  id: 'ELX-824412',
-  serviceType: 'Electrical — Fan Repair',
-  category: 'Electrical',
-  bookingId: '#ELX-824412',
-  date: '12 Oct 2025',
-  time: '3:00 PM – 4:30 PM',
-  status: 'scheduled',
-  otp: '64382',
-  professional: {
-    name: 'Rahul Das',
-    role: 'Electrician',
-    image: '/professionals/rahul.jpg',
-    rating: 4.9,
-    reviews: 120,
-    experience: 7,
-    skills: ['Wiring', 'appliance repair', 'short circuit fixing'],
-    verified: true,
-    phone: '+91 98765 43210'
-  },
-  serviceDetails: {
-    description: 'Fan not rotating properly, Possible motor replacement, Noise issue',
-    itemsProvided: ['Ladder', 'Basic tools (optional)'],
-    photos: ['/uploads/fan1.jpg', '/uploads/fan2.jpg', '/uploads/fan3.jpg']
-  },
-  payment: {
-    serviceCharge: 300,
-    platformFee: 20,
-    gst: 30,
-    total: 350,
-    method: 'GPay / UPI',
-    transactionId: '#TXN-456789'
-  },
-  cancellationPolicy: {
-    freeCancellationBefore: 'technician arrives',
-    feeAfterArrival: 80
-  },
-  timeline: [
-    { stage: 'Booking Confirmed', completed: true, timestamp: '12 Oct, 2:30 PM' },
-    { stage: 'Professional Assigned', completed: true, timestamp: '12 Oct, 2:35 PM' },
-    { stage: 'Professional on the Way', completed: false },
-    { stage: 'Work Started', completed: false },
-    { stage: 'Work Completed', completed: false }
-  ],
-  location: 'HSR Layout, Bangalore',
-  safety: {
-    idVerified: true,
-    backgroundChecked: true,
-    covidSafe: true,
-    toolsSanitized: true
-  }
-};
-
 export default function BookingDetailsPage() {
   const router = useRouter();
   const params = useParams();
-  const [booking, setBooking] = useState<Booking>(sampleBooking);
-  const [isLoading, setIsLoading] = useState(false);
+  const [booking, setBooking] = useState<Booking | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [rating, setRating] = useState(0);
   const [reviewText, setReviewText] = useState('');
   const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
+  const [isCancelling, setIsCancelling] = useState(false);
+  const [isSubmittingReview, setIsSubmittingReview] = useState(false);
+  const [cancelReason, setCancelReason] = useState('');
+  const [showRescheduleModal, setShowRescheduleModal] = useState(false);
+  const [rescheduleDate, setRescheduleDate] = useState('');
+  const [rescheduleTime, setRescheduleTime] = useState('');
+  const [isRescheduling, setIsRescheduling] = useState(false);
+
+  // Fetch booking details
+  useEffect(() => {
+    const token = getAccessToken();
+    setIsAuthenticated(!!token);
+
+    const fetchBooking = async () => {
+      if (!token) {
+        setIsLoading(false);
+        return;
+      }
+
+      try {
+        setIsLoading(true);
+        setError(null);
+        const bookingId = Array.isArray(params.id) ? params.id[0] : params.id;
+        
+        if (!bookingId) {
+          setError('Invalid booking ID');
+          setIsLoading(false);
+          return;
+        }
+        
+        const response = await getBookingById(bookingId);
+        
+        // Map API response to UI format
+        const mappedBooking: Booking = {
+          id: response.booking.id,
+          serviceType: `${response.booking.category} — ${response.booking.service_name}`,
+          category: response.booking.category,
+          bookingId: `#${response.booking.booking_id}`,
+          date: formatDate(response.booking.date),
+          time: response.booking.time,
+          status: mapStatus(response.booking.status),
+          otp: response.booking.otp || '',
+          professional: {
+            name: response.booking.professional?.name || 'Assigned Professional',
+            role: response.booking.category,
+            image: getProfessionalPhoto(response.booking.professional?.photo),
+            rating: response.booking.professional?.rating || 4.5,
+            reviews: 120,
+            experience: 7,
+            skills: [],
+            verified: true,
+            phone: response.booking.professional?.phone || ''
+          },
+          serviceDetails: {
+            description: response.booking.notes || 'Service details',
+            itemsProvided: [],
+            photos: []
+          },
+          payment: {
+            serviceCharge: response.booking.price || 0,
+            platformFee: 0,
+            gst: 0,
+            total: response.booking.price || 0,
+            method: response.booking.payment_method || 'Online',
+            transactionId: '#TXN-000000'
+          },
+          cancellationPolicy: {
+            freeCancellationBefore: 'technician arrives',
+            feeAfterArrival: 80
+          },
+          timeline: generateTimeline(response.booking.status),
+          location: response.booking.address_display || 'Address not specified',
+          safety: {
+            idVerified: true,
+            backgroundChecked: true,
+            covidSafe: true,
+            toolsSanitized: true
+          }
+        };
+        
+        setBooking(mappedBooking);
+      } catch (err) {
+        console.error('Error fetching booking:', err);
+        setError(err instanceof Error ? err.message : 'Failed to load booking details');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchBooking();
+  }, [params.id]);
+
+  // Helper functions
+  const formatDate = (dateStr: string) => {
+    try {
+      const date = new Date(dateStr);
+      return date.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+    } catch {
+      return dateStr;
+    }
+  };
+
+  const mapStatus = (apiStatus: string): Booking['status'] => {
+    const statusMap: { [key: string]: Booking['status'] } = {
+      'pending': 'scheduled',
+      'confirmed': 'confirmed',
+      'upcoming': 'scheduled',
+      'ongoing': 'ongoing',
+      'completed': 'completed',
+      'cancelled': 'cancelled'
+    };
+    return statusMap[apiStatus] || 'scheduled';
+  };
+
+  const generateTimeline = (status: string) => {
+    const stages = [
+      { stage: 'Booking Confirmed', completed: ['confirmed', 'upcoming', 'ongoing', 'completed'].includes(status) },
+      { stage: 'Professional Assigned', completed: ['upcoming', 'ongoing', 'completed'].includes(status) },
+      { stage: 'Professional on the Way', completed: ['ongoing', 'completed'].includes(status) },
+      { stage: 'Work Started', completed: ['ongoing', 'completed'].includes(status) },
+      { stage: 'Work Completed', completed: status === 'completed' }
+    ];
+    return stages;
+  };
+
+  const getProfessionalPhoto = (photo?: string) => {
+    if (!photo) return 'https://ui-avatars.com/api/?name=Professional&size=80&background=0066FF&color=fff';
+    if (photo.startsWith('http')) return photo;
+    return `${API_BASE_URL}${photo}`;
+  };
 
   // Get status color and label
   const getStatusBadge = (status: string) => {
@@ -172,35 +257,212 @@ export default function BookingDetailsPage() {
     return icons[category] || <Wrench className="w-5 h-5" />;
   };
 
+  // Check if user can reschedule (work not started and 10+ min before scheduled time)
+  const canReschedule = () => {
+    if (!booking) return false;
+    
+    // Can only reschedule if status is scheduled/confirmed (not started yet)
+    const normalizedStatus = booking.status.toLowerCase();
+    if (!['scheduled', 'confirmed', 'pending'].includes(normalizedStatus)) return false;
+    
+    // Check if work has started by looking at timeline
+    const workStarted = booking.timeline.some(t => 
+      (t.stage === 'Work Started' || t.stage === 'In Progress') && t.completed
+    );
+    
+    if (workStarted) return false;
+    
+    // Check if it's 10+ minutes before scheduled time
+    try {
+      // Get the raw date and time from the API response
+      // The booking.date might be formatted already, so we need the original date
+      const dateMatch = booking.date.match(/\d{1,2}\s+\w+\s+\d{4}/);
+      const timeMatch = booking.time.match(/\d{1,2}:\d{2}\s*(?:AM|PM)?/i);
+      
+      if (!dateMatch || !timeMatch) {
+        console.log('Date/time format issue:', { date: booking.date, time: booking.time });
+        return true; // Allow reschedule if we can't parse the date
+      }
+      
+      // Parse the date and time properly
+      const dateStr = dateMatch[0];
+      const timeStr = timeMatch[0];
+      const bookingDateTime = new Date(`${dateStr} ${timeStr}`);
+      
+      if (isNaN(bookingDateTime.getTime())) {
+        console.log('Invalid date/time:', { dateStr, timeStr });
+        return true; // Allow reschedule if date is invalid
+      }
+      
+      const now = new Date();
+      const minutesUntilBooking = (bookingDateTime.getTime() - now.getTime()) / (1000 * 60);
+      
+      console.log('Reschedule check:', { 
+        bookingDateTime: bookingDateTime.toISOString(), 
+        now: now.toISOString(), 
+        minutesUntil: minutesUntilBooking 
+      });
+      
+      return minutesUntilBooking >= 10;
+    } catch (error) {
+      console.error('Error checking reschedule time:', error);
+      return true; // Allow reschedule if there's an error
+    }
+  };
+
+  // Check if user can rebook (after cancelled or completed)
+  const canRebook = () => {
+    if (!booking) return false;
+    return ['cancelled', 'completed'].includes(booking.status);
+  };
+
   const handleCall = () => {
-    window.location.href = `tel:${booking.professional.phone}`;
+    if (booking) {
+      window.location.href = `tel:${booking.professional.phone}`;
+    }
   };
 
   const handleChat = () => {
-    router.push(`/chat/${booking.id}`);
+    if (booking) {
+      router.push(`/messages/${booking.id}`);
+    }
+  };
+
+  const handleRebook = () => {
+    if (!booking) return;
+    
+    // Navigate to booking flow or service page to rebook
+    router.push(`/service`);
+  };
+
+  const handleReschedule = () => {
+    setShowRescheduleModal(true);
+  };
+
+  const confirmReschedule = async () => {
+    if (!booking || !rescheduleDate || !rescheduleTime) {
+      alert('Please select both date and time');
+      return;
+    }
+    
+    try {
+      setIsRescheduling(true);
+      // Call updateBooking API with new date and time
+      const { updateBooking } = await import('@/utils/bookings');
+      await updateBooking(booking.id, {
+        scheduled_date: rescheduleDate,
+        scheduled_time: rescheduleTime
+      });
+      
+      setShowRescheduleModal(false);
+      window.location.reload();
+    } catch (err) {
+      console.error('Error rescheduling booking:', err);
+      alert(err instanceof Error ? err.message : 'Failed to reschedule booking');
+    } finally {
+      setIsRescheduling(false);
+    }
   };
 
   const handleCancelBooking = () => {
     setShowCancelModal(true);
   };
 
-  const confirmCancellation = () => {
-    // API call to cancel booking
-    console.log('Cancelling booking:', booking.id);
-    setShowCancelModal(false);
-    router.push('/order-history');
+  const confirmCancellation = async () => {
+    if (!booking) return;
+    
+    try {
+      setIsCancelling(true);
+      await cancelBooking(booking.id, cancelReason);
+      setShowCancelModal(false);
+      router.push('/booking');
+    } catch (err) {
+      console.error('Error cancelling booking:', err);
+      alert(err instanceof Error ? err.message : 'Failed to cancel booking');
+    } finally {
+      setIsCancelling(false);
+    }
   };
 
-  const handleSubmitReview = () => {
-    // API call to submit review
-    console.log('Submitting review:', { rating, reviewText });
-    setShowReviewModal(false);
+  const handleSubmitReview = async () => {
+    if (!booking || rating === 0) return;
+    
+    try {
+      setIsSubmittingReview(true);
+      await rateBooking(booking.id, rating, reviewText);
+      setShowReviewModal(false);
+      window.location.reload();
+    } catch (err) {
+      console.error('Error submitting review:', err);
+      alert(err instanceof Error ? err.message : 'Failed to submit review');
+    } finally {
+      setIsSubmittingReview(false);
+    }
   };
 
   const handleDownloadInvoice = () => {
-    // API call to download invoice
-    console.log('Downloading invoice for:', booking.id);
+    if (booking) {
+      console.log('Downloading invoice for:', booking.id);
+    }
   };
+
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-[#F7F9FC] flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="w-12 h-12 animate-spin text-[#0066FF] mx-auto mb-4" />
+          <p className="text-gray-600">Loading booking details...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Authentication required
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-[#F7F9FC] flex items-center justify-center p-4">
+        <div className="bg-white rounded-2xl shadow-lg p-8 max-w-md w-full text-center">
+          <Lock className="w-16 h-16 text-[#0066FF] mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Login Required</h2>
+          <p className="text-gray-600 mb-6">Please login to view booking details</p>
+          <button
+            onClick={() => router.push('/auth')}
+            className="w-full bg-[#0066FF] text-white py-3 rounded-xl font-semibold hover:bg-[#0052CC]"
+          >
+            Login to Continue
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Error state
+  if (error || !booking) {
+    return (
+      <div className="min-h-screen bg-[#F7F9FC] flex items-center justify-center p-4">
+        <div className="bg-white rounded-2xl shadow-lg p-8 max-w-md w-full text-center">
+          <AlertTriangle className="w-16 h-16 text-red-600 mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Error Loading Booking</h2>
+          <p className="text-gray-600 mb-6">{error || 'Booking not found'}</p>
+          <div className="flex gap-3">
+            <button
+              onClick={() => router.push('/booking')}
+              className="flex-1 border-2 border-gray-300 text-gray-700 py-3 rounded-xl font-semibold hover:bg-gray-50"
+            >
+              View All Bookings
+            </button>
+            <button
+              onClick={() => window.location.reload()}
+              className="flex-1 bg-[#0066FF] text-white py-3 rounded-xl font-semibold hover:bg-[#0052CC]"
+            >
+              Retry
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const statusBadge = getStatusBadge(booking.status);
   const showOTP = ['scheduled', 'confirmed', 'assigned', 'on-the-way'].includes(booking.status);
@@ -208,7 +470,7 @@ export default function BookingDetailsPage() {
   const canCancel = !['completed', 'cancelled', 'ongoing'].includes(booking.status);
 
   return (
-    <div className="min-h-screen bg-[#F7F9FC] pb-24">
+    <div className="min-h-screen bg-[#F7F9FC] pb-24">{/* Rest of the JSX remains the same */}
       {/* Header */}
       <header className="sticky top-0 z-50 bg-white shadow-sm border-b border-gray-200">
         <div className="max-w-5xl mx-auto px-4 py-4 flex items-center justify-between">
@@ -490,8 +752,61 @@ export default function BookingDetailsPage() {
           </div>
         </div>
 
+        {/* Action Buttons Section */}
+        {(canReschedule() || canRebook()) && (
+          <div className="bg-white rounded-xl shadow-sm p-5 border border-gray-100">
+            <h3 className="text-sm font-bold text-gray-500 mb-4 uppercase tracking-wide">Quick Actions</h3>
+            
+            <div className="flex flex-col gap-3">
+              {canReschedule() && (
+                <>
+                  <button 
+                    onClick={handleReschedule}
+                    className="w-full bg-[#0066FF] text-white py-3 rounded-xl font-semibold hover:bg-[#0052CC] transition-colors flex items-center justify-center gap-2 shadow-lg"
+                  >
+                    <Calendar className="w-5 h-5" />
+                    Reschedule Booking
+                  </button>
+                  
+                  <button 
+                    onClick={handleCancelBooking}
+                    className="w-full border-2 border-red-300 text-red-600 py-3 rounded-xl font-semibold hover:bg-red-50 transition-colors flex items-center justify-center gap-2"
+                  >
+                    <XCircle className="w-5 h-5" />
+                    Cancel Booking
+                  </button>
+                  
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mt-2">
+                    <p className="text-xs text-blue-800">
+                      <span className="font-semibold">Note:</span> You can reschedule or cancel free of charge if done at least 10 minutes before the scheduled time.
+                    </p>
+                  </div>
+                </>
+              )}
+              
+              {canRebook() && (
+                <>
+                  <button 
+                    onClick={handleRebook}
+                    className="w-full bg-gradient-to-r from-[#00BFA6] to-[#00A890] text-white py-3 rounded-xl font-semibold hover:shadow-lg transition-all flex items-center justify-center gap-2"
+                  >
+                    <RefreshCw className="w-5 h-5" />
+                    Rebook This Service
+                  </button>
+                  
+                  <p className="text-xs text-gray-600 text-center">
+                    {booking.status === 'completed' 
+                      ? 'Loved the service? Book again with the same professional!'
+                      : 'Need this service again? Rebook now!'}
+                  </p>
+                </>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* 7. Cancellation Policy Card */}
-        {canCancel && (
+        {canCancel && !canReschedule() && (
           <div className="bg-gradient-to-br from-orange-50 to-red-50 rounded-xl shadow-sm p-5 border border-orange-200">
             <h3 className="text-sm font-bold text-gray-700 mb-3 uppercase tracking-wide flex items-center gap-2">
               <AlertTriangle className="w-4 h-4 text-orange-600" />
@@ -549,11 +864,20 @@ export default function BookingDetailsPage() {
 
               <button 
                 onClick={handleSubmitReview}
-                disabled={rating === 0}
+                disabled={rating === 0 || isSubmittingReview}
                 className="w-full mt-4 bg-[#00C28C] text-white py-3 rounded-xl font-semibold hover:bg-[#00A876] transition-colors flex items-center justify-center gap-2 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <ThumbsUp className="w-5 h-5" />
-                Submit Review
+                {isSubmittingReview ? (
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    Submitting...
+                  </>
+                ) : (
+                  <>
+                    <ThumbsUp className="w-5 h-5" />
+                    Submit Review
+                  </>
+                )}
               </button>
             </div>
           </div>
@@ -653,12 +977,34 @@ export default function BookingDetailsPage() {
             <span className="text-xs font-medium">Chat</span>
           </button>
 
-          <button className="flex flex-col items-center gap-1 text-gray-600 hover:text-[#0066FF] transition-colors">
-            <HelpCircle className="w-6 h-6" />
-            <span className="text-xs font-medium">Support</span>
-          </button>
+          {canReschedule() && (
+            <button 
+              onClick={handleReschedule}
+              className="flex flex-col items-center gap-1 text-blue-600 hover:text-blue-700 transition-colors"
+            >
+              <Calendar className="w-6 h-6" />
+              <span className="text-xs font-medium">Reschedule</span>
+            </button>
+          )}
 
-          {canCancel && (
+          {canRebook() && (
+            <button 
+              onClick={handleRebook}
+              className="flex flex-col items-center gap-1 text-green-600 hover:text-green-700 transition-colors"
+            >
+              <RefreshCw className="w-6 h-6" />
+              <span className="text-xs font-medium">Rebook</span>
+            </button>
+          )}
+
+          {!canReschedule() && !canRebook() && (
+            <button className="flex flex-col items-center gap-1 text-gray-600 hover:text-[#0066FF] transition-colors">
+              <HelpCircle className="w-6 h-6" />
+              <span className="text-xs font-medium">Support</span>
+            </button>
+          )}
+
+          {canCancel && !canReschedule() && (
             <button 
               onClick={handleCancelBooking}
               className="flex flex-col items-center gap-1 text-red-600 hover:text-red-700 transition-colors"
@@ -670,6 +1016,243 @@ export default function BookingDetailsPage() {
         </div>
       </div>
 
+      {/* Reschedule Modal */}
+      {showRescheduleModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-fadeIn" onClick={() => setShowRescheduleModal(false)}>
+          <div className="bg-white rounded-3xl max-w-lg w-full max-h-[90vh] shadow-2xl transform transition-all flex flex-col" onClick={(e) => e.stopPropagation()}>
+            {/* Header - Fixed */}
+            <div className="relative bg-gradient-to-r from-blue-500 to-blue-600 rounded-t-3xl p-6 text-white flex-shrink-0">
+              <button
+                onClick={() => setShowRescheduleModal(false)}
+                className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-white/20 hover:bg-white/30 transition-colors"
+              >
+                <XCircle className="w-5 h-5" />
+              </button>
+              <div className="flex items-center gap-4">
+                <div className="w-14 h-14 bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center">
+                  <Calendar className="w-7 h-7" />
+                </div>
+                <div>
+                  <h3 className="text-2xl font-bold">Reschedule Booking</h3>
+                  <p className="text-blue-100 text-sm">Update your service date & time</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Scrollable Content */}
+            <div className="p-6 overflow-y-auto flex-1" style={{ scrollbarWidth: 'thin', scrollbarColor: '#0066FF #f3f4f6' }}>
+              {/* Current Booking Info */}
+              <div className="bg-gradient-to-r from-gray-50 to-gray-100 rounded-2xl p-4 mb-6 border border-gray-200">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Current Schedule</p>
+                    <p className="text-base text-gray-900 font-semibold">{booking.date}</p>
+                    <p className="text-sm text-gray-600 flex items-center gap-1 mt-1">
+                      <Clock className="w-4 h-4" />
+                      {booking.time}
+                    </p>
+                  </div>
+                  <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-sm">
+                    <Calendar className="w-6 h-6 text-gray-400" />
+                  </div>
+                </div>
+              </div>
+
+              {/* New Schedule Section */}
+              <div className="mb-6">
+                <div className="flex items-center gap-2 mb-4">
+                  <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
+                    <RefreshCw className="w-4 h-4 text-[#0066FF]" />
+                  </div>
+                  <h4 className="font-bold text-gray-900">New Schedule</h4>
+                </div>
+
+                {/* Date Picker - Calendar Style */}
+                <div className="mb-5">
+                  <label className="block text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                    <Calendar className="w-4 h-4 text-gray-500" />
+                    Select New Date
+                  </label>
+                  <div className="grid grid-cols-7 gap-2">
+                    {/* Calendar Days */}
+                    {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
+                      <div key={day} className="text-center text-xs font-semibold text-gray-500 py-2">
+                        {day}
+                      </div>
+                    ))}
+                    {/* Generate next 14 days */}
+                    {Array.from({ length: 14 }, (_, i) => {
+                      const date = new Date();
+                      date.setDate(date.getDate() + i);
+                      const dateStr = date.toISOString().split('T')[0];
+                      const isSelected = rescheduleDate === dateStr;
+                      const dayOfWeek = date.getDay();
+                      const isFirstDay = i === 0;
+                      
+                      return (
+                        <React.Fragment key={i}>
+                          {isFirstDay && Array.from({ length: dayOfWeek }, (_, j) => (
+                            <div key={`empty-${j}`} />
+                          ))}
+                          <button
+                            type="button"
+                            onClick={() => setRescheduleDate(dateStr)}
+                            className={`
+                              relative p-2 rounded-xl text-sm font-medium transition-all
+                              ${isSelected 
+                                ? 'bg-[#0066FF] text-white shadow-lg scale-105' 
+                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200 hover:scale-105'
+                              }
+                            `}
+                          >
+                            <div className="text-xs">{date.getDate()}</div>
+                            {isSelected && (
+                              <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-white" />
+                            )}
+                          </button>
+                        </React.Fragment>
+                      );
+                    })}
+                  </div>
+                  {rescheduleDate && (
+                    <div className="mt-3 text-center text-sm text-gray-600 font-medium">
+                      Selected: {new Date(rescheduleDate + 'T00:00:00').toLocaleDateString('en-US', { 
+                        weekday: 'long', 
+                        year: 'numeric', 
+                        month: 'long', 
+                        day: 'numeric' 
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                {/* Time Picker - Slot Style */}
+                <div className="mb-4">
+                  <label className="block text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                    <Clock className="w-4 h-4 text-gray-500" />
+                    Select New Time
+                  </label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {/* Morning Slots */}
+                    {['09:00', '10:00', '11:00', '12:00'].map((time) => {
+                      const isSelected = rescheduleTime === time;
+                      return (
+                        <button
+                          key={time}
+                          type="button"
+                          onClick={() => setRescheduleTime(time)}
+                          className={`
+                            relative py-3 px-4 rounded-xl text-sm font-semibold transition-all
+                            ${isSelected 
+                              ? 'bg-[#0066FF] text-white shadow-lg scale-105 ring-2 ring-blue-300' 
+                              : 'bg-gray-100 text-gray-700 hover:bg-gray-200 hover:scale-105'
+                            }
+                          `}
+                        >
+                          {time}
+                          {isSelected && (
+                            <CheckCircle className="absolute -top-1 -right-1 w-5 h-5 text-green-500 bg-white rounded-full" />
+                          )}
+                        </button>
+                      );
+                    })}
+                    
+                    {/* Afternoon Slots */}
+                    {['13:00', '14:00', '15:00', '16:00'].map((time) => {
+                      const isSelected = rescheduleTime === time;
+                      return (
+                        <button
+                          key={time}
+                          type="button"
+                          onClick={() => setRescheduleTime(time)}
+                          className={`
+                            relative py-3 px-4 rounded-xl text-sm font-semibold transition-all
+                            ${isSelected 
+                              ? 'bg-[#0066FF] text-white shadow-lg scale-105 ring-2 ring-blue-300' 
+                              : 'bg-gray-100 text-gray-700 hover:bg-gray-200 hover:scale-105'
+                            }
+                          `}
+                        >
+                          {time}
+                          {isSelected && (
+                            <CheckCircle className="absolute -top-1 -right-1 w-5 h-5 text-green-500 bg-white rounded-full" />
+                          )}
+                        </button>
+                      );
+                    })}
+                    
+                    {/* Evening Slots */}
+                    {['17:00', '18:00', '19:00', '20:00'].map((time) => {
+                      const isSelected = rescheduleTime === time;
+                      return (
+                        <button
+                          key={time}
+                          type="button"
+                          onClick={() => setRescheduleTime(time)}
+                          className={`
+                            relative py-3 px-4 rounded-xl text-sm font-semibold transition-all
+                            ${isSelected 
+                              ? 'bg-[#0066FF] text-white shadow-lg scale-105 ring-2 ring-blue-300' 
+                              : 'bg-gray-100 text-gray-700 hover:bg-gray-200 hover:scale-105'
+                            }
+                          `}
+                        >
+                          {time}
+                          {isSelected && (
+                            <CheckCircle className="absolute -top-1 -right-1 w-5 h-5 text-green-500 bg-white rounded-full" />
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+
+              {/* Info Box */}
+              <div className="bg-blue-50 border-l-4 border-blue-500 rounded-xl p-4 mb-6">
+                <div className="flex gap-3">
+                  <Info className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-semibold text-blue-900 mb-1">Free Rescheduling</p>
+                    <p className="text-xs text-blue-800 leading-relaxed">
+                      You can reschedule your booking at no additional cost when done at least 10 minutes before the scheduled time. The professional will be notified immediately.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowRescheduleModal(false)}
+                  disabled={isRescheduling}
+                  className="flex-1 border-2 border-gray-300 text-gray-700 py-3.5 rounded-xl font-bold hover:bg-gray-50 hover:border-gray-400 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmReschedule}
+                  disabled={isRescheduling || !rescheduleDate || !rescheduleTime}
+                  className="flex-1 bg-gradient-to-r from-[#0066FF] to-[#0052CC] text-white py-3.5 rounded-xl font-bold hover:shadow-lg hover:scale-105 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center justify-center gap-2"
+                >
+                  {isRescheduling ? (
+                    <>
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      Updating...
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle className="w-5 h-5" />
+                      Confirm Changes
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Cancel Confirmation Modal */}
       {showCancelModal && (
         <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" onClick={() => setShowCancelModal(false)}>
@@ -679,11 +1262,20 @@ export default function BookingDetailsPage() {
                 <AlertTriangle className="w-8 h-8 text-red-600" />
               </div>
               <h3 className="text-xl font-bold text-gray-900 mb-2">Cancel Booking?</h3>
-              <p className="text-gray-600">
-                Are you sure you want to cancel this booking? This action cannot be undone.
+              <p className="text-gray-600 mb-4">
+                Are you sure you want to cancel this booking?
               </p>
+              
+              <textarea
+                value={cancelReason}
+                onChange={(e) => setCancelReason(e.target.value)}
+                placeholder="Reason for cancellation (optional)"
+                className="w-full border-2 border-gray-300 rounded-lg p-3 text-sm focus:ring-2 focus:ring-[#0066FF] focus:border-[#0066FF] resize-none mb-4"
+                rows={3}
+              />
+              
               {booking.status !== 'scheduled' && (
-                <div className="mt-4 bg-red-50 border border-red-200 rounded-lg p-3">
+                <div className="bg-red-50 border border-red-200 rounded-lg p-3">
                   <p className="text-sm text-red-800">
                     <span className="font-semibold">Note:</span> A cancellation fee of ₹{booking.cancellationPolicy.feeAfterArrival} may apply.
                   </p>
@@ -694,15 +1286,24 @@ export default function BookingDetailsPage() {
             <div className="flex gap-3">
               <button
                 onClick={() => setShowCancelModal(false)}
-                className="flex-1 border-2 border-gray-300 text-gray-700 py-3 rounded-xl font-semibold hover:bg-gray-50 transition-colors"
+                disabled={isCancelling}
+                className="flex-1 border-2 border-gray-300 text-gray-700 py-3 rounded-xl font-semibold hover:bg-gray-50 transition-colors disabled:opacity-50"
               >
                 Keep Booking
               </button>
               <button
                 onClick={confirmCancellation}
-                className="flex-1 bg-[#FF4D4D] text-white py-3 rounded-xl font-semibold hover:bg-[#E63939] transition-colors"
+                disabled={isCancelling}
+                className="flex-1 bg-[#FF4D4D] text-white py-3 rounded-xl font-semibold hover:bg-[#E63939] transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
               >
-                Yes, Cancel
+                {isCancelling ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Cancelling...
+                  </>
+                ) : (
+                  'Yes, Cancel'
+                )}
               </button>
             </div>
           </div>
