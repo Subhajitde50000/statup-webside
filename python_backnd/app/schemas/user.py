@@ -3,9 +3,47 @@ User schemas for request/response validation
 """
 
 from pydantic import BaseModel, EmailStr, Field
-from typing import Optional
+from typing import Optional, List
 from datetime import datetime
 from app.models.user import UserRole
+
+
+# Address schemas
+class AddressBase(BaseModel):
+    label: Optional[str] = Field(None, description="e.g., Home, Office, Other")
+    house_no: str = Field(..., min_length=1, max_length=100, description="House/Flat/Building number")
+    area: str = Field(..., min_length=2, max_length=200, description="Area/Street/Locality")
+    landmark: Optional[str] = Field(None, max_length=200, description="Nearby landmark")
+    city: str = Field(..., min_length=2, max_length=100)
+    state: Optional[str] = Field(None, max_length=100)
+    pincode: str = Field(..., min_length=5, max_length=10)
+    is_default: bool = Field(False, description="Set as default address")
+
+
+class AddressCreate(AddressBase):
+    pass
+
+
+class AddressUpdate(BaseModel):
+    label: Optional[str] = None
+    house_no: Optional[str] = None
+    area: Optional[str] = None
+    landmark: Optional[str] = None
+    city: Optional[str] = None
+    state: Optional[str] = None
+    pincode: Optional[str] = None
+    is_default: Optional[bool] = None
+
+
+class AddressResponse(AddressBase):
+    id: str
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+
+
+class AddressListResponse(BaseModel):
+    addresses: List[AddressResponse]
+    total: int
 
 
 class UserProfileResponse(BaseModel):

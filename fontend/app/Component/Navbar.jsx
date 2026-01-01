@@ -6,11 +6,14 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/utils/AuthContext';
 import { getFavoritesCount } from '@/utils/favorites';
+import { useNotifications } from '@/utils/NotificationContext';
+import SearchDropdown from './SearchDropdown';
 
 export default function Navbar({ onNotificationClick, isNotificationsOpen }) {
   const pathname = usePathname();
   const router = useRouter();
   const { user, isAuthenticated, isLoading, logout } = useAuth();
+  const { unreadCount: notificationCount } = useNotifications();
   const [isLocationOpen, setIsLocationOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -137,25 +140,15 @@ export default function Navbar({ onNotificationClick, isNotificationsOpen }) {
         </div>
 
         {/* Center Section - Search - Hidden on mobile */}
-        <div className="hidden md:flex flex-1 max-w-2xl mx-4 lg:mx-8">
-          <div className="relative group w-full">
-            <div className="absolute left-4 top-1/2 -translate-y-1/2 p-1.5 bg-gradient-to-br from-blue-100 to-purple-100 rounded-lg group-hover:scale-110 transition-transform">
-              <Search className="w-4 h-4 text-blue-600" />
-            </div>
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              onKeyPress={(e) => {
-                if (e.key === 'Enter' && searchQuery.trim()) {
-                  router.push(`/search?q=${encodeURIComponent(searchQuery)}`);
-                }
-              }}
-              placeholder="Search services — electrician, plumber, cleaner, cook…"
-              className="w-full pl-14 pr-4 py-3.5 border-2 border-gray-200 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all hover:border-gray-300 bg-white shadow-sm hover:shadow-md font-medium text-gray-700"
-            />
-          </div>
-        </div>
+        <SearchDropdown 
+          searchQuery={searchQuery}
+          setSearchQuery={setSearchQuery}
+          onSearch={() => {
+            if (searchQuery.trim()) {
+              router.push(`/search?q=${encodeURIComponent(searchQuery)}`);
+            }
+          }}
+        />
 
         {/* Right Section */}
         <div className="flex items-center gap-2 md:gap-3">
@@ -251,7 +244,7 @@ export default function Navbar({ onNotificationClick, isNotificationsOpen }) {
               Login/Sign Up
             </Link>
           )}
-          <Link href="/favorites" className="hidden md:block p-2.5 hover:bg-gradient-to-br hover:from-blue-50 hover:to-purple-50 rounded-xl transition-all group border border-transparent hover:border-blue-200 relative">
+          <Link href="/favorites" className=" p-2.5 hover:bg-gradient-to-br hover:from-blue-50 hover:to-purple-50 rounded-xl transition-all group border border-transparent hover:border-blue-200 relative">
             <Heart className="w-5 h-5 text-gray-600 group-hover:text-red-600 transition-colors group-hover:scale-110" />
             {favoritesCount > 0 && (
               <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center shadow-lg">
@@ -266,7 +259,13 @@ export default function Navbar({ onNotificationClick, isNotificationsOpen }) {
             className="p-2 md:p-2.5 hover:bg-gradient-to-br hover:from-blue-50 hover:to-purple-50 rounded-xl relative transition-all group border border-transparent hover:border-blue-200"
           >
             <Bell className="w-5 h-5 text-gray-600 group-hover:text-blue-600 transition-colors group-hover:scale-110 group-hover:rotate-12" />
-            <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full animate-pulse shadow-lg"></span>
+            {notificationCount > 0 ? (
+              <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center shadow-lg animate-pulse">
+                {notificationCount > 9 ? '9+' : notificationCount}
+              </span>
+            ) : (
+              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-gray-300 rounded-full"></span>
+            )}
           </button>
           
           {/* Desktop Only Partner Button */}
@@ -308,18 +307,18 @@ export default function Navbar({ onNotificationClick, isNotificationsOpen }) {
           <span className="text-[10px] font-bold">Services</span>
         </Link>
 
-        <button 
-          onClick={() => router.push('/search')}
+        <Link 
+          href="/search-suggestions"
           className="flex flex-col items-center justify-center gap-1 text-white relative"
         >
           <div className="absolute -top-4 w-14 h-14 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full flex items-center justify-center shadow-xl">
             <Search className="w-6 h-6" />
           </div>
           <span className="text-[10px] font-bold text-gray-600 mt-6">Search</span>
-        </button>
+        </Link>
 
         <Link 
-          href="/bookings"
+          href="/booking"
           className={`flex flex-col items-center justify-center gap-1 transition-all ${
             pathname === '/bookings' 
               ? 'text-blue-600' 

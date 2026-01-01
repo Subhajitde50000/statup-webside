@@ -20,6 +20,10 @@ email-validator==2.1.0
 # HTTP Client (for OAuth)
 httpx==0.26.0
 
+# WebSocket / Socket.IO
+python-socketio==5.11.0
+websockets==12.0
+
 # Email (optional - for email OTP)
 # aiosmtplib==3.0.1
 

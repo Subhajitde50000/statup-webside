@@ -467,7 +467,7 @@ export default function Home() {
                     <div className="flex gap-2 sm:gap-3">
                       <button 
                         onClick={() => router.push(`/professional_view?id=${pro.id}`)}
-                        className="flex-1 py-2 sm:py-2.5 md:py-3 border-2 border-gray-200 rounded-lg sm:rounded-xl font-semibold hover:bg-gray-50 hover:border-blue-600 transition-all text-xs sm:text-sm md:text-base"
+                        className="flex-1 py-2 sm:py-2.5 md:py-3 text-gray-700 border-2 border-gray-200 rounded-lg sm:rounded-xl font-semibold hover:bg-gray-50 hover:border-blue-600 transition-all text-xs sm:text-sm md:text-base"
                       >
                         View Profile
                       </button>
@@ -502,7 +502,7 @@ export default function Home() {
                 <Shield className="w-7 h-7 text-blue-600" />
               </div>
               <div>
-                <h3 className="font-bold text-lg mb-2">Background-verified experts</h3>
+                <h3 className="font-bold text-lg mb-2 text-gray-700">Background-verified experts</h3>
                 <p className="text-sm text-gray-600 leading-relaxed">All professional_views undergo thorough background checks</p>
               </div>
             </div>
@@ -512,7 +512,7 @@ export default function Home() {
                 <CheckCircle className="w-7 h-7 text-green-600" />
               </div>
               <div>
-                <h3 className="font-bold text-lg mb-1">Fixed pricing — no overcharging</h3>
+                <h3 className="font-bold text-lg mb-1 text-gray-700">Fixed pricing — no overcharging</h3>
                 <p className="text-sm text-gray-600">Transparent pricing with no hidden charges</p>
               </div>
             </div>
@@ -522,7 +522,7 @@ export default function Home() {
                 <Award className="w-7 h-7 text-purple-600" />
               </div>
               <div>
-                <h3 className="font-bold text-lg mb-1">Money-back guarantee</h3>
+                <h3 className="font-bold text-lg mb-1 text-gray-700">Money-back guarantee</h3>
                 <p className="text-sm text-gray-600">100% satisfaction or full refund</p>
               </div>
             </div>
@@ -532,7 +532,7 @@ export default function Home() {
                 <Clock className="w-7 h-7 text-orange-600" />
               </div>
               <div>
-                <h3 className="font-bold text-lg mb-1">24/7 customer support</h3>
+                <h3 className="font-bold text-lg mb-1 text-gray-700">24/7 customer support</h3>
                 <p className="text-sm text-gray-600">Round-the-clock assistance for any issues</p>
               </div>
             </div>
@@ -542,7 +542,7 @@ export default function Home() {
                 <Users className="w-7 h-7 text-red-600" />
               </div>
               <div>
-                <h3 className="font-bold text-lg mb-1">5+ layers of identity verification</h3>
+                <h3 className="font-bold text-lg mb-1 text-gray-700">5+ layers of identity verification</h3>
                 <p className="text-sm text-gray-600">Multi-step verification for your safety</p>
               </div>
             </div>
@@ -552,7 +552,7 @@ export default function Home() {
                 <CreditCard className="w-7 h-7 text-indigo-600" />
               </div>
               <div>
-                <h3 className="font-bold text-lg mb-1">Secure digital payments</h3>
+                <h3 className="font-bold text-lg mb-1 text-gray-700">Secure digital payments</h3>
                 <p className="text-sm text-gray-600">Encrypted transactions with multiple payment options</p>
               </div>
             </div>

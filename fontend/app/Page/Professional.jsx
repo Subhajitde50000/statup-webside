@@ -5,13 +5,12 @@ import { useSearchParams } from 'next/navigation';
 import { 
   ArrowLeft, Heart, Phone, MessageCircle, Calendar, Star, CheckCircle, Clock, 
   MapPin, Award, Briefcase, Zap, Shield, User, Loader2, AlertCircle,
-  Globe, BadgeCheck, ChevronRight, Wrench, IndianRupee, DollarSign
+  Globe, BadgeCheck, ChevronRight, Wrench, IndianRupee, DollarSign, Share2
 } from 'lucide-react';
 import Link from 'next/link';
 import Navbar from '../Component/Navbar';
 import Footer from '../Component/Footer';
 import Notifications from '../Component/Notifications';
-import BookingForm from '../Component/BookingForm';
 import PriceOfferModal from '../Component/PriceOfferModal';
 import FavoriteButton from '../Component/FavoriteButton';
 import { getProfessionalPublicProfile } from '../../utils/services';
@@ -131,6 +130,37 @@ export default function Professional() {
     return `${displayHour}:${minutes} ${ampm}`;
   };
 
+  const handleShare = async () => {
+    const shareUrl = window.location.href;
+    const shareData = {
+      title: `${professional.name} - Professional Service`,
+      text: `Check out ${professional.name}'s profile${professional.category ? ` - ${professional.category}` : ''}`,
+      url: shareUrl
+    };
+
+    try {
+      if (navigator.share) {
+        // Use native share API if available
+        await navigator.share(shareData);
+      } else {
+        // Fallback to clipboard
+        await navigator.clipboard.writeText(shareUrl);
+        alert('Link copied to clipboard!');
+      }
+    } catch (error) {
+      // If share is cancelled or fails, try clipboard
+      if (error.name !== 'AbortError') {
+        try {
+          await navigator.clipboard.writeText(shareUrl);
+          alert('Link copied to clipboard!');
+        } catch (clipboardError) {
+          console.error('Share failed:', clipboardError);
+          alert('Unable to share. Please copy the URL manually.');
+        }
+      }
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar
@@ -159,7 +189,7 @@ export default function Professional() {
 
       <div className="pt-[126px] pb-12">
         <div className="max-w-[1400px] mx-auto px-4 md:px-6">
-          <div className="grid lg:grid-cols-[1fr_400px] gap-8">
+          <div className="max-w-4xl mx-auto">
             <div className="space-y-6">
               <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
                 <div className="bg-gradient-to-r from-blue-600 to-purple-600 h-24"></div>
@@ -239,7 +269,7 @@ export default function Professional() {
                     </div>
                   )}
 
-                  <div className="grid grid-cols-3 gap-3">
+                  <div className="grid grid-cols-4 gap-3">
                     {professional.phone && (
                       <a 
                         href={`tel:${professional.phone}`}
@@ -257,17 +287,26 @@ export default function Professional() {
                       <span className="hidden sm:inline">Chat</span>
                     </Link>
                     <button
+                      onClick={handleShare}
+                      className="flex items-center justify-center gap-2 px-4 py-3 border-2 border-gray-200 rounded-xl hover:border-purple-600 hover:bg-purple-50 transition-all font-bold text-purple-600"
+                      title="Share profile"
+                    >
+                      <Share2 className="w-5 h-5" />
+                      <span className="hidden sm:inline">Share</span>
+                    </button>
+                    <button
                       onClick={() => setIsPriceOfferModalOpen(true)}
-                      className="flex items-center justify-center gap-2 px-4 py-3 border-2 border-green-600 rounded-xl hover:bg-green-600 hover:text-white transition-all font-bold text-green-600 col-span-3 sm:col-span-3"
+                      className="flex items-center justify-center gap-2 px-4 py-3 border-2 border-green-600 rounded-xl hover:bg-green-600 hover:text-white transition-all font-bold text-green-600 col-span-4 sm:col-span-4"
                     >
                       <DollarSign className="w-5 h-5" />
                       <span>Make Price Offer</span>
                     </button>
                     <Link
-                      href={services.length > 0 ? `/booking/${services[0].id}` : '#booking-form'}
-                      className="flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all font-bold shadow-lg col-span-3 sm:col-span-3"
+                      href={`/booking-flow/${professionalId}`}
+                      className="flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all font-bold shadow-lg col-span-4 sm:col-span-4"
                     >
                       <Calendar className="w-5 h-5" />
+                      
                       <span>Book Now</span>
                     </Link>
                   </div>
@@ -483,15 +522,6 @@ export default function Professional() {
                   </div>
                 </div>
               )}
-            </div>
-
-            <div id="booking-form">
-              <BookingForm 
-                professionalName={professional.name}
-                hourlyRate={professional.hourly_rate || 299}
-                professionalId={professionalId}
-                services={services}
-              />
             </div>
           </div>
         </div>

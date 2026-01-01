@@ -675,7 +675,7 @@ export default function Service() {
               </p>
             </div>
             
-            <form onSubmit={handleSearch} className="max-w-3xl mx-auto">
+            {/* <form onSubmit={handleSearch} className="max-w-3xl mx-auto">
               <div className="relative">
                 <Search className="absolute left-5 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-400" />
                 <input
@@ -692,7 +692,7 @@ export default function Service() {
                   Search
                 </button>
               </div>
-            </form>
+            </form> */}
           </div>
           
           {/* Category Pills */}

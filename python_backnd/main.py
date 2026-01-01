@@ -1,6 +1,6 @@
 """
 Electronics Authentication Backend
-FastAPI with MongoDB, JWT, OAuth, OTP, and RBAC
+FastAPI with MongoDB, JWT, OAuth, OTP, RBAC, and Real-time Notifications
 """
 
 from fastapi import FastAPI
@@ -8,10 +8,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
 from pathlib import Path
+import socketio
 
 from app.database import connect_to_mongo, close_mongo_connection
 from app.routes import auth, users, oauth, vacancies, applications, verifications, upload, subscriptions
-from app.routes import services, offers, favorites, professionals
+from app.routes import services, offers, favorites, professionals, notifications
+from app.socket_manager import sio
 
 
 @asynccontextmanager
@@ -24,7 +26,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="Electronics Auth API",
-    description="Authentication API with OTP, JWT, OAuth, and Role-Based Access Control",
+    description="Authentication API with OTP, JWT, OAuth, RBAC, and Real-time Notifications",
     version="1.0.0",
     lifespan=lifespan
 )
@@ -58,6 +60,7 @@ app.include_router(subscriptions.router, prefix="/api/subscriptions", tags=["Sub
 app.include_router(offers.router, prefix="/api/offers", tags=["Offers"])
 app.include_router(favorites.router, prefix="/api", tags=["Favorites"])
 app.include_router(professionals.router, prefix="/api", tags=["Professionals"])
+app.include_router(notifications.router, prefix="/api", tags=["Notifications"])
 
 # Mount static files for uploads
 uploads_dir = Path("uploads")
@@ -73,3 +76,7 @@ async def root():
 @app.get("/health")
 async def health_check():
     return {"status": "healthy"}
+
+
+# Create combined ASGI app with Socket.IO
+socket_app = socketio.ASGIApp(sio, other_asgi_app=app)

@@ -384,6 +384,88 @@ export async function verifyPhone(otp_code: string): Promise<{ message: string; 
   });
 }
 
+// ============ ADDRESS MANAGEMENT ============
+
+export interface Address {
+  id: string;
+  label?: string;
+  house_no: string;
+  area: string;
+  landmark?: string;
+  city: string;
+  state?: string;
+  pincode: string;
+  is_default: boolean;
+  created_at: string;
+  updated_at?: string;
+}
+
+export interface AddressCreate {
+  label?: string;
+  house_no: string;
+  area: string;
+  landmark?: string;
+  city: string;
+  state?: string;
+  pincode: string;
+  is_default?: boolean;
+}
+
+export interface AddressUpdate {
+  label?: string;
+  house_no?: string;
+  area?: string;
+  landmark?: string;
+  city?: string;
+  state?: string;
+  pincode?: string;
+  is_default?: boolean;
+}
+
+// Get all user addresses
+export async function getUserAddresses(): Promise<{ addresses: Address[]; total: number }> {
+  return apiRequest('/users/addresses', {
+    method: 'GET',
+  });
+}
+
+// Add a new address
+export async function addUserAddress(address: AddressCreate): Promise<Address> {
+  return apiRequest('/users/addresses', {
+    method: 'POST',
+    body: JSON.stringify(address),
+  });
+}
+
+// Get a specific address
+export async function getAddress(addressId: string): Promise<Address> {
+  return apiRequest(`/users/addresses/${addressId}`, {
+    method: 'GET',
+  });
+}
+
+// Update an address
+export async function updateUserAddress(addressId: string, address: AddressUpdate): Promise<Address> {
+  return apiRequest(`/users/addresses/${addressId}`, {
+    method: 'PUT',
+    body: JSON.stringify(address),
+  });
+}
+
+// Delete an address
+export async function deleteUserAddress(addressId: string): Promise<{ message: string }> {
+  return apiRequest(`/users/addresses/${addressId}`, {
+    method: 'DELETE',
+  });
+}
+
+// Set an address as default
+export async function setDefaultAddress(addressId: string): Promise<{ message: string }> {
+  return apiRequest(`/users/addresses/${addressId}/default`, {
+    method: 'PUT',
+  });
+}
+
 // ============ ROLE-BASED REDIRECT ============
 
 /**

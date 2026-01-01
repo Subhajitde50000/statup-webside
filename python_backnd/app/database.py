@@ -66,6 +66,17 @@ async def create_indexes():
         reset_indexes = await db.db.password_resets.index_information()
         if "created_at_1" not in reset_indexes:
             await db.db.password_resets.create_index("created_at", expireAfterSeconds=3600)  # 1 hour expiry
+        
+        # Notification collection indexes
+        notif_indexes = await db.db.notifications.index_information()
+        if "user_id_1" not in notif_indexes:
+            await db.db.notifications.create_index("user_id")
+        if "user_id_1_created_at_-1" not in notif_indexes:
+            await db.db.notifications.create_index([("user_id", 1), ("created_at", -1)])
+        if "user_id_1_is_read_1" not in notif_indexes:
+            await db.db.notifications.create_index([("user_id", 1), ("is_read", 1)])
+        if "expires_at_1" not in notif_indexes:
+            await db.db.notifications.create_index("expires_at", expireAfterSeconds=0)  # TTL index
     
     except Exception as e:
         print(f"Warning: Error creating indexes: {e}")
@@ -100,3 +111,13 @@ def get_refresh_tokens_collection():
 def get_verifications_collection():
     """Get verifications collection"""
     return db.db.verifications
+
+
+def get_notifications_collection():
+    """Get notifications collection"""
+    return db.db.notifications
+
+
+def get_notification_settings_collection():
+    """Get notification settings collection"""
+    return db.db.notification_settings

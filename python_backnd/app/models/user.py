@@ -67,6 +67,9 @@ class UserBase(BaseModel):
     is_active: bool = True
     profile_image: Optional[str] = None
     
+    # User addresses
+    addresses: List[dict] = Field(default_factory=list)
+    
     # Approval fields for professionals/shopkeepers
     approval_status: Optional[str] = None  # pending, approved, rejected, more_info_needed
     approval_data: Optional[dict] = None   # Stores professional/shop specific data
@@ -135,6 +138,9 @@ def user_helper(user: dict) -> dict:
         "created_at": user.get("created_at"),
         "updated_at": user.get("updated_at"),
         "last_login": user.get("last_login"),
+        
+        # Addresses
+        "addresses": user.get("addresses", []),
         
         # Approval fields
         "approval_status": user.get("approval_status"),

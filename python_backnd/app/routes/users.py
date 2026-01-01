@@ -19,7 +19,11 @@ from app.schemas.user import (
     ChangePasswordRequest,
     VerifyEmailRequest,
     VerifyPhoneRequest,
-    UserListResponse
+    UserListResponse,
+    AddressCreate,
+    AddressUpdate,
+    AddressResponse,
+    AddressListResponse
 )
 from app.schemas.auth import MessageResponse
 from app.models.user import UserRole, user_helper
@@ -645,3 +649,198 @@ async def update_user_status(
         message=f"User {status_text} successfully",
         success=True
     )
+
+
+# ==================== ADDRESS MANAGEMENT ====================
+
+@router.get("/addresses", response_model=AddressListResponse)
+async def get_user_addresses(current_user: dict = Depends(get_current_user)):
+    """Get all addresses for current user"""
+    addresses = current_user.get("addresses", [])
+    return AddressListResponse(
+        addresses=addresses,
+        total=len(addresses)
+    )
+
+
+@router.post("/addresses", response_model=AddressResponse)
+async def add_user_address(
+    address: AddressCreate,
+    current_user: dict = Depends(get_current_user)
+):
+    """Add a new address for current user"""
+    users = get_users_collection()
+    
+    # Create address with unique ID
+    address_data = address.dict()
+    address_data["id"] = str(uuid.uuid4())
+    address_data["created_at"] = datetime.utcnow()
+    address_data["updated_at"] = None
+    
+    # Get current addresses
+    current_addresses = current_user.get("addresses", [])
+    
+    # If this is set as default, unset other defaults
+    if address_data.get("is_default"):
+        for addr in current_addresses:
+            addr["is_default"] = False
+    
+    # If this is the first address, make it default
+    if len(current_addresses) == 0:
+        address_data["is_default"] = True
+    
+    current_addresses.append(address_data)
+    
+    # Update user
+    await users.update_one(
+        {"_id": current_user["_id"]},
+        {
+            "$set": {
+                "addresses": current_addresses,
+                "updated_at": datetime.utcnow()
+            }
+        }
+    )
+    
+    return AddressResponse(**address_data)
+
+
+@router.get("/addresses/{address_id}", response_model=AddressResponse)
+async def get_address(
+    address_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """Get a specific address"""
+    addresses = current_user.get("addresses", [])
+    
+    for address in addresses:
+        if address.get("id") == address_id:
+            return AddressResponse(**address)
+    
+    raise HTTPException(
+        status_code=status.HTTP_404_NOT_FOUND,
+        detail="Address not found"
+    )
+
+
+@router.put("/addresses/{address_id}", response_model=AddressResponse)
+async def update_address(
+    address_id: str,
+    address_update: AddressUpdate,
+    current_user: dict = Depends(get_current_user)
+):
+    """Update an existing address"""
+    users = get_users_collection()
+    addresses = current_user.get("addresses", [])
+    
+    address_index = None
+    for i, addr in enumerate(addresses):
+        if addr.get("id") == address_id:
+            address_index = i
+            break
+    
+    if address_index is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Address not found"
+        )
+    
+    # Update address fields
+    update_data = address_update.dict(exclude_unset=True)
+    
+    # If setting as default, unset other defaults
+    if update_data.get("is_default"):
+        for addr in addresses:
+            addr["is_default"] = False
+    
+    for key, value in update_data.items():
+        if value is not None:
+            addresses[address_index][key] = value
+    
+    addresses[address_index]["updated_at"] = datetime.utcnow()
+    
+    # Update user
+    await users.update_one(
+        {"_id": current_user["_id"]},
+        {
+            "$set": {
+                "addresses": addresses,
+                "updated_at": datetime.utcnow()
+            }
+        }
+    )
+    
+    return AddressResponse(**addresses[address_index])
+
+
+@router.delete("/addresses/{address_id}")
+async def delete_address(
+    address_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """Delete an address"""
+    users = get_users_collection()
+    addresses = current_user.get("addresses", [])
+    
+    new_addresses = [addr for addr in addresses if addr.get("id") != address_id]
+    
+    if len(new_addresses) == len(addresses):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Address not found"
+        )
+    
+    # If deleted address was default and there are other addresses, set first as default
+    if new_addresses and not any(addr.get("is_default") for addr in new_addresses):
+        new_addresses[0]["is_default"] = True
+    
+    # Update user
+    await users.update_one(
+        {"_id": current_user["_id"]},
+        {
+            "$set": {
+                "addresses": new_addresses,
+                "updated_at": datetime.utcnow()
+            }
+        }
+    )
+    
+    return {"message": "Address deleted successfully"}
+
+
+@router.put("/addresses/{address_id}/default")
+async def set_default_address(
+    address_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """Set an address as default"""
+    users = get_users_collection()
+    addresses = current_user.get("addresses", [])
+    
+    found = False
+    for addr in addresses:
+        if addr.get("id") == address_id:
+            addr["is_default"] = True
+            addr["updated_at"] = datetime.utcnow()
+            found = True
+        else:
+            addr["is_default"] = False
+    
+    if not found:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Address not found"
+        )
+    
+    # Update user
+    await users.update_one(
+        {"_id": current_user["_id"]},
+        {
+            "$set": {
+                "addresses": addresses,
+                "updated_at": datetime.utcnow()
+            }
+        }
+    )
+    
+    return {"message": "Default address updated successfully"}
