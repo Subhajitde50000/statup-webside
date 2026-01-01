@@ -36,7 +36,7 @@ const sampleOrders: Order[] = [
       name: 'Rahul Das',
       role: 'Electrician',
       rating: 4.9,
-      image: '/api/placeholder/64/64'
+      image: 'https://placehold.co/64x64'
     },
     date: '12 Oct 2025',
     time: '3:00 PM – 4:30 PM',
@@ -54,7 +54,7 @@ const sampleOrders: Order[] = [
       name: 'Rahul Das',
       role: 'Electrician',
       rating: 4.9,
-      image: '/api/placeholder/64/64'
+      image: 'https://placehold.co/64x64'
     },
     date: '12 Oct 2025',
     time: '3:00 PM – 4:30 PM',
@@ -72,7 +72,7 @@ const sampleOrders: Order[] = [
       name: 'Rahul Das',
       role: 'Electrician',
       rating: 4.9,
-      image: '/api/placeholder/64/64'
+      image: 'https://placehold.co/64x64'
     },
     date: '12 Oct 2025',
     time: '3:00 PM – 4:30 PM',

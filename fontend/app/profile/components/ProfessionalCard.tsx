@@ -20,7 +20,7 @@ export default function ProfessionalCard({
   rating, 
   skills, 
   rate, 
-  image = '/api/placeholder/64/64',
+  image = 'https://placehold.co/64x64',
   onBook 
 }: ProfessionalCardProps) {
   return (

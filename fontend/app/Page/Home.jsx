@@ -300,7 +300,7 @@ export default function Home() {
           <h2 className="text-3xl md:text-4xl lg:text-5xl font-extrabold text-gray-900 mb-3 md:mb-4 text-center tracking-tight">Book By Category</h2>
           <p className="text-center text-gray-600 text-base md:text-lg mb-10 md:mb-16 max-w-2xl mx-auto">Choose from our wide range of professional_view home services</p>
           
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 md:gap-6">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 md:gap-6">
             {/* Electrical */}
             <div className="group bg-white rounded-2xl md:rounded-[24px] p-5 sm:p-6 md:p-8 shadow-md hover:shadow-2xl transition-all duration-300 cursor-pointer active:scale-95 md:hover:-translate-y-3 border-2 border-gray-100 hover:border-blue-300 relative overflow-hidden">
               <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br from-yellow-100 to-yellow-200 opacity-0 group-hover:opacity-20 rounded-full blur-2xl transition-opacity"></div>
@@ -350,6 +350,40 @@ export default function Home() {
               </div>
               <h3 className="text-xl font-bold text-gray-900 mb-2 group-hover:text-blue-600 transition-colors">Driving</h3>
               <p className="text-sm text-gray-600 leading-relaxed">Chauffeur, pickup-drop services</p>
+            </div>
+
+            {/* Electronics Store */}
+            <div 
+              onClick={() => router.push('/store')}
+              className="group bg-gradient-to-br from-indigo-500 to-teal-500 rounded-[24px] p-8 shadow-md hover:shadow-2xl transition-all duration-300 cursor-pointer hover:-translate-y-3 border border-transparent relative overflow-hidden"
+            >
+              <div className="absolute top-0 right-0 w-32 h-32 bg-white opacity-10 rounded-full blur-3xl"></div>
+              <div className="w-16 h-16 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center mb-5 group-hover:scale-110 transition-transform shadow-lg">
+                <span className="text-3xl">🛒</span>
+              </div>
+              <h3 className="text-xl font-bold text-white mb-2">Electronics Store</h3>
+              <p className="text-sm text-white/90 leading-relaxed">Bulbs, switches, wires & tools</p>
+              <div className="mt-4 flex items-center gap-1 text-white/90">
+                <span className="text-xs font-bold">Shop Now</span>
+                <span className="group-hover:translate-x-1 transition-transform">→</span>
+              </div>
+            </div>
+
+            {/* Stores Directory */}
+            <div 
+              onClick={() => router.push('/shops')}
+              className="group bg-gradient-to-br from-orange-500 to-pink-500 rounded-[24px] p-8 shadow-md hover:shadow-2xl transition-all duration-300 cursor-pointer hover:-translate-y-3 border border-transparent relative overflow-hidden"
+            >
+              <div className="absolute top-0 right-0 w-32 h-32 bg-white opacity-10 rounded-full blur-3xl"></div>
+              <div className="w-16 h-16 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center mb-5 group-hover:scale-110 transition-transform shadow-lg">
+                <span className="text-3xl">🏪</span>
+              </div>
+              <h3 className="text-xl font-bold text-white mb-2">Browse Stores</h3>
+              <p className="text-sm text-white/90 leading-relaxed">Trusted shops near you</p>
+              <div className="mt-4 flex items-center gap-1 text-white/90">
+                <span className="text-xs font-bold">View All</span>
+                <span className="group-hover:translate-x-1 transition-transform">→</span>
+              </div>
             </div>
           </div>
         </div>

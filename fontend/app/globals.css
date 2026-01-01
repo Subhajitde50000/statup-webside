@@ -237,3 +237,18 @@ body {
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
   background: #94A3B8;
 }
+
+/* Hide Scrollbar */
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Safe Area Inset */
+.safe-area-inset-bottom {
+  padding-bottom: max(env(safe-area-inset-bottom), 1rem);
+}
