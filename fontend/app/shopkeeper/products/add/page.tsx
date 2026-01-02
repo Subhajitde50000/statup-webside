@@ -11,8 +11,10 @@ export default function AddProductPage() {
     name: '',
     category: 'Electrical',
     brand: '',
+    model: '',
     warranty: 'Options',
     price: '',
+    mrp: '',
     stockQuantity: '',
     minReorderLevel: '',
     description: '',
@@ -20,10 +22,16 @@ export default function AddProductPage() {
 
   const [images, setImages] = useState<string[]>([]);
   const [specifications, setSpecifications] = useState([
-    { field: 'Size', attribute: '' },
-    { field: 'Material', attribute: '' },
-    { field: 'Material', attribute: '' },
+    { field: 'Power', attribute: '' },
+    { field: 'Voltage', attribute: '' },
+    { field: 'Warranty', attribute: '' },
   ]);
+  const [badges, setBadges] = useState<string[]>([]);
+  const [badgeInput, setBadgeInput] = useState('');
+  const [features, setFeatures] = useState<string[]>(['']);
+  const [offers, setOffers] = useState<string[]>(['']);
+  const [howToUse, setHowToUse] = useState<string[]>(['']);
+  const [safetyTips, setSafetyTips] = useState<string[]>(['']);
 
   const categories = [
     'Electrical',
@@ -76,6 +84,33 @@ export default function AddProductPage() {
     setSpecifications(updated);
   };
 
+  const addBadge = () => {
+    if (badgeInput.trim() && badges.length < 5) {
+      setBadges([...badges, badgeInput.trim()]);
+      setBadgeInput('');
+    }
+  };
+
+  const removeBadge = (index: number) => {
+    setBadges(badges.filter((_, i) => i !== index));
+  };
+
+  const updateArrayItem = (array: string[], setArray: Function, index: number, value: string) => {
+    const updated = [...array];
+    updated[index] = value;
+    setArray(updated);
+  };
+
+  const addArrayItem = (array: string[], setArray: Function) => {
+    setArray([...array, '']);
+  };
+
+  const removeArrayItem = (array: string[], setArray: Function, index: number) => {
+    if (array.length > 1) {
+      setArray(array.filter((_, i) => i !== index));
+    }
+  };
+
   const getStockColor = () => {
     const stock = parseInt(productData.stockQuantity) || 0;
     if (stock > 10) return 'text-[#4CAF50]';
@@ -90,6 +125,15 @@ export default function AddProductPage() {
     return '0';
   };
 
+  const getDiscountPercentage = () => {
+    const price = parseFloat(productData.price);
+    const mrp = parseFloat(productData.mrp);
+    if (price && mrp && mrp > price) {
+      return Math.round(((mrp - price) / mrp) * 100);
+    }
+    return 0;
+  };
+
   const handleSave = () => {
     // Validation
     if (!productData.name.trim()) {
@@ -98,6 +142,14 @@ export default function AddProductPage() {
     }
     if (!productData.price || parseFloat(productData.price) <= 0) {
       alert('Please enter a valid price');
+      return;
+    }
+    if (!productData.mrp || parseFloat(productData.mrp) <= 0) {
+      alert('Please enter a valid MRP');
+      return;
+    }
+    if (parseFloat(productData.price) > parseFloat(productData.mrp)) {
+      alert('Price cannot be greater than MRP');
       return;
     }
     if (!productData.stockQuantity || parseInt(productData.stockQuantity) < 0) {
@@ -110,9 +162,18 @@ export default function AddProductPage() {
     }
 
     // Save logic here
-    console.log('Product Data:', productData);
-    console.log('Images:', images);
-    console.log('Specifications:', specifications);
+    const productPayload = {
+      ...productData,
+      discount: getDiscountPercentage(),
+      badges,
+      features: features.filter(f => f.trim()),
+      offers: offers.filter(o => o.trim()),
+      howToUse: howToUse.filter(h => h.trim()),
+      safetyTips: safetyTips.filter(s => s.trim()),
+      specifications,
+      images
+    };
+    console.log('Product Payload:', productPayload);
     alert('Product added successfully!');
     router.push('/shopkeeper/products');
   };
@@ -151,7 +212,7 @@ export default function AddProductPage() {
                   placeholder="Enter product name e.g., Copper Wire 10m 🔌"
                   value={productData.name}
                   onChange={(e) => setProductData({ ...productData, name: e.target.value })}
-                  className="w-full px-3 md:px-4 py-2.5 md:py-3 text-sm md:text-base border border-[#E0E0E0] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00C897] focus:border-transparent transition"
+                  className="w-full px-3  text-gray-700 md:px-4 py-2.5 md:py-3 text-sm md:text-base border border-[#E0E0E0] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00C897] focus:border-transparent transition"
                 />
               </div>
 
@@ -162,7 +223,7 @@ export default function AddProductPage() {
                   <select
                     value={productData.category}
                     onChange={(e) => setProductData({ ...productData, category: e.target.value })}
-                    className="w-full px-3 md:px-4 py-2.5 md:py-3 text-sm md:text-base border border-[#E0E0E0] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00C897] focus:border-transparent bg-white transition appearance-none cursor-pointer"
+                    className="w-full px-3  text-gray-700 md:px-4 py-2.5 md:py-3 text-sm md:text-base border border-[#E0E0E0] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00C897] focus:border-transparent bg-white transition appearance-none cursor-pointer"
                   >
                     {categories.map((cat) => (
                       <option key={cat} value={cat}>{cat}</option>
@@ -181,12 +242,25 @@ export default function AddProductPage() {
                 <label className="text-xs md:text-sm font-medium text-[#0C0C0C] mb-2 block">Brand Name (Optional)</label>
                 <input
                   type="text"
-                  placeholder="Brand Name (Optional)"
+                  placeholder="e.g., Philips, Anchor, Polycab"
                   value={productData.brand}
                   onChange={(e) => setProductData({ ...productData, brand: e.target.value })}
-                  className="w-full px-3 md:px-4 py-2.5 md:py-3 text-sm md:text-base border border-[#E0E0E0] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00C897] focus:border-transparent transition"
+                  className="w-full px-3  text-gray-700 md:px-4 py-2.5 md:py-3 text-sm md:text-base border border-[#E0E0E0] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00C897] focus:border-transparent transition"
                 />
                 <p className="text-xs text-[#555555] mt-1">Leave empty if unbranded</p>
+              </div>
+
+              {/* Model Number */}
+              <div>
+                <label className="text-xs md:text-sm font-medium text-[#0C0C0C] mb-2 block">Model Number (Optional)</label>
+                <input
+                  type="text"
+                  placeholder="e.g., PHL-LED-9W-CDL"
+                  value={productData.model}
+                  onChange={(e) => setProductData({ ...productData, model: e.target.value })}
+                  className="w-full px-3  text-gray-700 md:px-4 py-2.5 md:py-3 text-sm md:text-base border border-[#E0E0E0] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00C897] focus:border-transparent transition"
+                />
+                <p className="text-xs text-[#555555] mt-1">Product model/SKU</p>
               </div>
 
               {/* Warranty */}
@@ -198,7 +272,7 @@ export default function AddProductPage() {
                   <select
                     value={productData.warranty}
                     onChange={(e) => setProductData({ ...productData, warranty: e.target.value })}
-                    className="w-full px-3 md:px-4 py-2.5 md:py-3 text-sm md:text-base border border-[#E0E0E0] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00C897] focus:border-transparent bg-white transition appearance-none cursor-pointer"
+                    className="w-full px-3  text-gray-700 md:px-4 py-2.5 md:py-3 text-sm md:text-base border border-[#E0E0E0] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00C897] focus:border-transparent bg-white transition appearance-none cursor-pointer"
                   >
                     {warrantyOptions.map((option) => (
                       <option key={option} value={option}>{option}</option>
@@ -219,9 +293,25 @@ export default function AddProductPage() {
             <h2 className="text-base md:text-lg font-semibold text-[#0C0C0C] mb-4 md:mb-6 pb-2 border-b border-[#E0E0E0]">Pricing & Stock Information</h2>
             
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
-              {/* Price */}
+              {/* MRP */}
               <div>
-                <label className="text-xs md:text-sm font-medium text-[#0C0C0C] mb-2 block">Price (₹)</label>
+                <label className="text-xs md:text-sm font-medium text-[#0C0C0C] mb-2 block">MRP (₹)</label>
+                <div className="relative">
+                  <span className="absolute left-3 md:left-4 top-1/2 -translate-y-1/2 text-[#555555] font-semibold text-sm md:text-base">₹</span>
+                  <input
+                    type="number"
+                    placeholder="0"
+                    value={productData.mrp}
+                    onChange={(e) => setProductData({ ...productData, mrp: e.target.value })}
+                    className="w-full pl-7  text-gray-700 md:pl-8 pr-3 md:pr-4 py-2.5 md:py-3 text-sm md:text-base border border-[#E0E0E0] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00C897] focus:border-transparent transition"
+                  />
+                </div>
+                <p className="text-xs text-[#555555] mt-1">Maximum Retail Price</p>
+              </div>
+
+              {/* Selling Price */}
+              <div>
+                <label className="text-xs md:text-sm font-medium text-[#0C0C0C] mb-2 block">Selling Price (₹)</label>
                 <div className="relative">
                   <span className="absolute left-3 md:left-4 top-1/2 -translate-y-1/2 text-[#555555] font-semibold text-sm md:text-base">₹</span>
                   <input
@@ -229,9 +319,23 @@ export default function AddProductPage() {
                     placeholder="0"
                     value={productData.price}
                     onChange={(e) => setProductData({ ...productData, price: e.target.value })}
-                    className="w-full pl-7 md:pl-8 pr-3 md:pr-4 py-2.5 md:py-3 text-sm md:text-base border border-[#E0E0E0] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00C897] focus:border-transparent transition"
+                    className="w-full pl-7  text-gray-700 md:pl-8 pr-3 md:pr-4 py-2.5 md:py-3 text-sm md:text-base border border-[#E0E0E0] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00C897] focus:border-transparent transition"
                   />
                 </div>
+                <p className="text-xs text-[#555555] mt-1">Your selling price</p>
+              </div>
+
+              {/* Discount Display */}
+              <div>
+                <label className="text-xs md:text-sm font-medium text-[#0C0C0C] mb-2 block">Discount</label>
+                <div className="w-full px-3 md:px-4 py-2.5 md:py-3 text-sm md:text-base border border-[#E0E0E0] rounded-lg bg-gray-50 flex items-center justify-center">
+                  {getDiscountPercentage() > 0 ? (
+                    <span className="text-2xl font-bold text-[#FF9F43]">{getDiscountPercentage()}% OFF</span>
+                  ) : (
+                    <span className="text-gray-400">No discount</span>
+                  )}
+                </div>
+                <p className="text-xs text-[#555555] mt-1">Auto-calculated</p>
               </div>
 
               {/* Stock Quantity */}
@@ -250,7 +354,7 @@ export default function AddProductPage() {
                   placeholder="0"
                   value={productData.stockQuantity}
                   onChange={(e) => setProductData({ ...productData, stockQuantity: e.target.value })}
-                  className="w-full px-3 md:px-4 py-2.5 md:py-3 text-sm md:text-base border border-[#E0E0E0] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00C897] focus:border-transparent transition"
+                  className="w-full px-3  text-gray-700 md:px-4 py-2.5 md:py-3 text-sm md:text-base border border-[#E0E0E0] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00C897] focus:border-transparent transition"
                 />
                 {productData.stockQuantity && (
                   <div className="flex items-center space-x-2 md:space-x-3 mt-2">
@@ -281,7 +385,7 @@ export default function AddProductPage() {
                   placeholder="Minimum Reorder Levell"
                   value={productData.minReorderLevel}
                   onChange={(e) => setProductData({ ...productData, minReorderLevel: e.target.value })}
-                  className="w-full px-3 md:px-4 py-2.5 md:py-3 text-sm md:text-base border border-[#E0E0E0] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00C897] focus:border-transparent transition"
+                  className="w-full px-3  text-gray-700 md:px-4 py-2.5 md:py-3 text-sm md:text-base border border-[#E0E0E0] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00C897] focus:border-transparent transition"
                 />
               </div>
             </div>
@@ -329,25 +433,102 @@ export default function AddProductPage() {
             )}
           </section>
 
-          {/* Section 4: Description & Specification */}
+          {/* Section 4: Badges & Highlights */}
           <section>
-            <h2 className="text-base md:text-lg font-semibold text-[#0C0C0C] mb-4 md:mb-6 pb-2 border-b border-[#E0E0E0]">Description & Specification</h2>
+            <h2 className="text-base md:text-lg font-semibold text-[#0C0C0C] mb-4 md:mb-6 pb-2 border-b border-[#E0E0E0]">Badges & Highlights</h2>
+            
+            <div>
+              <label className="text-xs md:text-sm font-medium text-[#0C0C0C] mb-2 block">Product Badges (Optional)</label>
+              <div className="flex gap-2 mb-3">
+                <input
+                  type="text"
+                  placeholder="e.g., 🔥 Best Seller, ⚡ Fast Delivery"
+                  value={badgeInput}
+                  onChange={(e) => setBadgeInput(e.target.value)}
+                  onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addBadge())}
+                  className="flex-1 px-3 text-gray-700 md:px-4 py-2 md:py-2.5 text-sm md:text-base border border-[#E0E0E0] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00C897] focus:border-transparent transition"
+                />
+                <button
+                  onClick={addBadge}
+                  type="button"
+                  className="bg-[#00C897] text-white px-4 md:px-6 py-2 md:py-2.5 rounded-lg hover:bg-[#00B184] transition shadow-sm font-semibold text-sm"
+                >
+                  Add
+                </button>
+              </div>
+              {badges.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {badges.map((badge, index) => (
+                    <div key={index} className="px-3 py-1.5 bg-[#FF9F43] text-white text-sm font-semibold rounded-full flex items-center gap-2">
+                      <span>{badge}</span>
+                      <button
+                        onClick={() => removeBadge(index)}
+                        type="button"
+                        className="hover:bg-white/20 rounded-full p-0.5"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <p className="text-xs text-[#555555] mt-2">Max 5 badges. Use emojis for better visibility.</p>
+            </div>
+          </section>
+
+          {/* Section 5: Description & Features */}
+          <section>
+            <h2 className="text-base md:text-lg font-semibold text-[#0C0C0C] mb-4 md:mb-6 pb-2 border-b border-[#E0E0E0]">Description & Features</h2>
             
             {/* Description */}
             <div className="mb-6">
               <label className="text-xs md:text-sm font-medium text-[#0C0C0C] mb-2 block">Product Description</label>
               <textarea
-                placeholder="Product Description"
+                placeholder="Detailed product description for customers..."
                 value={productData.description}
                 onChange={(e) => setProductData({ ...productData, description: e.target.value })}
                 rows={4}
-                className="w-full px-3 md:px-4 py-2.5 md:py-3 text-sm md:text-base border border-[#E0E0E0] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00C897] focus:border-transparent transition resize-none"
+                className="w-full px-3  text-gray-700 md:px-4 py-2.5 md:py-3 text-sm md:text-base border border-[#E0E0E0] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00C897] focus:border-transparent transition resize-none"
               />
+            </div>
+
+            {/* Features */}
+            <div className="mb-6">
+              <label className="text-xs md:text-sm font-medium text-[#0C0C0C] mb-3 block">Key Features</label>
+              <div className="space-y-2">
+                {features.map((feature, index) => (
+                  <div key={index} className="flex gap-2">
+                    <input
+                      type="text"
+                      placeholder="e.g., Energy-efficient LED technology saves up to 85% electricity"
+                      value={feature}
+                      onChange={(e) => updateArrayItem(features, setFeatures, index, e.target.value)}
+                      className="flex-1 px-3 text-gray-700 md:px-4 py-2 md:py-2.5 text-sm md:text-base border border-[#E0E0E0] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00C897] focus:border-transparent transition"
+                    />
+                    <button
+                      onClick={() => addArrayItem(features, setFeatures)}
+                      type="button"
+                      className="bg-[#00C897] text-white px-3 md:px-4 py-2 md:py-2.5 rounded-lg hover:bg-[#00B184] transition shadow-sm flex items-center justify-center"
+                    >
+                      <Plus className="w-4 h-4 md:w-5 md:h-5" />
+                    </button>
+                    {features.length > 1 && (
+                      <button
+                        onClick={() => removeArrayItem(features, setFeatures, index)}
+                        type="button"
+                        className="bg-[#E53935] text-white px-3 md:px-4 py-2 md:py-2.5 rounded-lg hover:bg-[#D32F2F] transition shadow-sm flex items-center justify-center"
+                      >
+                        <X className="w-4 h-4 md:w-5 md:h-5" />
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
             </div>
 
             {/* Specifications */}
             <div>
-              <label className="text-xs md:text-sm font-medium text-[#0C0C0C] mb-3 block">Specifications</label>
+              <label className="text-xs md:text-sm font-medium text-[#0C0C0C] mb-3 block">Technical Specifications</label>
               <div className="space-y-3">
                 {specifications.map((spec, index) => (
                   <div key={index} className="flex flex-col md:flex-row gap-2 md:gap-3">
@@ -356,7 +537,7 @@ export default function AddProductPage() {
                       placeholder="Field:"
                       value={spec.field}
                       onChange={(e) => updateSpecification(index, 'field', e.target.value)}
-                      className="flex-1 px-3 md:px-4 py-2 md:py-2.5 text-sm md:text-base border border-[#E0E0E0] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00C897] focus:border-transparent transition"
+                      className="flex-1 px-3  text-gray-700 md:px-4 py-2 md:py-2.5 text-sm md:text-base border border-[#E0E0E0] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00C897] focus:border-transparent transition"
                     />
                     <div className="flex gap-2">
                       <input
@@ -364,7 +545,7 @@ export default function AddProductPage() {
                         placeholder="Attribute"
                         value={spec.attribute}
                         onChange={(e) => updateSpecification(index, 'attribute', e.target.value)}
-                        className="flex-1 px-3 md:px-4 py-2 md:py-2.5 text-sm md:text-base border border-[#E0E0E0] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00C897] focus:border-transparent transition"
+                        className="flex-1 px-3  text-gray-700 md:px-4 py-2 md:py-2.5 text-sm md:text-base border border-[#E0E0E0] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00C897] focus:border-transparent transition"
                       />
                       <button
                         onClick={() => addSpecification()}
@@ -384,6 +565,114 @@ export default function AddProductPage() {
                   </div>
                 ))}
               </div>
+            </div>
+          </section>
+
+          {/* Section 6: Offers & Promotions */}
+          <section>
+            <h2 className="text-base md:text-lg font-semibold text-[#0C0C0C] mb-4 md:mb-6 pb-2 border-b border-[#E0E0E0]">Offers & Promotions (Optional)</h2>
+            <div className="space-y-2">
+              {offers.map((offer, index) => (
+                <div key={index} className="flex gap-2">
+                  <input
+                    type="text"
+                    placeholder="e.g., 💳 10% instant discount on HDFC Credit Cards"
+                    value={offer}
+                    onChange={(e) => updateArrayItem(offers, setOffers, index, e.target.value)}
+                    className="flex-1 px-3 text-gray-700 md:px-4 py-2 md:py-2.5 text-sm md:text-base border border-[#E0E0E0] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00C897] focus:border-transparent transition"
+                  />
+                  <button
+                    onClick={() => addArrayItem(offers, setOffers)}
+                    type="button"
+                    className="bg-[#00C897] text-white px-3 md:px-4 py-2 md:py-2.5 rounded-lg hover:bg-[#00B184] transition shadow-sm flex items-center justify-center"
+                  >
+                    <Plus className="w-4 h-4 md:w-5 md:h-5" />
+                  </button>
+                  {offers.length > 1 && (
+                    <button
+                      onClick={() => removeArrayItem(offers, setOffers, index)}
+                      type="button"
+                      className="bg-[#E53935] text-white px-3 md:px-4 py-2 md:py-2.5 rounded-lg hover:bg-[#D32F2F] transition shadow-sm flex items-center justify-center"
+                    >
+                      <X className="w-4 h-4 md:w-5 md:h-5" />
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          </section>
+
+          {/* Section 7: How to Use Instructions */}
+          <section>
+            <h2 className="text-base md:text-lg font-semibold text-[#0C0C0C] mb-4 md:mb-6 pb-2 border-b border-[#E0E0E0]">How to Use (Optional)</h2>
+            <div className="space-y-2">
+              {howToUse.map((step, index) => (
+                <div key={index} className="flex gap-2">
+                  <div className="flex items-center justify-center w-8 h-10 bg-[#00C897] text-white rounded-lg font-bold text-sm flex-shrink-0">
+                    {index + 1}
+                  </div>
+                  <input
+                    type="text"
+                    placeholder="e.g., Turn off the power supply before installation"
+                    value={step}
+                    onChange={(e) => updateArrayItem(howToUse, setHowToUse, index, e.target.value)}
+                    className="flex-1 px-3 text-gray-700 md:px-4 py-2 md:py-2.5 text-sm md:text-base border border-[#E0E0E0] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00C897] focus:border-transparent transition"
+                  />
+                  <button
+                    onClick={() => addArrayItem(howToUse, setHowToUse)}
+                    type="button"
+                    className="bg-[#00C897] text-white px-3 md:px-4 py-2 md:py-2.5 rounded-lg hover:bg-[#00B184] transition shadow-sm flex items-center justify-center"
+                  >
+                    <Plus className="w-4 h-4 md:w-5 md:h-5" />
+                  </button>
+                  {howToUse.length > 1 && (
+                    <button
+                      onClick={() => removeArrayItem(howToUse, setHowToUse, index)}
+                      type="button"
+                      className="bg-[#E53935] text-white px-3 md:px-4 py-2 md:py-2.5 rounded-lg hover:bg-[#D32F2F] transition shadow-sm flex items-center justify-center"
+                    >
+                      <X className="w-4 h-4 md:w-5 md:h-5" />
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          </section>
+
+          {/* Section 8: Safety Tips */}
+          <section>
+            <h2 className="text-base md:text-lg font-semibold text-[#0C0C0C] mb-4 md:mb-6 pb-2 border-b border-[#E0E0E0]">Safety Tips (Optional)</h2>
+            <div className="space-y-2">
+              {safetyTips.map((tip, index) => (
+                <div key={index} className="flex gap-2">
+                  <div className="flex items-center justify-center w-8 h-10 bg-[#FF9F43] text-white rounded-lg flex-shrink-0">
+                    ⚠️
+                  </div>
+                  <input
+                    type="text"
+                    placeholder="e.g., Always switch off power before handling"
+                    value={tip}
+                    onChange={(e) => updateArrayItem(safetyTips, setSafetyTips, index, e.target.value)}
+                    className="flex-1 px-3 text-gray-700 md:px-4 py-2 md:py-2.5 text-sm md:text-base border border-[#E0E0E0] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00C897] focus:border-transparent transition"
+                  />
+                  <button
+                    onClick={() => addArrayItem(safetyTips, setSafetyTips)}
+                    type="button"
+                    className="bg-[#00C897] text-white px-3 md:px-4 py-2 md:py-2.5 rounded-lg hover:bg-[#00B184] transition shadow-sm flex items-center justify-center"
+                  >
+                    <Plus className="w-4 h-4 md:w-5 md:h-5" />
+                  </button>
+                  {safetyTips.length > 1 && (
+                    <button
+                      onClick={() => removeArrayItem(safetyTips, setSafetyTips, index)}
+                      type="button"
+                      className="bg-[#E53935] text-white px-3 md:px-4 py-2 md:py-2.5 rounded-lg hover:bg-[#D32F2F] transition shadow-sm flex items-center justify-center"
+                    >
+                      <X className="w-4 h-4 md:w-5 md:h-5" />
+                    </button>
+                  )}
+                </div>
+              ))}
             </div>
           </section>
 

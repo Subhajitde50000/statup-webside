@@ -139,7 +139,7 @@ export default function ProductListPage() {
                 placeholder="Search"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-12 pr-4 py-3 border border-[#E0E0E0] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00C897] focus:border-transparent transition"
+                className="w-full pl-12 pr-4 py-3 text-gray-700 border border-[#E0E0E0] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00C897] focus:border-transparent transition"
               />
             </div>
 

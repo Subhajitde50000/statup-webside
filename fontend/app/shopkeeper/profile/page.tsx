@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Edit2, MapPin, Upload, X, Camera, Clock, Check, Copy, Calendar, Save, AlertCircle, CheckCircle2, Building2, Mail, Phone as PhoneIcon, FileText, Image as ImageIcon, RefreshCw, CreditCard, ShieldCheck } from 'lucide-react';
+import { Edit2, MapPin, Upload, X, Camera, Clock, Check, Copy, Calendar, Save, AlertCircle, CheckCircle2, Building2, Mail, Phone as PhoneIcon, FileText, Image as ImageIcon, RefreshCw, CreditCard, ShieldCheck, ChevronRight } from 'lucide-react';
 import ShopkeeperNavbar from '../components/ShopkeeperNavbar';
 import Link from 'next/link';
 
@@ -28,6 +28,9 @@ export default function ShopProfilePage() {
   const [profilePhotoFile, setProfilePhotoFile] = useState<File | null>(null);
   const [profilePhotoPreview, setProfilePhotoPreview] = useState<string | null>(null);
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+  const [bannerPhotoFile, setBannerPhotoFile] = useState<File | null>(null);
+  const [bannerPhotoPreview, setBannerPhotoPreview] = useState<string | null>(null);
+  const [isUploadingBanner, setIsUploadingBanner] = useState(false);
   
   const [shopData, setShopData] = useState({
     shopName: '',
@@ -120,6 +123,24 @@ export default function ShopProfilePage() {
     }
   };
 
+  const handleBannerPhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        alert('Please select an image file');
+        return;
+      }
+      // Validate file size (max 10MB for banner)
+      if (file.size > 10 * 1024 * 1024) {
+        alert('Image size should be less than 10MB');
+        return;
+      }
+      setBannerPhotoFile(file);
+      setBannerPhotoPreview(URL.createObjectURL(file));
+    }
+  };
+
   const handleProfilePhotoUpload = async () => {
     if (!profilePhotoFile) return;
 
@@ -163,6 +184,52 @@ export default function ShopProfilePage() {
   const cancelProfilePhotoUpload = () => {
     setProfilePhotoFile(null);
     setProfilePhotoPreview(null);
+  };
+
+  const handleBannerPhotoUpload = async () => {
+    if (!bannerPhotoFile) return;
+
+    setIsUploadingBanner(true);
+    try {
+      const token = localStorage.getItem('access_token');
+      if (!token) {
+        alert('Please login again');
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append('file', bannerPhotoFile);
+
+      // Note: You'll need to create this endpoint in your backend
+      const response = await fetch('http://localhost:8000/api/users/upload-banner-image', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Failed to upload banner');
+      }
+
+      await fetchUserProfile();
+      setBannerPhotoFile(null);
+      setBannerPhotoPreview(null);
+      setShowSuccessMessage(true);
+      setTimeout(() => setShowSuccessMessage(false), 4000);
+    } catch (err) {
+      console.error('Error uploading banner:', err);
+      alert(err instanceof Error ? err.message : 'Failed to upload banner');
+    } finally {
+      setIsUploadingBanner(false);
+    }
+  };
+
+  const cancelBannerPhotoUpload = () => {
+    setBannerPhotoFile(null);
+    setBannerPhotoPreview(null);
   };
 
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -329,7 +396,7 @@ export default function ShopProfilePage() {
         <ShopkeeperNavbar />
         <div className="min-h-screen bg-[#F8F8F8] flex items-center justify-center">
           <div className="text-center">
-            <RefreshCw className="w-12 h-12 text-[#FF7A22] animate-spin mx-auto mb-4" />
+            <RefreshCw className="w-12 h-12 text-[#00C897] animate-spin mx-auto mb-4" />
             <p className="text-[#777777]">Loading profile...</p>
           </div>
         </div>
@@ -356,7 +423,7 @@ export default function ShopProfilePage() {
           <div className="max-w-7xl mx-auto flex items-center justify-between">
             <div>
               <h1 className="text-2xl lg:text-3xl font-bold text-[#1F1F1F] flex items-center space-x-3">
-                <Building2 className="w-8 h-8 text-[#FF7A22]" />
+                <Building2 className="w-8 h-8 text-[#00C897]" />
                 <span>Shop Profile</span>
               </h1>
               <p className="text-sm lg:text-base text-[#777777] mt-2">
@@ -366,7 +433,7 @@ export default function ShopProfilePage() {
             {!isEditing && (
               <button
                 onClick={() => setIsEditing(true)}
-                className="bg-[#FF7A22] text-white px-4 md:px-6 py-2.5 md:py-3 rounded-lg font-semibold hover:bg-[#E66A12] transition-all duration-200 shadow-md hover:shadow-lg flex items-center space-x-2"
+                className="bg-[#00C897] text-white px-4 md:px-6 py-2.5 md:py-3 rounded-lg font-semibold hover:bg-[#E66A12] transition-all duration-200 shadow-md hover:shadow-lg flex items-center space-x-2"
               >
                 <Edit2 className="w-4 h-4 md:w-5 md:h-5" />
                 <span className="hidden md:inline">Edit Profile</span>
@@ -383,8 +450,8 @@ export default function ShopProfilePage() {
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 md:p-6 lg:p-8">
               <div className="flex items-center justify-between mb-6 pb-4 border-b border-gray-200">
                 <div className="flex items-center space-x-3">
-                  <div className="bg-[#FF7A22]/10 p-3 rounded-xl">
-                    <Camera className="w-6 h-6 text-[#FF7A22]" />
+                  <div className="bg-[#00C897]/10 p-3 rounded-xl">
+                    <Camera className="w-6 h-6 text-[#00C897]" />
                   </div>
                   <div>
                     <h2 className="text-lg lg:text-xl font-bold text-[#1F1F1F]">Profile Photo</h2>
@@ -396,13 +463,13 @@ export default function ShopProfilePage() {
               <div className="flex flex-col md:flex-row items-center gap-6">
                 {/* Current Photo */}
                 <div className="relative">
-                  <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-[#FF7A22] bg-gray-100 flex items-center justify-center">
+                  <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-[#00C897] bg-gray-100 flex items-center justify-center">
                     {profilePhotoPreview ? (
                       <img src={profilePhotoPreview} alt="Preview" className="w-full h-full object-cover" />
                     ) : userProfile?.profile_image ? (
                       <img src={`http://localhost:8000${userProfile.profile_image}`} alt={userProfile.name} className="w-full h-full object-cover" />
                     ) : (
-                      <div className="w-full h-full bg-[#FF7A22] flex items-center justify-center text-white text-3xl font-bold">
+                      <div className="w-full h-full bg-[#00C897] flex items-center justify-center text-white text-3xl font-bold">
                         {shopData.shopName.charAt(0).toUpperCase()}
                       </div>
                     )}
@@ -450,7 +517,7 @@ export default function ShopProfilePage() {
                       <p className="text-sm text-[#777777]">
                         Choose a photo that represents your shop. Accepted formats: JPG, PNG (max 5MB)
                       </p>
-                      <label className="inline-flex items-center space-x-2 bg-[#FF7A22] text-white px-6 py-2.5 rounded-lg font-semibold hover:bg-[#E66A12] transition-all duration-200 shadow-md hover:shadow-lg cursor-pointer">
+                      <label className="inline-flex items-center space-x-2 bg-[#00C897] text-white px-6 py-2.5 rounded-lg font-semibold hover:bg-[#E66A12] transition-all duration-200 shadow-md hover:shadow-lg cursor-pointer">
                         <Camera className="w-4 h-4" />
                         <span>Choose Photo</span>
                         <input
@@ -466,12 +533,122 @@ export default function ShopProfilePage() {
               </div>
             </div>
 
+            {/* Banner/Background Photo Section */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 md:p-6 lg:p-8">
+              <div className="flex items-center justify-between mb-6 pb-4 border-b border-gray-200">
+                <div className="flex items-center space-x-3">
+                  <div className="bg-[#4A90E2]/10 p-3 rounded-xl">
+                    <ImageIcon className="w-6 h-6 text-[#4A90E2]" />
+                  </div>
+                  <div>
+                    <h2 className="text-lg lg:text-xl font-bold text-[#1F1F1F]">Banner Photo</h2>
+                    <p className="text-xs text-[#777777] mt-0.5">Cover image for your shop profile</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Banner Preview */}
+              <div className="mb-6">
+                <div className="relative w-full h-48 md:h-64 rounded-xl overflow-hidden border-4 border-gray-200 bg-gradient-to-r from-[#00C897]/20 to-[#4A90E2]/20">
+                  {bannerPhotoPreview ? (
+                    <img src={bannerPhotoPreview} alt="Banner Preview" className="w-full h-full object-cover" />
+                  ) : userProfile?.profile_image ? (
+                    <div className="w-full h-full bg-gradient-to-br from-[#1F1F1F] via-[#2E2E2E] to-[#1F1F1F] flex items-center justify-center">
+                      <div className="text-center space-y-2">
+                        <Building2 className="w-16 h-16 text-[#00C897] mx-auto" />
+                        <p className="text-white text-xl font-bold">{shopData.shopName}</p>
+                        <p className="text-gray-400 text-sm">{shopData.category}</p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="w-full h-full bg-gradient-to-br from-[#00C897] via-[#E66A12] to-[#00C897] flex items-center justify-center">
+                      <div className="text-center space-y-2">
+                        <Building2 className="w-16 h-16 text-white mx-auto" />
+                        <p className="text-white text-xl font-bold">{shopData.shopName}</p>
+                        <p className="text-orange-100 text-sm">{shopData.category}</p>
+                      </div>
+                    </div>
+                  )}
+                  {/* Overlay hint */}
+                  {!bannerPhotoPreview && (
+                    <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
+                      <div className="text-center">
+                        <Camera className="w-12 h-12 text-white mx-auto mb-2" />
+                        <p className="text-white text-sm font-semibold">Upload Banner Image</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Upload Controls */}
+              <div>
+                {bannerPhotoFile ? (
+                  <div className="space-y-3">
+                    <p className="text-sm text-[#28C76F] font-medium flex items-center gap-2">
+                      <CheckCircle2 className="w-4 h-4" />
+                      Banner selected: {bannerPhotoFile.name}
+                    </p>
+                    <div className="flex items-center gap-3">
+                      <button
+                        onClick={handleBannerPhotoUpload}
+                        disabled={isUploadingBanner}
+                        className="bg-[#28C76F] text-white px-6 py-2.5 rounded-lg font-semibold hover:bg-[#22A55D] transition-all duration-200 shadow-md hover:shadow-lg flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {isUploadingBanner ? (
+                          <>
+                            <RefreshCw className="w-4 h-4 animate-spin" />
+                            <span>Uploading...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Upload className="w-4 h-4" />
+                            <span>Upload Banner</span>
+                          </>
+                        )}
+                      </button>
+                      <button
+                        onClick={cancelBannerPhotoUpload}
+                        disabled={isUploadingBanner}
+                        className="bg-gray-200 text-[#2E2E2E] px-6 py-2.5 rounded-lg font-semibold hover:bg-gray-300 transition-all duration-200 flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        <X className="w-4 h-4" />
+                        <span>Cancel</span>
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <p className="text-sm text-[#777777]">
+                      Upload a banner image for your shop profile. Recommended size: 1200x400px. Accepted formats: JPG, PNG (max 10MB)
+                    </p>
+                    <div className="flex flex-wrap gap-3">
+                      <label className="inline-flex items-center space-x-2 bg-[#4A90E2] text-white px-6 py-2.5 rounded-lg font-semibold hover:bg-[#357ABD] transition-all duration-200 shadow-md hover:shadow-lg cursor-pointer">
+                        <ImageIcon className="w-4 h-4" />
+                        <span>Choose Banner</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleBannerPhotoSelect}
+                          className="hidden"
+                        />
+                      </label>
+                      <div className="flex items-center gap-2 text-xs text-[#777777] bg-gray-50 px-4 py-2.5 rounded-lg">
+                        <AlertCircle className="w-4 h-4" />
+                        <span>This will appear on your public shop profile</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
             {/* Shop Details Card */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 md:p-6 lg:p-8">
               <div className="flex items-center justify-between mb-6 pb-4 border-b border-gray-200">
                 <div className="flex items-center space-x-3">
-                  <div className="bg-[#FF7A22]/10 p-3 rounded-xl">
-                    <Building2 className="w-6 h-6 text-[#FF7A22]" />
+                  <div className="bg-[#00C897]/10 p-3 rounded-xl">
+                    <Building2 className="w-6 h-6 text-[#00C897]" />
                   </div>
                   <div>
                     <h2 className="text-lg lg:text-xl font-bold text-[#1F1F1F]">Shop Details</h2>
@@ -500,7 +677,7 @@ export default function ShopProfilePage() {
                     disabled={!isEditing}
                     placeholder="Enter shop name"
                     className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 disabled:bg-gray-50 disabled:text-gray-600 transition ${
-                      errors.shopName ? 'border-[#EA5455] focus:ring-[#EA5455]' : 'border-gray-300 focus:ring-[#FF7A22] focus:border-transparent'
+                      errors.shopName ? 'border-[#EA5455] focus:ring-[#EA5455]' : 'border-gray-300 focus:ring-[#00C897] focus:border-transparent'
                     }`}
                   />
                   {errors.shopName && (
@@ -524,7 +701,7 @@ export default function ShopProfilePage() {
                     disabled={!isEditing}
                     placeholder="shop@example.com"
                     className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 disabled:bg-gray-50 disabled:text-gray-600 transition ${
-                      errors.email ? 'border-[#EA5455] focus:ring-[#EA5455]' : 'border-gray-300 focus:ring-[#FF7A22] focus:border-transparent'
+                      errors.email ? 'border-[#EA5455] focus:ring-[#EA5455]' : 'border-gray-300 focus:ring-[#00C897] focus:border-transparent'
                     }`}
                   />
                   {errors.email && (
@@ -546,7 +723,7 @@ export default function ShopProfilePage() {
                       value={shopData.countryCode}
                       onChange={(e) => setShopData({ ...shopData, countryCode: e.target.value })}
                       disabled={!isEditing}
-                      className="w-24 px-3 py-3 border border-gray-300 rounded-lg bg-gray-50 text-sm font-medium text-[#2E2E2E] focus:outline-none focus:ring-2 focus:ring-[#FF7A22] disabled:opacity-60"
+                      className="w-24 px-3 py-3 border border-gray-300 rounded-lg bg-gray-50 text-sm font-medium text-[#2E2E2E] focus:outline-none focus:ring-2 focus:ring-[#00C897] disabled:opacity-60"
                     >
                       <option value="+91">🇮🇳 +91</option>
                       <option value="+1">🇺🇸 +1</option>
@@ -561,7 +738,7 @@ export default function ShopProfilePage() {
                       placeholder="9876543210"
                       maxLength={10}
                       className={`flex-1 px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 disabled:bg-gray-50 disabled:text-gray-600 transition ${
-                        errors.phone ? 'border-[#EA5455] focus:ring-[#EA5455]' : 'border-gray-300 focus:ring-[#FF7A22] focus:border-transparent'
+                        errors.phone ? 'border-[#EA5455] focus:ring-[#EA5455]' : 'border-gray-300 focus:ring-[#00C897] focus:border-transparent'
                       }`}
                     />
                   </div>
@@ -582,7 +759,7 @@ export default function ShopProfilePage() {
                     value={shopData.category}
                     onChange={(e) => handleInputChange('category', e.target.value)}
                     disabled={!isEditing}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF7A22] disabled:bg-gray-50 disabled:text-gray-600 transition"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00C897] disabled:bg-gray-50 disabled:text-gray-600 transition"
                   >
                     <option value="Electrical & Hardware">Electrical & Hardware</option>
                     <option value="Electronics">Electronics</option>
@@ -605,7 +782,7 @@ export default function ShopProfilePage() {
                     disabled={!isEditing}
                     placeholder="2015"
                     maxLength={4}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF7A22] disabled:bg-gray-50 disabled:text-gray-600 transition"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00C897] disabled:bg-gray-50 disabled:text-gray-600 transition"
                   />
                 </div>
 
@@ -623,7 +800,7 @@ export default function ShopProfilePage() {
                     placeholder="07AAACA8765D1Z4"
                     maxLength={15}
                     className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 disabled:bg-gray-50 disabled:text-gray-600 transition uppercase ${
-                      errors.gstNumber ? 'border-[#EA5455] focus:ring-[#EA5455]' : 'border-gray-300 focus:ring-[#FF7A22] focus:border-transparent'
+                      errors.gstNumber ? 'border-[#EA5455] focus:ring-[#EA5455]' : 'border-gray-300 focus:ring-[#00C897] focus:border-transparent'
                     }`}
                   />
                   {errors.gstNumber && (
@@ -664,7 +841,7 @@ export default function ShopProfilePage() {
                     placeholder="Enter complete address with landmark (Shop No., Street, Area, City, State, PIN Code)"
                     rows={3}
                     className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 disabled:bg-gray-50 disabled:text-gray-600 transition resize-none ${
-                      errors.address ? 'border-[#EA5455] focus:ring-[#EA5455]' : 'border-gray-300 focus:ring-[#FF7A22] focus:border-transparent'
+                      errors.address ? 'border-[#EA5455] focus:ring-[#EA5455]' : 'border-gray-300 focus:ring-[#00C897] focus:border-transparent'
                     }`}
                   />
                   {errors.address && (
@@ -682,8 +859,8 @@ export default function ShopProfilePage() {
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 md:p-6 lg:p-8">
               <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 pb-4 border-b border-gray-200 gap-3">
                 <div className="flex items-center space-x-3">
-                  <div className="bg-[#FF7A22]/10 p-3 rounded-xl">
-                    <Camera className="w-6 h-6 text-[#FF7A22]" />
+                  <div className="bg-[#00C897]/10 p-3 rounded-xl">
+                    <Camera className="w-6 h-6 text-[#00C897]" />
                   </div>
                   <div>
                     <h2 className="text-lg lg:text-xl font-bold text-[#1F1F1F]">Shop Photos</h2>
@@ -704,9 +881,9 @@ export default function ShopProfilePage() {
                     <img
                       src={photo}
                       alt={`Shop ${index + 1}`}
-                      className="w-full h-full object-cover rounded-xl border-2 border-gray-200 group-hover:border-[#FF7A22] transition"
+                      className="w-full h-full object-cover rounded-xl border-2 border-gray-200 group-hover:border-[#00C897] transition"
                     />
-                    <div className="absolute top-2 left-2 bg-[#FF7A22] text-white text-xs font-bold px-2 py-1 rounded-md">
+                    <div className="absolute top-2 left-2 bg-[#00C897] text-white text-xs font-bold px-2 py-1 rounded-md">
                       #{index + 1}
                     </div>
                     {isEditing && (
@@ -754,10 +931,10 @@ export default function ShopProfilePage() {
                     />
                     <label
                       htmlFor="add-photo"
-                      className="w-full h-full border-2 border-dashed border-[#FF7A22] rounded-xl flex flex-col items-center justify-center cursor-pointer hover:bg-[#FF7A22]/5 transition group"
+                      className="w-full h-full border-2 border-dashed border-[#00C897] rounded-xl flex flex-col items-center justify-center cursor-pointer hover:bg-[#00C897]/5 transition group"
                     >
-                      <Upload className="w-8 h-8 text-[#FF7A22] mb-2 group-hover:scale-110 transition" />
-                      <span className="text-sm font-medium text-[#FF7A22]">Add Photo</span>
+                      <Upload className="w-8 h-8 text-[#00C897] mb-2 group-hover:scale-110 transition" />
+                      <span className="text-sm font-medium text-[#00C897]">Add Photo</span>
                     </label>
                   </div>
                 )}
@@ -768,8 +945,8 @@ export default function ShopProfilePage() {
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 md:p-6 lg:p-8">
               <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 pb-4 border-b border-gray-200 gap-3">
                 <div className="flex items-center space-x-3">
-                  <div className="bg-[#FF7A22]/10 p-3 rounded-xl">
-                    <Clock className="w-6 h-6 text-[#FF7A22]" />
+                  <div className="bg-[#00C897]/10 p-3 rounded-xl">
+                    <Clock className="w-6 h-6 text-[#00C897]" />
                   </div>
                   <div>
                     <h2 className="text-lg lg:text-xl font-bold text-[#1F1F1F]">Operating Hours</h2>
@@ -879,6 +1056,45 @@ export default function ShopProfilePage() {
                 ))}
               </div>
             </div>
+
+            {/* Quick Links Section - Mobile Only */}
+            <div className="lg:hidden space-y-4">
+              {/* Payments Link */}
+              <Link href="/shopkeeper/payments">
+                <div className="bg-gradient-to-r from-emerald-500 to-teal-600 rounded-2xl shadow-lg p-6 hover:shadow-xl transition-all">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      <div className="bg-white/20 p-3 rounded-xl backdrop-blur-sm">
+                        <CreditCard className="w-6 h-6 text-white" />
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-bold text-white">Payment History</h3>
+                        <p className="text-sm text-emerald-100 mt-1">View all transactions</p>
+                      </div>
+                    </div>
+                    <ChevronRight className="w-6 h-6 text-white" />
+                  </div>
+                </div>
+              </Link>
+
+              {/* Subscription Link */}
+              <Link href="/shopkeeper/subscription">
+                <div className="bg-gradient-to-r from-[#00C897] to-[#E66A12] rounded-2xl shadow-lg p-6 hover:shadow-xl transition-all">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      <div className="bg-white/20 p-3 rounded-xl backdrop-blur-sm">
+                        <ShieldCheck className="w-6 h-6 text-white" />
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-bold text-white">Subscription Plans</h3>
+                        <p className="text-sm text-orange-100 mt-1">Manage your subscription</p>
+                      </div>
+                    </div>
+                    <ChevronRight className="w-6 h-6 text-white" />
+                  </div>
+                </div>
+              </Link>
+            </div>
           </div>
         </div>
 
@@ -903,7 +1119,7 @@ export default function ShopProfilePage() {
                   <button
                     onClick={handleSave}
                     disabled={isSaving}
-                    className="flex-1 sm:flex-initial sm:w-44 px-6 py-3 bg-[#FF7A22] text-white rounded-lg font-semibold hover:bg-[#E66A12] transition shadow-md hover:shadow-lg disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
+                    className="flex-1 sm:flex-initial sm:w-44 px-6 py-3 bg-[#00C897] text-white rounded-lg font-semibold hover:bg-[#E66A12] transition shadow-md hover:shadow-lg disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
                   >
                     {isSaving ? (
                       <>
@@ -922,26 +1138,6 @@ export default function ShopProfilePage() {
             </div>
           </div>
         )}
-      </div>
-
-      {/* Subscription Section - Mobile Only */}
-      <div className="lg:hidden px-4 pb-6">
-        <Link href="/shopkeeper/subscription">
-          <div className="bg-gradient-to-r from-[#FF7A22] to-[#E66A12] rounded-2xl shadow-lg p-6 hover:shadow-xl transition-all">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className="bg-white/20 p-3 rounded-xl backdrop-blur-sm">
-                  <CreditCard className="w-6 h-6 text-white" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-bold text-white">Subscription Plans</h3>
-                  <p className="text-sm text-orange-100 mt-1">Manage your subscription</p>
-                </div>
-              </div>
-              <ShieldCheck className="w-6 h-6 text-white" />
-            </div>
-          </div>
-        </Link>
       </div>
     </>
   );

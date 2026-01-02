@@ -2,12 +2,24 @@
 
 import React, { useState } from 'react';
 import { Store, Bell, MessageCircle, User, ChevronDown, Home, Package, BarChart3 } from 'lucide-react';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
 
 export default function ShopkeeperNavbar() {
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const pathname = usePathname();
+  const router = useRouter();
+
+  const handleLogout = () => {
+    // Clear authentication data
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    localStorage.removeItem('shopkeeperData');
+    sessionStorage.clear();
+    
+    // Redirect to main home page
+    router.push('/');
+  };
 
   return (
     <>
@@ -77,17 +89,42 @@ export default function ShopkeeperNavbar() {
             {/* Right - Icons & Profile */}
             <div className="flex items-center space-x-6">
               {/* Notifications */}
-              <button className="relative hover:bg-gray-100 p-2 rounded-lg transition">
-                <Bell className="w-6 h-6 text-[#555555]" />
+              <Link
+                href="/shopkeeper/notifications"
+                className={`relative p-2 rounded-lg transition ${
+                  pathname?.startsWith('/shopkeeper/notifications')
+                    ? 'bg-[#00C897]/10'
+                    : 'hover:bg-gray-100'
+                }`}
+              >
+                <Bell className={`w-6 h-6 ${
+                  pathname?.startsWith('/shopkeeper/notifications')
+                    ? 'text-[#00C897]'
+                    : 'text-[#555555]'
+                }`} />
                 <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold">
                   1
                 </span>
-              </button>
+              </Link>
 
               {/* Messages */}
-              <button className="relative hover:bg-gray-100 p-2 rounded-lg transition">
-                <MessageCircle className="w-6 h-6 text-[#555555]" />
-              </button>
+              <Link 
+                href="/shopkeeper/messages"
+                className={`relative p-2 rounded-lg transition ${
+                  pathname?.startsWith('/shopkeeper/messages') 
+                    ? 'bg-[#00C897]/10' 
+                    : 'hover:bg-gray-100'
+                }`}
+              >
+                <MessageCircle className={`w-6 h-6 ${
+                  pathname?.startsWith('/shopkeeper/messages')
+                    ? 'text-[#00C897]'
+                    : 'text-[#555555]'
+                }`} />
+                <span className="absolute -top-1 -right-1 bg-[#00C897] text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold">
+                  11
+                </span>
+              </Link>
 
               {/* Profile Dropdown */}
               <div className="relative">
@@ -119,7 +156,7 @@ export default function ShopkeeperNavbar() {
                     </Link>
                     <hr className="my-2" />
                     <button
-                      onClick={() => alert('Logout functionality')}
+                      onClick={handleLogout}
                       className="block w-full text-left px-4 py-2 text-red-600 hover:bg-gray-100 transition"
                     >
                       Logout
@@ -146,12 +183,23 @@ export default function ShopkeeperNavbar() {
 
             {/* Notifications */}
             <div className="flex items-center space-x-3">
-              <button className="relative hover:bg-gray-100 p-2 rounded-lg transition">
-                <Bell className="w-5 h-5 text-[#555555]" />
+              <Link
+                href="/shopkeeper/notifications"
+                className={`relative p-2 rounded-lg transition ${
+                  pathname?.startsWith('/shopkeeper/notifications')
+                    ? 'bg-[#00C897]/10'
+                    : 'hover:bg-gray-100'
+                }`}
+              >
+                <Bell className={`w-5 h-5 ${
+                  pathname?.startsWith('/shopkeeper/notifications')
+                    ? 'text-[#00C897]'
+                    : 'text-[#555555]'
+                }`} />
                 <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center font-bold text-[10px]">
                   1
                 </span>
-              </button>
+              </Link>
             </div>
           </div>
         </div>
@@ -159,7 +207,7 @@ export default function ShopkeeperNavbar() {
 
       {/* Mobile/Tablet Bottom Navigation */}
       <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg z-50">
-        <div className="grid grid-cols-4 gap-1">
+        <div className="grid grid-cols-5 gap-1">
           {/* Home */}
           <Link 
             href="/shopkeeper" 
@@ -190,7 +238,7 @@ export default function ShopkeeperNavbar() {
             }`}>Orders</span>
           </Link>
 
-          {/* Inventory */}
+          {/* Products */}
           <Link 
             href="/shopkeeper/products" 
             className={`relative flex flex-col items-center justify-center py-3 px-2 hover:bg-gray-50 transition ${
@@ -203,6 +251,26 @@ export default function ShopkeeperNavbar() {
             <span className={`text-xs ${
               pathname?.startsWith('/shopkeeper/products') ? 'text-[#00C897] font-medium' : 'text-[#555555]'
             }`}>Products</span>
+          </Link>
+
+          {/* Messages */}
+          <Link 
+            href="/shopkeeper/messages" 
+            className={`relative flex flex-col items-center justify-center py-3 px-2 hover:bg-gray-50 transition ${
+              pathname?.startsWith('/shopkeeper/messages') ? 'bg-[#00C897]/10' : ''
+            }`}
+          >
+            <MessageCircle className={`w-6 h-6 mb-1 ${
+              pathname?.startsWith('/shopkeeper/messages') ? 'text-[#00C897]' : 'text-[#555555]'
+            }`} />
+            {11 > 0 && (
+              <span className="absolute top-1 right-1/4 bg-[#E53935] text-white text-[10px] rounded-full w-4 h-4 flex items-center justify-center font-bold">
+                11
+              </span>
+            )}
+            <span className={`text-xs ${
+              pathname?.startsWith('/shopkeeper/messages') ? 'text-[#00C897] font-medium' : 'text-[#555555]'
+            }`}>Messages</span>
           </Link>
 
           {/* Profile */}

@@ -49,7 +49,27 @@ const MOCK_STORE_DATA = {
       warranty: 'We honor manufacturer warranties. Extended warranty available on select products.',
       delivery: 'We deliver within 5km radius. Free delivery on orders above ₹499.',
       cancellation: 'Orders can be cancelled within 1 hour of placement for full refund.'
-    }
+    },
+    
+    about: {
+      fullDescription: 'Prime Electronics Store has been serving Mumbai with quality electrical products since 2021. We are an official authorized dealer for leading brands like Philips, Anchor, Polycab, and more. Our mission is to provide genuine products at competitive prices with excellent customer service.',
+      specialties: ['Electrical Supplies', 'Professional Tools', 'Home Automation', 'Safety Equipment'],
+      paymentMethods: ['Cash', 'Card', 'UPI', 'Net Banking', 'Wallets'],
+      workingDays: 'Monday - Sunday',
+      established: '2021',
+      ownerName: 'Rajesh Sharma',
+      email: 'contact@primeelectronics.com',
+      address: 'Shop No. 15, Ground Floor, Andheri Link Road, Andheri West, Mumbai - 400053'
+    },
+    
+    shopPhotos: [
+      { id: 1, url: 'https://placehold.co/800x600', caption: 'Store Front View' },
+      { id: 2, url: 'https://placehold.co/800x600', caption: 'Interior - Product Display' },
+      { id: 3, url: 'https://placehold.co/800x600', caption: 'Tools Section' },
+      { id: 4, url: 'https://placehold.co/800x600', caption: 'Lighting Products' },
+      { id: 5, url: 'https://placehold.co/800x600', caption: 'Customer Service Area' },
+      { id: 6, url: 'https://placehold.co/800x600', caption: 'Warehouse' }
+    ]
   },
   2: {
     id: 2,
@@ -93,7 +113,26 @@ const MOCK_STORE_DATA = {
       warranty: 'We honor all manufacturer warranties and provide assistance with warranty claims.',
       delivery: 'We deliver within 8km radius. Free delivery on orders above ₹599.',
       cancellation: 'Orders can be cancelled within 2 hours of placement for full refund.'
-    }
+    },
+    
+    about: {
+      fullDescription: 'City Electrical Mart is your trusted partner for all electrical solutions in Mumbai. Established in 2019, we have built a reputation for quality products and exceptional service. We stock a wide range of electrical items from top brands.',
+      specialties: ['Electrical Components', 'LED Lighting', 'Wiring Solutions', 'Circuit Protection'],
+      paymentMethods: ['Cash', 'Card', 'UPI', 'Net Banking'],
+      workingDays: 'Monday - Sunday',
+      established: '2019',
+      ownerName: 'Amit Patel',
+      email: 'info@cityelectrical.com',
+      address: 'Shop No. 8, Building A, Bandra Kurla Complex, Bandra East, Mumbai - 400051'
+    },
+    
+    shopPhotos: [
+      { id: 1, url: 'https://placehold.co/800x600', caption: 'Main Store Entrance' },
+      { id: 2, url: 'https://placehold.co/800x600', caption: 'Product Showroom' },
+      { id: 3, url: 'https://placehold.co/800x600', caption: 'LED Display Section' },
+      { id: 4, url: 'https://placehold.co/800x600', caption: 'Wire & Cable Department' },
+      { id: 5, url: 'https://placehold.co/800x600', caption: 'Billing Counter' }
+    ]
   }
 };
 
@@ -156,6 +195,9 @@ export default function StoreViewPage() {
   const [reviewSort, setReviewSort] = useState('recent');
   const [expandedPolicy, setExpandedPolicy] = useState(null);
   const [showMobileActions, setShowMobileActions] = useState(true);
+  const [showAboutShop, setShowAboutShop] = useState(false);
+  const [showShopPhotos, setShowShopPhotos] = useState(false);
+  const [selectedPhoto, setSelectedPhoto] = useState(null);
 
   const categories = [
     'All Products',
@@ -391,6 +433,261 @@ export default function StoreViewPage() {
           </div>
         </div>
       </div>
+
+      {/* About Shop Section */}
+      <div className="max-w-7xl mx-auto px-4 mt-6">
+        <div className="bg-white rounded-xl shadow-md overflow-hidden">
+          <button
+            onClick={() => setShowAboutShop(!showAboutShop)}
+            className="w-full px-6 py-4 flex items-center justify-between hover:bg-gray-50 transition"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-[#1E2A5E]/10 rounded-lg flex items-center justify-center">
+                <Package size={20} className="text-[#1E2A5E]" />
+              </div>
+              <div className="text-left">
+                <h3 className="text-lg font-bold text-[#1F2937]">About Shop</h3>
+                <p className="text-xs text-[#6B7280]">Store information and details</p>
+              </div>
+            </div>
+            <ChevronDown
+              size={24}
+              className={`text-[#1E2A5E] transition-transform ${showAboutShop ? 'rotate-180' : ''}`}
+            />
+          </button>
+
+          {showAboutShop && (
+            <div className="px-6 py-4 border-t border-gray-200 space-y-6 animate-in slide-in-from-top">
+              {/* Full Description */}
+              <div>
+                <h4 className="font-bold text-[#1F2937] mb-2 flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 bg-[#00BFA6] rounded-full"></span>
+                  About Us
+                </h4>
+                <p className="text-sm text-[#6B7280] leading-relaxed">{store.about.fullDescription}</p>
+              </div>
+
+              {/* Store Details Grid */}
+              <div className="grid md:grid-cols-2 gap-4">
+                {/* Left Column */}
+                <div className="space-y-3">
+                  <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
+                    <Clock size={18} className="text-[#00BFA6] flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-xs font-semibold text-[#1F2937] mb-1">Working Hours</p>
+                      <p className="text-xs text-[#6B7280]">{store.about.workingDays}</p>
+                      <p className="text-xs text-[#6B7280]">{store.openTime}</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
+                    <MapPin size={18} className="text-[#FF9F43] flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-xs font-semibold text-[#1F2937] mb-1">Address</p>
+                      <p className="text-xs text-[#6B7280]">{store.about.address}</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
+                    <Phone size={18} className="text-[#1E2A5E] flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-xs font-semibold text-[#1F2937] mb-1">Contact</p>
+                      <p className="text-xs text-[#6B7280]">{store.phone}</p>
+                      <p className="text-xs text-[#6B7280]">{store.about.email}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Right Column */}
+                <div className="space-y-3">
+                  <div className="p-3 bg-gray-50 rounded-lg">
+                    <p className="text-xs font-semibold text-[#1F2937] mb-2 flex items-center gap-2">
+                      <Star size={16} className="text-[#00BFA6]" />
+                      Specialties
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {store.about.specialties.map((specialty, idx) => (
+                        <span
+                          key={idx}
+                          className="px-2.5 py-1 bg-white text-[#1E2A5E] rounded-full text-xs font-semibold border border-[#1E2A5E]/20"
+                        >
+                          {specialty}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="p-3 bg-gray-50 rounded-lg">
+                    <p className="text-xs font-semibold text-[#1F2937] mb-2 flex items-center gap-2">
+                      <CheckCircle size={16} className="text-[#22C55E]" />
+                      Payment Methods
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {store.about.paymentMethods.map((method, idx) => (
+                        <span
+                          key={idx}
+                          className="px-2.5 py-1 bg-white text-[#00BFA6] rounded-full text-xs font-semibold border border-[#00BFA6]/20"
+                        >
+                          {method}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="p-3 bg-gray-50 rounded-lg">
+                    <p className="text-xs font-semibold text-[#1F2937] mb-2 flex items-center gap-2">
+                      <TrendingUp size={16} className="text-[#FF9F43]" />
+                      Business Info
+                    </p>
+                    <div className="space-y-1">
+                      <p className="text-xs text-[#6B7280]">
+                        <span className="font-semibold">Owner:</span> {store.about.ownerName}
+                      </p>
+                      <p className="text-xs text-[#6B7280]">
+                        <span className="font-semibold">Established:</span> {store.about.established}
+                      </p>
+                      <p className="text-xs text-[#6B7280]">
+                        <span className="font-semibold">Category:</span> {store.category}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Quick Actions */}
+              <div className="flex flex-wrap gap-2 pt-4 border-t border-gray-200">
+                <button
+                  onClick={handleCallStore}
+                  className="flex-1 min-w-[140px] px-4 py-2.5 bg-[#1E2A5E] text-white rounded-lg font-semibold hover:bg-[#2A3A7E] transition flex items-center justify-center gap-2"
+                >
+                  <Phone size={16} />
+                  Call Now
+                </button>
+                <button
+                  onClick={handleGetDirections}
+                  className="flex-1 min-w-[140px] px-4 py-2.5 bg-[#00BFA6] text-white rounded-lg font-semibold hover:bg-[#00A894] transition flex items-center justify-center gap-2"
+                >
+                  <Navigation size={16} />
+                  Get Directions
+                </button>
+                <button
+                  onClick={handleShare}
+                  className="flex-1 min-w-[140px] px-4 py-2.5 border-2 border-[#FF9F43] text-[#FF9F43] rounded-lg font-semibold hover:bg-[#FF9F43] hover:text-white transition flex items-center justify-center gap-2"
+                >
+                  <Share2 size={16} />
+                  Share Store
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Shop Photos Section */}
+      <div className="max-w-7xl mx-auto px-4 mt-6">
+        <div className="bg-white rounded-xl shadow-md overflow-hidden">
+          <button
+            onClick={() => setShowShopPhotos(!showShopPhotos)}
+            className="w-full px-6 py-4 flex items-center justify-between hover:bg-gray-50 transition"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-[#00BFA6]/10 rounded-lg flex items-center justify-center">
+                <Eye size={20} className="text-[#00BFA6]" />
+              </div>
+              <div className="text-left">
+                <h3 className="text-lg font-bold text-[#1F2937]">Shop Photos</h3>
+                <p className="text-xs text-[#6B7280]">{store.shopPhotos.length} photos available</p>
+              </div>
+            </div>
+            <ChevronDown
+              size={24}
+              className={`text-[#00BFA6] transition-transform ${showShopPhotos ? 'rotate-180' : ''}`}
+            />
+          </button>
+
+          {showShopPhotos && (
+            <div className="px-6 py-4 border-t border-gray-200">
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4">
+                {store.shopPhotos.map((photo) => (
+                  <div
+                    key={photo.id}
+                    onClick={() => setSelectedPhoto(photo)}
+                    className="relative aspect-[4/3] rounded-lg overflow-hidden cursor-pointer group"
+                  >
+                    <img
+                      src={photo.url}
+                      alt={photo.caption}
+                      className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className="absolute bottom-0 left-0 right-0 p-3">
+                        <p className="text-white text-sm font-semibold">{photo.caption}</p>
+                      </div>
+                    </div>
+                    <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className="p-2 bg-white/90 rounded-full backdrop-blur-sm">
+                        <Eye size={16} className="text-[#1E2A5E]" />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Photo Modal */}
+      {selectedPhoto && (
+        <div
+          className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4"
+          onClick={() => setSelectedPhoto(null)}
+        >
+          <button
+            onClick={() => setSelectedPhoto(null)}
+            className="absolute top-4 right-4 p-2 bg-white/10 backdrop-blur-sm rounded-full text-white hover:bg-white/20 transition"
+          >
+            <X size={24} />
+          </button>
+          <div className="max-w-5xl w-full" onClick={(e) => e.stopPropagation()}>
+            <img
+              src={selectedPhoto.url}
+              alt={selectedPhoto.caption}
+              className="w-full h-auto max-h-[80vh] object-contain rounded-lg"
+            />
+            <div className="mt-4 text-center">
+              <p className="text-white text-lg font-semibold">{selectedPhoto.caption}</p>
+              <div className="flex items-center justify-center gap-4 mt-4">
+                <button
+                  onClick={() => {
+                    const currentIndex = store.shopPhotos.findIndex(p => p.id === selectedPhoto.id);
+                    const prevIndex = currentIndex > 0 ? currentIndex - 1 : store.shopPhotos.length - 1;
+                    setSelectedPhoto(store.shopPhotos[prevIndex]);
+                  }}
+                  className="px-4 py-2 bg-white/10 backdrop-blur-sm text-white rounded-lg hover:bg-white/20 transition flex items-center gap-2"
+                >
+                  <ChevronDown size={18} className="rotate-90" />
+                  Previous
+                </button>
+                <span className="text-white text-sm">
+                  {store.shopPhotos.findIndex(p => p.id === selectedPhoto.id) + 1} / {store.shopPhotos.length}
+                </span>
+                <button
+                  onClick={() => {
+                    const currentIndex = store.shopPhotos.findIndex(p => p.id === selectedPhoto.id);
+                    const nextIndex = currentIndex < store.shopPhotos.length - 1 ? currentIndex + 1 : 0;
+                    setSelectedPhoto(store.shopPhotos[nextIndex]);
+                  }}
+                  className="px-4 py-2 bg-white/10 backdrop-blur-sm text-white rounded-lg hover:bg-white/20 transition flex items-center gap-2"
+                >
+                  Next
+                  <ChevronDown size={18} className="-rotate-90" />
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Store Stats Bar */}
       <div className="max-w-7xl mx-auto px-4 mt-6">

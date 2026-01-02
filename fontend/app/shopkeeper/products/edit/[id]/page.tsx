@@ -14,8 +14,10 @@ export default function EditProductPage() {
     name: 'Copper Wire Cable',
     category: 'Electrical',
     brand: 'Havells',
+    model: 'HVL-CW-10MM',
     warranty: '12 Months',
     price: '1000',
+    mrp: '1299',
     stockQuantity: '10',
     minReorderLevel: '5',
     description: 'High quality copper wire suitable for electrical installations.',
@@ -31,7 +33,33 @@ export default function EditProductPage() {
   const [specifications, setSpecifications] = useState([
     { field: 'Size', attribute: '10mm' },
     { field: 'Material', attribute: 'Copper' },
-    { field: 'Material', attribute: 'PVC Insulated' },
+    { field: 'Insulation', attribute: 'PVC Insulated' },
+  ]);
+
+  const [badges, setBadges] = useState<string[]>(['🔥 Best Seller', '🟢 In Stock']);
+  const [badgeInput, setBadgeInput] = useState('');
+  const [features, setFeatures] = useState<string[]>([
+    'High-grade electrolytic copper conductor',
+    'HRPVC insulation for durability',
+    'Suitable for concealed and surface wiring',
+    'Temperature rating: 70°C'
+  ]);
+  const [offers, setOffers] = useState<string[]>([
+    '💳 10% instant discount on HDFC Credit Cards',
+    '🎁 Buy 10 or more, get 15% bulk discount'
+  ]);
+  const [howToUse, setHowToUse] = useState<string[]>([
+    'Calculate wire length required for circuit',
+    'Turn off main power supply',
+    'Lay wire through conduit or surface',
+    'Strip insulation at connection points',
+    'Connect to MCB and outlets securely'
+  ]);
+  const [safetyTips, setSafetyTips] = useState<string[]>([
+    'Must be installed by licensed electrician',
+    'Use appropriate conductor size for load',
+    'Ensure proper earthing throughout',
+    'Protect from sharp edges and heat sources'
   ]);
 
   const categories = [
@@ -92,6 +120,42 @@ export default function EditProductPage() {
     setSpecifications(updated);
   };
 
+  const addBadge = () => {
+    if (badgeInput.trim() && badges.length < 5) {
+      setBadges([...badges, badgeInput.trim()]);
+      setBadgeInput('');
+    }
+  };
+
+  const removeBadge = (index: number) => {
+    setBadges(badges.filter((_, i) => i !== index));
+  };
+
+  const updateArrayItem = (array: string[], setArray: Function, index: number, value: string) => {
+    const updated = [...array];
+    updated[index] = value;
+    setArray(updated);
+  };
+
+  const addArrayItem = (array: string[], setArray: Function) => {
+    setArray([...array, '']);
+  };
+
+  const removeArrayItem = (array: string[], setArray: Function, index: number) => {
+    if (array.length > 1) {
+      setArray(array.filter((_, i) => i !== index));
+    }
+  };
+
+  const getDiscountPercentage = () => {
+    const price = parseFloat(productData.price);
+    const mrp = parseFloat(productData.mrp);
+    if (price && mrp && mrp > price) {
+      return Math.round(((mrp - price) / mrp) * 100);
+    }
+    return 0;
+  };
+
   const getStockColor = () => {
     const stock = parseInt(productData.stockQuantity) || 0;
     if (stock > 10) return 'text-[#4CAF50]';
@@ -105,8 +169,20 @@ export default function EditProductPage() {
   };
 
   const handleUpdate = () => {
-    console.log('Updated Product Data:', productData);
+    const productPayload = {
+      ...productData,
+      discount: getDiscountPercentage(),
+      badges,
+      features: features.filter(f => f.trim()),
+      offers: offers.filter(o => o.trim()),
+      howToUse: howToUse.filter(h => h.trim()),
+      safetyTips: safetyTips.filter(s => s.trim()),
+      specifications,
+      images
+    };
+    console.log('Updated Product Payload:', productPayload);
     alert('Product updated successfully!');
+    router.push('/shopkeeper/products');
   };
 
   const handleDelete = () => {
@@ -181,7 +257,7 @@ export default function EditProductPage() {
                   placeholder="Enter product name"
                   value={productData.name}
                   onChange={(e) => setProductData({ ...productData, name: e.target.value })}
-                  className="w-full px-4 py-3 border border-[#E0E0E0] rounded-lg focus:outline-none focus:border-[#00C897] transition"
+                  className="w-full px-4 py-3 text-gray-700 border border-[#E0E0E0] rounded-lg focus:outline-none focus:border-[#00C897] transition"
                 />
               </div>
 
@@ -191,7 +267,7 @@ export default function EditProductPage() {
                 <select
                   value={productData.category}
                   onChange={(e) => setProductData({ ...productData, category: e.target.value })}
-                  className="w-full px-4 py-3 border border-[#E0E0E0] rounded-lg focus:outline-none focus:border-[#00C897] bg-white transition"
+                  className="w-full px-4 py-3 text-gray-700 border border-[#E0E0E0] rounded-lg focus:outline-none focus:border-[#00C897] bg-white transition"
                 >
                   {categories.map((cat) => (
                     <option key={cat} value={cat}>{cat}</option>
@@ -204,10 +280,22 @@ export default function EditProductPage() {
                 <label className="text-sm font-medium text-[#0C0C0C] mb-2 block">Brand Name (Optional)</label>
                 <input
                   type="text"
-                  placeholder="Brand Name (Optional)"
+                  placeholder="e.g., Philips, Anchor, Polycab"
                   value={productData.brand}
                   onChange={(e) => setProductData({ ...productData, brand: e.target.value })}
-                  className="w-full px-4 py-3 border border-[#E0E0E0] rounded-lg focus:outline-none focus:border-[#00C897] transition"
+                  className="w-full px-4 py-3 text-gray-700 border border-[#E0E0E0] rounded-lg focus:outline-none focus:border-[#00C897] transition"
+                />
+              </div>
+
+              {/* Model Number */}
+              <div>
+                <label className="text-sm font-medium text-[#0C0C0C] mb-2 block">Model Number (Optional)</label>
+                <input
+                  type="text"
+                  placeholder="e.g., PHL-LED-9W-CDL"
+                  value={productData.model}
+                  onChange={(e) => setProductData({ ...productData, model: e.target.value })}
+                  className="w-full px-4 py-3 text-gray-700 border border-[#E0E0E0] rounded-lg focus:outline-none focus:border-[#00C897] transition"
                 />
               </div>
 
@@ -220,7 +308,7 @@ export default function EditProductPage() {
                 <select
                   value={productData.warranty}
                   onChange={(e) => setProductData({ ...productData, warranty: e.target.value })}
-                  className="w-full px-4 py-3 border border-[#E0E0E0] rounded-lg focus:outline-none focus:border-[#00C897] bg-white transition"
+                  className="w-full px-4 py-3 text-gray-700 border border-[#E0E0E0] rounded-lg focus:outline-none focus:border-[#00C897] bg-white transition"
                 >
                   {warrantyOptions.map((option) => (
                     <option key={option} value={option}>{option}</option>
@@ -235,19 +323,49 @@ export default function EditProductPage() {
             <h2 className="text-lg font-semibold text-[#0C0C0C] mb-4">Pricing & Stock Information</h2>
             
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* Price */}
+              {/* MRP */}
               <div>
-                <label className="text-sm font-medium text-[#0C0C0C] mb-2 block">Price (₹)</label>
+                <label className="text-sm font-medium text-[#0C0C0C] mb-2 block">MRP (₹)</label>
                 <div className="relative">
                   <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[#555555]">₹</span>
                   <input
                     type="number"
-                    placeholder="1,000"
-                    value={productData.price}
-                    onChange={(e) => setProductData({ ...productData, price: e.target.value })}
-                    className="w-full pl-8 pr-4 py-3 border border-[#E0E0E0] rounded-lg focus:outline-none focus:border-[#00C897] transition"
+                    placeholder="0"
+                    value={productData.mrp}
+                    onChange={(e) => setProductData({ ...productData, mrp: e.target.value })}
+                    className="w-full pl-8 pr-4 py-3 text-gray-700 border border-[#E0E0E0] rounded-lg focus:outline-none focus:border-[#00C897] transition"
                   />
                 </div>
+                <p className="text-xs text-[#555555] mt-1">Maximum Retail Price</p>
+              </div>
+
+              {/* Selling Price */}
+              <div>
+                <label className="text-sm font-medium text-[#0C0C0C] mb-2 block">Selling Price (₹)</label>
+                <div className="relative">
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[#555555]">₹</span>
+                  <input
+                    type="number"
+                    placeholder="0"
+                    value={productData.price}
+                    onChange={(e) => setProductData({ ...productData, price: e.target.value })}
+                    className="w-full pl-8 pr-4 py-3 text-gray-700 border border-[#E0E0E0] rounded-lg focus:outline-none focus:border-[#00C897] transition"
+                  />
+                </div>
+                <p className="text-xs text-[#555555] mt-1">Your selling price</p>
+              </div>
+
+              {/* Discount Display */}
+              <div>
+                <label className="text-sm font-medium text-[#0C0C0C] mb-2 block">Discount</label>
+                <div className="w-full px-4 py-3 border border-[#E0E0E0] rounded-lg bg-gray-50 flex items-center justify-center">
+                  {getDiscountPercentage() > 0 ? (
+                    <span className="text-2xl font-bold text-[#FF9F43]">{getDiscountPercentage()}% OFF</span>
+                  ) : (
+                    <span className="text-gray-400">No discount</span>
+                  )}
+                </div>
+                <p className="text-xs text-[#555555] mt-1">Auto-calculated</p>
               </div>
 
               {/* Stock Quantity */}
@@ -261,7 +379,7 @@ export default function EditProductPage() {
                   placeholder="10"
                   value={productData.stockQuantity}
                   onChange={(e) => setProductData({ ...productData, stockQuantity: e.target.value })}
-                  className="w-full px-4 py-3 border border-[#E0E0E0] rounded-lg focus:outline-none focus:border-[#00C897] transition"
+                  className="w-full px-4 py-3 text-gray-700 border border-[#E0E0E0] rounded-lg focus:outline-none focus:border-[#00C897] transition"
                 />
                 {productData.stockQuantity && (
                   <div className="flex items-center space-x-2 mt-2">
@@ -283,7 +401,7 @@ export default function EditProductPage() {
                   placeholder="Minimum Reorder optional"
                   value={productData.minReorderLevel}
                   onChange={(e) => setProductData({ ...productData, minReorderLevel: e.target.value })}
-                  className="w-full px-4 py-3 border border-[#E0E0E0] rounded-lg focus:outline-none focus:border-[#00C897] transition"
+                  className="w-full px-4 py-3 text-gray-700 border border-[#E0E0E0] rounded-lg focus:outline-none focus:border-[#00C897] transition"
                 />
               </div>
             </div>
@@ -368,25 +486,102 @@ export default function EditProductPage() {
             )}
           </section>
 
-          {/* Section 4: Description & Specification */}
+          {/* Section 4: Badges & Highlights */}
           <section>
-            <h2 className="text-lg font-semibold text-[#0C0C0C] mb-4">Description & Specification</h2>
+            <h2 className="text-lg font-semibold text-[#0C0C0C] mb-4">Badges & Highlights</h2>
+            
+            <div>
+              <label className="text-sm font-medium text-[#0C0C0C] mb-2 block">Product Badges (Optional)</label>
+              <div className="flex gap-2 mb-3">
+                <input
+                  type="text"
+                  placeholder="e.g., 🔥 Best Seller, ⚡ Fast Delivery"
+                  value={badgeInput}
+                  onChange={(e) => setBadgeInput(e.target.value)}
+                  onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addBadge())}
+                  className="flex-1 px-4 py-2 text-gray-700 border border-[#E0E0E0] rounded-lg focus:outline-none focus:border-[#00C897] transition"
+                />
+                <button
+                  onClick={addBadge}
+                  type="button"
+                  className="bg-[#00C897] text-white px-6 py-2 rounded-lg hover:bg-[#00B184] transition shadow-sm font-semibold"
+                >
+                  Add
+                </button>
+              </div>
+              {badges.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {badges.map((badge, index) => (
+                    <div key={index} className="px-3 py-1.5 bg-[#FF9F43] text-white text-sm font-semibold rounded-full flex items-center gap-2">
+                      <span>{badge}</span>
+                      <button
+                        onClick={() => removeBadge(index)}
+                        type="button"
+                        className="hover:bg-white/20 rounded-full p-0.5"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <p className="text-xs text-[#555555] mt-2">Max 5 badges. Use emojis for better visibility.</p>
+            </div>
+          </section>
+
+          {/* Section 5: Description & Features */}
+          <section>
+            <h2 className="text-lg font-semibold text-[#0C0C0C] mb-4">Description & Features</h2>
             
             {/* Description */}
             <div className="mb-6">
               <label className="text-sm font-medium text-[#0C0C0C] mb-2 block">Product Description</label>
               <textarea
-                placeholder="Product Description"
+                placeholder="Detailed product description for customers..."
                 value={productData.description}
                 onChange={(e) => setProductData({ ...productData, description: e.target.value })}
-                rows={5}
-                className="w-full px-4 py-3 border border-[#E0E0E0] rounded-lg focus:outline-none focus:border-[#00C897] transition resize-none"
+                rows={4}
+                className="w-full px-4 py-3 text-gray-700 border border-[#E0E0E0] rounded-lg focus:outline-none focus:border-[#00C897] transition resize-none"
               />
+            </div>
+
+            {/* Features */}
+            <div className="mb-6">
+              <label className="text-sm font-medium text-[#0C0C0C] mb-3 block">Key Features</label>
+              <div className="space-y-2">
+                {features.map((feature, index) => (
+                  <div key={index} className="flex gap-2">
+                    <input
+                      type="text"
+                      placeholder="e.g., Energy-efficient LED technology saves up to 85% electricity"
+                      value={feature}
+                      onChange={(e) => updateArrayItem(features, setFeatures, index, e.target.value)}
+                      className="flex-1 px-4 py-2 text-gray-700 border border-[#E0E0E0] rounded-lg focus:outline-none focus:border-[#00C897] transition"
+                    />
+                    <button
+                      onClick={() => addArrayItem(features, setFeatures)}
+                      type="button"
+                      className="bg-[#00C897] text-white px-3 py-2 rounded-lg hover:bg-[#00B184] transition shadow-sm"
+                    >
+                      <Plus className="w-5 h-5" />
+                    </button>
+                    {features.length > 1 && (
+                      <button
+                        onClick={() => removeArrayItem(features, setFeatures, index)}
+                        type="button"
+                        className="bg-[#E53935] text-white px-3 py-2 rounded-lg hover:bg-[#D32F2F] transition shadow-sm"
+                      >
+                        <X className="w-5 h-5" />
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
             </div>
 
             {/* Specifications */}
             <div>
-              <label className="text-sm font-medium text-[#0C0C0C] mb-3 block">Specifications</label>
+              <label className="text-sm font-medium text-[#0C0C0C] mb-3 block">Technical Specifications</label>
               <div className="space-y-3">
                 {specifications.map((spec, index) => (
                   <div key={index} className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -395,7 +590,7 @@ export default function EditProductPage() {
                       placeholder="Field:"
                       value={spec.field}
                       onChange={(e) => updateSpecification(index, 'field', e.target.value)}
-                      className="px-4 py-2 border border-[#E0E0E0] rounded-lg focus:outline-none focus:border-[#00C897] transition"
+                      className="px-4 py-2 text-gray-700 border border-[#E0E0E0] rounded-lg focus:outline-none focus:border-[#00C897] transition"
                     />
                     <div className="flex space-x-2">
                       <input
@@ -403,7 +598,7 @@ export default function EditProductPage() {
                         placeholder="Name"
                         value={spec.attribute}
                         onChange={(e) => updateSpecification(index, 'attribute', e.target.value)}
-                        className="flex-1 px-4 py-2 border border-[#E0E0E0] rounded-lg focus:outline-none focus:border-[#00C897] transition"
+                        className="flex-1 px-4 py-2 text-gray-700 border border-[#E0E0E0] rounded-lg focus:outline-none focus:border-[#00C897] transition"
                       />
                       <button
                         onClick={() => addSpecification()}
@@ -421,6 +616,114 @@ export default function EditProductPage() {
                   </div>
                 ))}
               </div>
+            </div>
+          </section>
+
+          {/* Section 6: Offers & Promotions */}
+          <section>
+            <h2 className="text-lg font-semibold text-[#0C0C0C] mb-4">Offers & Promotions (Optional)</h2>
+            <div className="space-y-2">
+              {offers.map((offer, index) => (
+                <div key={index} className="flex gap-2">
+                  <input
+                    type="text"
+                    placeholder="e.g., 💳 10% instant discount on HDFC Credit Cards"
+                    value={offer}
+                    onChange={(e) => updateArrayItem(offers, setOffers, index, e.target.value)}
+                    className="flex-1 px-4 py-2 text-gray-700 border border-[#E0E0E0] rounded-lg focus:outline-none focus:border-[#00C897] transition"
+                  />
+                  <button
+                    onClick={() => addArrayItem(offers, setOffers)}
+                    type="button"
+                    className="bg-[#00C897] text-white px-3 py-2 rounded-lg hover:bg-[#00B184] transition shadow-sm"
+                  >
+                    <Plus className="w-5 h-5" />
+                  </button>
+                  {offers.length > 1 && (
+                    <button
+                      onClick={() => removeArrayItem(offers, setOffers, index)}
+                      type="button"
+                      className="bg-[#E53935] text-white px-3 py-2 rounded-lg hover:bg-[#D32F2F] transition shadow-sm"
+                    >
+                      <X className="w-5 h-5" />
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          </section>
+
+          {/* Section 7: How to Use Instructions */}
+          <section>
+            <h2 className="text-lg font-semibold text-[#0C0C0C] mb-4">How to Use (Optional)</h2>
+            <div className="space-y-2">
+              {howToUse.map((step, index) => (
+                <div key={index} className="flex gap-2">
+                  <div className="flex items-center justify-center w-8 h-10 bg-[#00C897] text-white rounded-lg font-bold text-sm flex-shrink-0">
+                    {index + 1}
+                  </div>
+                  <input
+                    type="text"
+                    placeholder="e.g., Turn off the power supply before installation"
+                    value={step}
+                    onChange={(e) => updateArrayItem(howToUse, setHowToUse, index, e.target.value)}
+                    className="flex-1 px-4 py-2 text-gray-700 border border-[#E0E0E0] rounded-lg focus:outline-none focus:border-[#00C897] transition"
+                  />
+                  <button
+                    onClick={() => addArrayItem(howToUse, setHowToUse)}
+                    type="button"
+                    className="bg-[#00C897] text-white px-3 py-2 rounded-lg hover:bg-[#00B184] transition shadow-sm"
+                  >
+                    <Plus className="w-5 h-5" />
+                  </button>
+                  {howToUse.length > 1 && (
+                    <button
+                      onClick={() => removeArrayItem(howToUse, setHowToUse, index)}
+                      type="button"
+                      className="bg-[#E53935] text-white px-3 py-2 rounded-lg hover:bg-[#D32F2F] transition shadow-sm"
+                    >
+                      <X className="w-5 h-5" />
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          </section>
+
+          {/* Section 8: Safety Tips */}
+          <section>
+            <h2 className="text-lg font-semibold text-[#0C0C0C] mb-4">Safety Tips (Optional)</h2>
+            <div className="space-y-2">
+              {safetyTips.map((tip, index) => (
+                <div key={index} className="flex gap-2">
+                  <div className="flex items-center justify-center w-8 h-10 bg-[#FF9F43] text-white rounded-lg flex-shrink-0">
+                    ⚠️
+                  </div>
+                  <input
+                    type="text"
+                    placeholder="e.g., Always switch off power before handling"
+                    value={tip}
+                    onChange={(e) => updateArrayItem(safetyTips, setSafetyTips, index, e.target.value)}
+                    className="flex-1 px-4 text-gray-700 py-2 border border-[#E0E0E0] rounded-lg focus:outline-none focus:border-[#00C897] transition"
+                  />
+                  <button
+                    onClick={() => addArrayItem(safetyTips, setSafetyTips)}
+                    type="button"
+                    className="bg-[#00C897] text-white px-3 py-2 rounded-lg hover:bg-[#00B184] transition shadow-sm"
+                  >
+                    <Plus className="w-5 h-5" />
+                  </button>
+                  {safetyTips.length > 1 && (
+                    <button
+                      onClick={() => removeArrayItem(safetyTips, setSafetyTips, index)}
+                      type="button"
+                      className="bg-[#E53935] text-white px-3 py-2 rounded-lg hover:bg-[#D32F2F] transition shadow-sm"
+                    >
+                      <X className="w-5 h-5" />
+                    </button>
+                  )}
+                </div>
+              ))}
             </div>
           </section>
 
@@ -474,6 +777,8 @@ export default function EditProductPage() {
             </div>
           </div>
         </div>
-      )}
-      </div>
-    </>\n  );\n}
+          )}
+          </div>
+        </>
+      );
+    }
