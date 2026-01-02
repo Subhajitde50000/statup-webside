@@ -1,9 +1,10 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Edit2, MapPin, Upload, X, Camera, Clock, Check, Copy, Calendar, Save, AlertCircle, CheckCircle2, Building2, Mail, Phone as PhoneIcon, FileText, Image as ImageIcon, RefreshCw, CreditCard, ShieldCheck, ChevronRight } from 'lucide-react';
+import { Edit2, MapPin, Upload, X, Camera, Clock, Check, Copy, Calendar, Save, AlertCircle, CheckCircle2, Building2, Mail, Phone as PhoneIcon, FileText, Image as ImageIcon, RefreshCw, CreditCard, ShieldCheck, ChevronRight, LogOut } from 'lucide-react';
 import ShopkeeperNavbar from '../components/ShopkeeperNavbar';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 interface UserProfile {
   id: string;
@@ -19,6 +20,7 @@ interface UserProfile {
 }
 
 export default function ShopProfilePage() {
+  const router = useRouter();
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -390,6 +392,19 @@ export default function ShopProfilePage() {
     }
   };
 
+  const handleLogout = () => {
+    if (window.confirm('Are you sure you want to logout?')) {
+      // Clear all stored data
+      localStorage.removeItem('access_token');
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      localStorage.removeItem('shopkeeperData');
+      
+      // Redirect to login/home page
+      router.push('/auth');
+    }
+  };
+
   if (isLoading) {
     return (
       <>
@@ -431,14 +446,23 @@ export default function ShopProfilePage() {
               </p>
             </div>
             {!isEditing && (
-              <button
-                onClick={() => setIsEditing(true)}
-                className="bg-[#00C897] text-white px-4 md:px-6 py-2.5 md:py-3 rounded-lg font-semibold hover:bg-[#E66A12] transition-all duration-200 shadow-md hover:shadow-lg flex items-center space-x-2"
-              >
-                <Edit2 className="w-4 h-4 md:w-5 md:h-5" />
-                <span className="hidden md:inline">Edit Profile</span>
-                <span className="md:hidden">Edit</span>
-              </button>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={handleLogout}
+                  className="bg-[#EA5455] text-white px-4 md:px-6 py-2.5 md:py-3 rounded-lg font-semibold hover:bg-[#D63031] transition-all duration-200 shadow-md hover:shadow-lg flex items-center space-x-2"
+                >
+                  <LogOut className="w-4 h-4 md:w-5 md:h-5" />
+                  <span className="hidden md:inline">Logout</span>
+                </button>
+                <button
+                  onClick={() => setIsEditing(true)}
+                  className="bg-[#00C897] text-white px-4 md:px-6 py-2.5 md:py-3 rounded-lg font-semibold hover:bg-[#E66A12] transition-all duration-200 shadow-md hover:shadow-lg flex items-center space-x-2"
+                >
+                  <Edit2 className="w-4 h-4 md:w-5 md:h-5" />
+                  <span className="hidden md:inline">Edit Profile</span>
+                  <span className="md:hidden">Edit</span>
+                </button>
+              </div>
             )}
           </div>
         </div>
