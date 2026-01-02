@@ -50,6 +50,11 @@ export default function StoreNavbar({
 
                         >
                             <Store className={`w-5 h-5 ${pathname === '/shops' ? 'fill-[#00BFA6]' : ''}`} />
+                            {cartItemCount > 0 && (
+                                <span className="absolute top-2 right-1/2 translate-x-3 bg-[#FF9F43] text-white text-xs w-4 h-4 rounded-full flex items-center justify-center font-bold">
+                                    {cartItemCount > 9 ? '9+' : cartItemCount}
+                                </span>
+                            )}
                             <span className="text-[10px] font-bold">Shop</span>
                         </button>
 
@@ -70,10 +75,10 @@ export default function StoreNavbar({
                         {/* Right: Cart & Profile */}
                         <div className="flex items-center gap-4">
                             <button
-                                onClick={() => router.push('/cart')}
-                                className={`relative p-2 hover:bg-gray-100 rounded-lg transition ${pathname === '/cart' ? 'text-[#00BFA6]' : ''}`}
+                                onClick={onCartClick}
+                                className="relative p-2 hover:bg-gray-100 rounded-lg transition"
                             >
-                                <ShoppingCart size={24} className={`text-[#1E2A5E] ${pathname === '/cart' ? 'fill-[#00BFA6]' : ''}`} />
+                                <ShoppingCart size={24} className="text-[#1E2A5E]" />
                                 {cartItemCount > 0 && (
                                     <span className="absolute -top-1 -right-1 bg-[#FF9F43] text-white text-xs w-5 h-5 rounded-full flex items-center justify-center font-bold">
                                         {cartItemCount}
@@ -105,12 +110,12 @@ export default function StoreNavbar({
                             <MapPin size={14} className="text-[#00BFA6]" />
                             <span className="text-gray-700">{location}</span>
                         </button>
-                        <div className={`flex items-center gap-3 ${pathname === '/cart' ? 'text-[#00BFA6]' : ''}`}>
+                        <div className="flex items-center gap-3">
                             <button
-                                onClick={() => router.push('/cart')}
+                                onClick={onCartClick}
                                 className="relative p-2"
                             >
-                                <ShoppingCart size={22} className={`text-[#1E2A5E] ${pathname === '/cart' ? 'fill-[#00BFA6]' : ''}`} />
+                                <ShoppingCart size={22} className="text-[#1E2A5E]" />
                                 {cartItemCount > 0 && (
                                     <span className="absolute -top-1 -right-1 bg-[#FF9F43] text-white text-xs w-5 h-5 rounded-full flex items-center justify-center font-bold">
                                         {cartItemCount}
@@ -155,6 +160,11 @@ export default function StoreNavbar({
                             }`}
                     >
                         <Store className={`w-5 h-5 ${pathname === '/shops' ? 'fill-[#00BFA6]' : ''}`} />
+                        {cartItemCount > 0 && (
+                            <span className="absolute top-2 right-1/2 translate-x-3 bg-[#FF9F43] text-white text-xs w-4 h-4 rounded-full flex items-center justify-center font-bold">
+                                {cartItemCount > 9 ? '9+' : cartItemCount}
+                            </span>
+                        )}
                         <span className="text-[10px] font-bold">Shop</span>
                     </button>
 
