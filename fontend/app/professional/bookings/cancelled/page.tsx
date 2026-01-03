@@ -4,7 +4,7 @@ import React from 'react';
 import { ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import { CancelledJobCard } from '../components';
-import { ProfessionalNavbar } from '../../professional/components';
+import { ProfessionalNavbar } from '../../../professional/components';
 
 export default function CancelledJobsPage() {
   const cancelledJobs = [

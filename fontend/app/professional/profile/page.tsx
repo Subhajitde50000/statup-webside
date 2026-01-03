@@ -460,9 +460,9 @@ export default function ProfessionalProfilePage() {
     return (
       <>
         <ProfessionalNavbar />
-        <div className="min-h-screen bg-gradient-to-br from-[#F0F4F8] to-[#E8EDF2] flex items-center justify-center">
+        <div className="min-h-screen bg-gradient-to-br from-gray-50 to-teal-50 flex items-center justify-center">
           <div className="text-center">
-            <RefreshCw className="w-12 h-12 text-[#2563EB] animate-spin mx-auto mb-4" />
+            <RefreshCw className="w-12 h-12 text-teal-600 animate-spin mx-auto mb-4" />
             <p className="text-[#64748B] font-medium">Loading your profile...</p>
           </div>
         </div>
@@ -473,11 +473,11 @@ export default function ProfessionalProfilePage() {
   return (
     <>
       <ProfessionalNavbar />
-      <div className="min-h-screen bg-gradient-to-br from-[#F0F4F8] to-[#E8EDF2] pb-24 lg:pb-8">
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-teal-50 pb-24 lg:pb-8">
         {/* Success Message */}
         {showSuccessMessage && (
           <div className="fixed top-20 left-1/2 transform -translate-x-1/2 z-50 animate-fade-in">
-            <div className="bg-gradient-to-r from-[#10B981] to-[#059669] text-white px-8 py-4 rounded-2xl shadow-2xl flex items-center space-x-3">
+            <div className="bg-gradient-to-r from-teal-600 to-green-600 text-white px-8 py-4 rounded-2xl shadow-2xl flex items-center space-x-3">
               <CheckCircle2 className="w-6 h-6" />
               <span className="font-semibold text-lg">Profile updated successfully!</span>
             </div>
@@ -485,7 +485,7 @@ export default function ProfessionalProfilePage() {
         )}
 
         {/* Header */}
-        <div className="bg-gradient-to-r from-[#1E40AF] to-[#2563EB] text-white border-b border-[#1E40AF]/20 px-4 lg:px-8 py-8 lg:py-12 shadow-xl">
+        <div className="bg-gradient-to-r from-teal-600 to-green-600 text-white border-b border-teal-700/20 px-4 lg:px-8 py-8 lg:py-12 shadow-xl">
           <div className="max-w-7xl mx-auto flex items-center justify-between">
             <div>
               <h1 className="text-3xl lg:text-4xl font-bold flex items-center space-x-4">
@@ -520,7 +520,7 @@ export default function ProfessionalProfilePage() {
                 onClick={() => setActiveTab('personal')}
                 className={`flex-1 flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl font-bold transition-all ${
                   activeTab === 'personal'
-                    ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg'
+                    ? 'bg-gradient-to-r from-teal-600 to-green-600 text-white shadow-lg'
                     : 'text-gray-600 hover:bg-gray-100'
                 }`}
               >
@@ -531,7 +531,7 @@ export default function ProfessionalProfilePage() {
                 onClick={() => setActiveTab('business')}
                 className={`flex-1 flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl font-bold transition-all ${
                   activeTab === 'business'
-                    ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg'
+                    ? 'bg-gradient-to-r from-teal-600 to-green-600 text-white shadow-lg'
                     : 'text-gray-600 hover:bg-gray-100'
                 }`}
               >
@@ -546,7 +546,7 @@ export default function ProfessionalProfilePage() {
                 {/* Bio Section */}
                 <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6 md:p-8">
                   <div className="flex items-center gap-4 mb-6 pb-4 border-b border-gray-100">
-                    <div className="bg-gradient-to-br from-purple-500 to-indigo-600 p-3 rounded-xl shadow-lg">
+                    <div className="bg-gradient-to-br from-teal-500 to-green-600 p-3 rounded-xl shadow-lg">
                       <FileText className="w-6 h-6 text-white" />
                     </div>
                     <div>
@@ -563,7 +563,7 @@ export default function ProfessionalProfilePage() {
                         onChange={(e) => setProfileData({ ...profileData, bio: e.target.value })}
                         rows={4}
                         placeholder="Describe your experience, expertise, and what makes you stand out..."
-                        className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all resize-none"
+                        className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100 transition-all resize-none"
                       />
                       <p className="text-xs text-gray-400 mt-1">{profileData.bio.length}/500 characters</p>
                     </div>
@@ -574,7 +574,7 @@ export default function ProfessionalProfilePage() {
                         <select
                           value={profileData.experience}
                           onChange={(e) => setProfileData({ ...profileData, experience: e.target.value })}
-                          className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-blue-500 bg-white"
+                          className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-teal-500 bg-white"
                         >
                           <option value="">Select experience</option>
                           <option value="0-1 years">0-1 years</option>
@@ -593,7 +593,7 @@ export default function ProfessionalProfilePage() {
                             value={profileData.hourlyRate}
                             onChange={(e) => setProfileData({ ...profileData, hourlyRate: e.target.value })}
                             placeholder="e.g., 500"
-                            className="w-full pl-12 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-blue-500"
+                            className="w-full pl-12 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-teal-500"
                           />
                         </div>
                       </div>
@@ -674,12 +674,12 @@ export default function ProfessionalProfilePage() {
                         value={newSkill}
                         onChange={(e) => setNewSkill(e.target.value)}
                         placeholder="e.g., Wiring, Fan Repair, AC Installation"
-                        className="flex-1 px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-blue-500"
+                        className="flex-1 px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-teal-500"
                         onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addSkill())}
                       />
                       <button
                         onClick={addSkill}
-                        className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 rounded-xl font-semibold transition-colors flex items-center gap-2"
+                        className="bg-teal-600 hover:bg-teal-700 text-white px-6 py-3 rounded-xl font-semibold transition-colors flex items-center gap-2"
                       >
                         <Plus className="w-5 h-5" />
                         Add
@@ -759,7 +759,7 @@ export default function ProfessionalProfilePage() {
                         value={newCertification}
                         onChange={(e) => setNewCertification(e.target.value)}
                         placeholder="e.g., Electrical Safety Certificate, ITI Diploma"
-                        className="flex-1 px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-blue-500"
+                        className="flex-1 px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-teal-500"
                         onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addCertification())}
                       />
                       <button
@@ -897,7 +897,7 @@ export default function ProfessionalProfilePage() {
                         value={profileData.address}
                         onChange={(e) => setProfileData({ ...profileData, address: e.target.value })}
                         placeholder="Enter your full address"
-                        className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-blue-500"
+                        className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-teal-500"
                       />
                     </div>
                     <div>
@@ -907,7 +907,7 @@ export default function ProfessionalProfilePage() {
                         value={profileData.city}
                         onChange={(e) => setProfileData({ ...profileData, city: e.target.value })}
                         placeholder="e.g., Mumbai"
-                        className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-blue-500"
+                        className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-teal-500"
                       />
                     </div>
                     <div>
@@ -939,7 +939,7 @@ export default function ProfessionalProfilePage() {
                   <button
                     onClick={saveBusinessProfile}
                     disabled={isSavingBusinessProfile}
-                    className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-8 py-4 rounded-xl font-bold shadow-lg hover:shadow-xl transition-all flex items-center gap-2 disabled:opacity-50"
+                    className="bg-gradient-to-r from-teal-600 to-green-600 hover:from-teal-700 hover:to-green-700 text-white px-8 py-4 rounded-xl font-bold shadow-lg hover:shadow-xl transition-all flex items-center gap-2 disabled:opacity-50"
                   >
                     {isSavingBusinessProfile ? (
                       <>
@@ -963,7 +963,7 @@ export default function ProfessionalProfilePage() {
             <div className="bg-white rounded-2xl shadow-lg border border-[#E2E8F0] p-6 md:p-8 lg:p-10 hover:shadow-xl transition-shadow duration-300">
               <div className="flex items-center justify-between mb-8 pb-6 border-b border-gray-200">
                 <div className="flex items-center space-x-4">
-                  <div className="bg-gradient-to-br from-[#2563EB] to-[#1E40AF] p-4 rounded-2xl shadow-lg">
+                  <div className="bg-gradient-to-br from-teal-500 to-green-600 p-4 rounded-2xl shadow-lg">
                     <Camera className="w-7 h-7 text-white" />
                   </div>
                   <div>
@@ -976,7 +976,7 @@ export default function ProfessionalProfilePage() {
               <div className="flex flex-col md:flex-row items-center gap-8">
                 {/* Current Photo */}
                 <div className="relative group">
-                  <div className="w-40 h-40 rounded-full overflow-hidden border-4 border-[#2563EB] bg-gradient-to-br from-[#EFF6FF] to-[#DBEAFE] flex items-center justify-center shadow-xl group-hover:shadow-2xl transition-shadow duration-300">
+                  <div className="w-40 h-40 rounded-full overflow-hidden border-4 border-teal-600 bg-gradient-to-br from-teal-50 to-green-50 flex items-center justify-center shadow-xl group-hover:shadow-2xl transition-shadow duration-300">
                     {profilePhotoPreview ? (
                       <img src={profilePhotoPreview} alt="Preview" className="w-full h-full object-cover" />
                     ) : userProfile?.profile_image ? (
@@ -1071,7 +1071,7 @@ export default function ProfessionalProfilePage() {
             <div className="bg-white rounded-2xl shadow-lg border border-[#E2E8F0] p-6 md:p-8 lg:p-10 hover:shadow-xl transition-shadow duration-300">
               <div className="flex items-center justify-between mb-8 pb-6 border-b border-gray-200">
                 <div className="flex items-center space-x-4">
-                  <div className="bg-gradient-to-br from-[#2563EB] to-[#1E40AF] p-4 rounded-2xl shadow-lg">
+                  <div className="bg-gradient-to-br from-teal-500 to-green-600 p-4 rounded-2xl shadow-lg">
                     <User className="w-7 h-7 text-white" />
                   </div>
                   <div>
@@ -1080,7 +1080,7 @@ export default function ProfessionalProfilePage() {
                   </div>
                 </div>
                 {!isEditing && userProfile?.is_verified && (
-                  <div className="flex items-center space-x-2 bg-gradient-to-r from-[#10B981] to-[#059669] text-white px-4 py-2 rounded-xl shadow-lg">
+                  <div className="flex items-center space-x-2 bg-gradient-to-r from-teal-600 to-green-600 text-white px-4 py-2 rounded-xl shadow-lg">
                     <CheckCircle2 className="w-5 h-5" />
                     <span className="text-sm font-semibold hidden sm:inline">Verified</span>
                   </div>
@@ -1103,7 +1103,7 @@ export default function ProfessionalProfilePage() {
                     disabled={!isEditing}
                     placeholder="Enter your full name"
                     className={`w-full px-5 py-4 border-2 rounded-xl focus:outline-none focus:ring-2 disabled:bg-[#F1F5F9] disabled:text-[#64748B] transition-all duration-200 text-base ${
-                      errors.fullName ? 'border-[#DC2626] focus:ring-[#DC2626]' : 'border-[#CBD5E1] focus:ring-[#2563EB] focus:border-[#2563EB]'
+                      errors.fullName ? 'border-[#DC2626] focus:ring-[#DC2626]' : 'border-[#CBD5E1] focus:ring-teal-500 focus:border-teal-500'
                     }`}
                   />
                   {errors.fullName && (
@@ -1129,7 +1129,7 @@ export default function ProfessionalProfilePage() {
                     disabled={!isEditing}
                     placeholder="your@email.com"
                     className={`w-full px-5 py-4 border-2 rounded-xl focus:outline-none focus:ring-2 disabled:bg-[#F1F5F9] disabled:text-[#64748B] transition-all duration-200 text-base ${
-                      errors.email ? 'border-[#DC2626] focus:ring-[#DC2626]' : 'border-[#CBD5E1] focus:ring-[#2563EB] focus:border-[#2563EB]'
+                      errors.email ? 'border-[#DC2626] focus:ring-[#DC2626]' : 'border-[#CBD5E1] focus:ring-teal-500 focus:border-teal-500'
                     }`}
                   />
                   {errors.email && (
@@ -1168,7 +1168,7 @@ export default function ProfessionalProfilePage() {
                       placeholder="9876543210"
                       maxLength={10}
                       className={`flex-1 px-5 py-4 border-2 rounded-xl focus:outline-none focus:ring-2 disabled:bg-[#F1F5F9] disabled:text-[#64748B] transition-all duration-200 text-base ${
-                        errors.phone ? 'border-[#DC2626] focus:ring-[#DC2626]' : 'border-[#CBD5E1] focus:ring-[#2563EB] focus:border-[#2563EB]'
+                        errors.phone ? 'border-[#DC2626] focus:ring-[#DC2626]' : 'border-[#CBD5E1] focus:ring-teal-500 focus:border-teal-500'
                       }`}
                     />
                   </div>
@@ -1218,7 +1218,7 @@ export default function ProfessionalProfilePage() {
                     onChange={(e) => handleInputChange('subCategory', e.target.value)}
                     disabled={!isEditing}
                     placeholder="e.g., Residential Wiring, Industrial"
-                    className="w-full px-5 py-4 border-2 border-[#CBD5E1] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2563EB] disabled:bg-[#F1F5F9] disabled:text-[#64748B] transition-all duration-200 text-base"
+                    className="w-full px-5 py-4 border-2 border-[#CBD5E1] rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:bg-[#F1F5F9] disabled:text-[#64748B] transition-all duration-200 text-base"
                   />
                 </div>
 
@@ -1237,7 +1237,7 @@ export default function ProfessionalProfilePage() {
                     disabled={!isEditing}
                     placeholder="5"
                     maxLength={2}
-                    className="w-full px-5 py-4 border-2 border-[#CBD5E1] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2563EB] disabled:bg-[#F1F5F9] disabled:text-[#64748B] transition-all duration-200 text-base"
+                    className="w-full px-5 py-4 border-2 border-[#CBD5E1] rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:bg-[#F1F5F9] disabled:text-[#64748B] transition-all duration-200 text-base"
                   />
                 </div>
 
@@ -1256,7 +1256,7 @@ export default function ProfessionalProfilePage() {
                     disabled={!isEditing}
                     placeholder="e.g., Mumbai"
                     className={`w-full px-5 py-4 border-2 rounded-xl focus:outline-none focus:ring-2 disabled:bg-[#F1F5F9] disabled:text-[#64748B] transition-all duration-200 text-base ${
-                      errors.city ? 'border-[#DC2626] focus:ring-[#DC2626]' : 'border-[#CBD5E1] focus:ring-[#2563EB] focus:border-[#2563EB]'
+                      errors.city ? 'border-[#DC2626] focus:ring-[#DC2626]' : 'border-[#CBD5E1] focus:ring-teal-500 focus:border-teal-500'
                     }`}
                   />
                   {errors.city && (
@@ -1282,7 +1282,7 @@ export default function ProfessionalProfilePage() {
                     disabled={!isEditing}
                     placeholder="e.g., Maharashtra"
                     className={`w-full px-5 py-4 border-2 rounded-xl focus:outline-none focus:ring-2 disabled:bg-[#F1F5F9] disabled:text-[#64748B] transition-all duration-200 text-base ${
-                      errors.state ? 'border-[#DC2626] focus:ring-[#DC2626]' : 'border-[#CBD5E1] focus:ring-[#2563EB] focus:border-[#2563EB]'
+                      errors.state ? 'border-[#DC2626] focus:ring-[#DC2626]' : 'border-[#CBD5E1] focus:ring-teal-500 focus:border-teal-500'
                     }`}
                   />
                   {errors.state && (
@@ -1309,7 +1309,7 @@ export default function ProfessionalProfilePage() {
                     placeholder="400001"
                     maxLength={6}
                     className={`w-full px-5 py-4 border-2 rounded-xl focus:outline-none focus:ring-2 disabled:bg-[#F1F5F9] disabled:text-[#64748B] transition-all duration-200 text-base ${
-                      errors.pincode ? 'border-[#DC2626] focus:ring-[#DC2626]' : 'border-[#CBD5E1] focus:ring-[#2563EB] focus:border-[#2563EB]'
+                      errors.pincode ? 'border-[#DC2626] focus:ring-[#DC2626]' : 'border-[#CBD5E1] focus:ring-teal-500 focus:border-teal-500'
                     }`}
                   />
                   {errors.pincode && (
@@ -1334,7 +1334,7 @@ export default function ProfessionalProfilePage() {
                     onChange={(e) => handleInputChange('hourlyRate', e.target.value.replace(/\D/g, '').slice(0, 5))}
                     disabled={!isEditing}
                     placeholder="500"
-                    className="w-full px-5 py-4 border-2 border-[#CBD5E1] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2563EB] disabled:bg-[#F1F5F9] disabled:text-[#64748B] transition-all duration-200 text-base"
+                    className="w-full px-5 py-4 border-2 border-[#CBD5E1] rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:bg-[#F1F5F9] disabled:text-[#64748B] transition-all duration-200 text-base"
                   />
                 </div>
 
@@ -1375,7 +1375,7 @@ export default function ProfessionalProfilePage() {
                     placeholder="123456789012"
                     maxLength={12}
                     className={`w-full px-5 py-4 border-2 rounded-xl focus:outline-none focus:ring-2 disabled:bg-[#F1F5F9] disabled:text-[#64748B] transition-all duration-200 text-base ${
-                      errors.aadharNumber ? 'border-[#DC2626] focus:ring-[#DC2626]' : 'border-[#CBD5E1] focus:ring-[#2563EB] focus:border-[#2563EB]'
+                      errors.aadharNumber ? 'border-[#DC2626] focus:ring-[#DC2626]' : 'border-[#CBD5E1] focus:ring-teal-500 focus:border-teal-500'
                     }`}
                   />
                   {errors.aadharNumber && (
@@ -1407,7 +1407,7 @@ export default function ProfessionalProfilePage() {
                     placeholder="House No., Street, Area, Landmark..."
                     rows={3}
                     className={`w-full px-5 py-4 border-2 rounded-xl focus:outline-none focus:ring-2 disabled:bg-[#F1F5F9] disabled:text-[#64748B] transition-all duration-200 resize-none text-base ${
-                      errors.address ? 'border-[#DC2626] focus:ring-[#DC2626]' : 'border-[#CBD5E1] focus:ring-[#2563EB] focus:border-[#2563EB]'
+                      errors.address ? 'border-[#DC2626] focus:ring-[#DC2626]' : 'border-[#CBD5E1] focus:ring-teal-500 focus:border-teal-500'
                     }`}
                   />
                   {errors.address && (
@@ -1424,7 +1424,7 @@ export default function ProfessionalProfilePage() {
             <div className="bg-white rounded-2xl shadow-lg border border-[#E2E8F0] p-6 md:p-8 lg:p-10 hover:shadow-xl transition-shadow duration-300">
               <div className="flex items-center justify-between mb-8 pb-6 border-b border-gray-200">
                 <div className="flex items-center space-x-4">
-                  <div className="bg-gradient-to-br from-[#2563EB] to-[#1E40AF] p-4 rounded-2xl shadow-lg">
+                  <div className="bg-gradient-to-br from-teal-500 to-green-600 p-4 rounded-2xl shadow-lg">
                     <Wrench className="w-7 h-7 text-white" />
                   </div>
                   <div>
@@ -1448,7 +1448,7 @@ export default function ProfessionalProfilePage() {
                         }
                       }}
                       placeholder="e.g., Circuit Installation, Troubleshooting"
-                      className="flex-1 px-5 py-4 border-2 border-[#CBD5E1] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2563EB] transition-all duration-200 text-base"
+                      className="flex-1 px-5 py-4 border-2 border-[#CBD5E1] rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all duration-200 text-base"
                     />
                     <button
                       onClick={addSkill}
@@ -1466,7 +1466,7 @@ export default function ProfessionalProfilePage() {
                   profileData.skills.map((skill, index) => (
                     <div
                       key={index}
-                      className="bg-gradient-to-r from-[#EFF6FF] to-[#DBEAFE] border-2 border-[#93C5FD] text-[#1E40AF] px-5 py-3 rounded-xl font-semibold flex items-center space-x-3 shadow-sm hover:shadow-md transition-all duration-200"
+                      className="bg-gradient-to-r from-teal-50 to-green-50 border-2 border-teal-300 text-teal-800 px-5 py-3 rounded-xl font-semibold flex items-center space-x-3 shadow-sm hover:shadow-md transition-all duration-200"
                     >
                       <span>{skill}</span>
                       {isEditing && (
@@ -1497,7 +1497,7 @@ export default function ProfessionalProfilePage() {
             <div className="bg-white rounded-2xl shadow-lg border border-[#E2E8F0] p-6 md:p-8 lg:p-10 hover:shadow-xl transition-shadow duration-300">
               <div className="flex items-center justify-between mb-8 pb-6 border-b border-gray-200">
                 <div className="flex items-center space-x-4">
-                  <div className="bg-gradient-to-br from-[#2563EB] to-[#1E40AF] p-4 rounded-2xl shadow-lg">
+                  <div className="bg-gradient-to-br from-teal-500 to-green-600 p-4 rounded-2xl shadow-lg">
                     <Languages className="w-7 h-7 text-white" />
                   </div>
                   <div>
@@ -1515,7 +1515,7 @@ export default function ProfessionalProfilePage() {
                     disabled={!isEditing}
                     className={`px-5 py-4 rounded-xl font-semibold transition-all duration-200 text-base ${
                       profileData.languages.includes(lang)
-                        ? 'bg-gradient-to-r from-[#2563EB] to-[#1E40AF] text-white shadow-lg transform scale-105'
+                        ? 'bg-gradient-to-r from-teal-600 to-green-600 text-white shadow-lg transform scale-105'
                         : 'bg-[#F1F5F9] text-[#64748B] hover:bg-[#E2E8F0]'
                     } ${!isEditing ? 'cursor-default' : 'cursor-pointer hover:shadow-md'}`}
                   >
@@ -1544,7 +1544,7 @@ export default function ProfessionalProfilePage() {
             <div className="bg-white rounded-2xl shadow-lg border border-[#E2E8F0] p-6 md:p-8 lg:p-10 hover:shadow-xl transition-shadow duration-300">
               <div className="flex items-center justify-between mb-8 pb-6 border-b border-gray-200">
                 <div className="flex items-center space-x-4">
-                  <div className="bg-gradient-to-br from-[#2563EB] to-[#1E40AF] p-4 rounded-2xl shadow-lg">
+                  <div className="bg-gradient-to-br from-teal-500 to-green-600 p-4 rounded-2xl shadow-lg">
                     <FileText className="w-7 h-7 text-white" />
                   </div>
                   <div>
@@ -1562,7 +1562,7 @@ export default function ProfessionalProfilePage() {
                   placeholder="Write a brief introduction about your professional background, expertise, and what makes you stand out..."
                   rows={6}
                   maxLength={500}
-                  className="w-full px-5 py-4 border-2 border-[#CBD5E1] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2563EB] disabled:bg-[#F1F5F9] disabled:text-[#64748B] transition-all duration-200 resize-none text-base"
+                  className="w-full px-5 py-4 border-2 border-[#CBD5E1] rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:bg-[#F1F5F9] disabled:text-[#64748B] transition-all duration-200 resize-none text-base"
                 />
                 <div className="flex items-center justify-between mt-3">
                   <p className="text-sm text-[#64748B]">
@@ -1594,7 +1594,7 @@ export default function ProfessionalProfilePage() {
                 <button
                   onClick={handleSave}
                   disabled={isSaving}
-                  className="px-8 py-4 bg-gradient-to-r from-[#2563EB] to-[#1E40AF] text-white rounded-xl font-bold hover:from-[#1E40AF] hover:to-[#1E3A8A] transition-all duration-200 shadow-lg hover:shadow-xl flex items-center space-x-3 disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-105"
+                  className="px-8 py-4 bg-gradient-to-r from-teal-600 to-green-600 text-white rounded-xl font-bold hover:from-teal-700 hover:to-green-700 transition-all duration-200 shadow-lg hover:shadow-xl flex items-center space-x-3 disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-105"
                 >
                   {isSaving ? (
                     <>
@@ -1616,7 +1616,7 @@ export default function ProfessionalProfilePage() {
             {/* Subscription Section - Mobile Only */}
             <div className="lg:hidden mt-6">
               <Link href="/professional/subscription">
-                <div className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl shadow-lg p-6 hover:shadow-xl transition-all">
+                <div className="bg-gradient-to-r from-teal-600 to-green-600 rounded-2xl shadow-lg p-6 hover:shadow-xl transition-all">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-4">
                       <div className="bg-white/20 p-3 rounded-xl backdrop-blur-sm">

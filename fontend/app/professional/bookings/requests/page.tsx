@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { ArrowLeft, RefreshCw, MessageCircle, Bell } from 'lucide-react';
 import Link from 'next/link';
 import { BookingRequestCard } from '../components';
-import { ProfessionalNavbar } from '../../professional/components';
+import { ProfessionalNavbar } from '../../../professional/components';
 
 export default function BookingRequestsPage() {
   const [requests, setRequests] = useState([

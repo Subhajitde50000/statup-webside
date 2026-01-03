@@ -36,14 +36,14 @@ export default function BookingRequestDetailsPage() {
 
   const handleAccept = () => {
     alert(`✅ Booking Accepted!\n\nYou can now contact ${request.customerName}.\n\nMoving to Accepted Bookings...`);
-    router.push('/bookings/accepted');
+    router.push('/professional/bookings/accepted');
   };
 
   const handleReject = () => {
     const confirmed = confirm(`Are you sure you want to reject this booking?`);
     if (confirmed) {
       alert('Booking rejected.');
-      router.push('/bookings/requests');
+      router.push('/professional/bookings/requests');
     }
   };
 
@@ -54,7 +54,7 @@ export default function BookingRequestDetailsPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <Link
-              href="/bookings/requests"
+              href="/professional/bookings/requests"
               className="flex items-center gap-2 text-gray-700 hover:text-gray-900 transition-colors"
             >
               <ArrowLeft className="w-5 h-5" />

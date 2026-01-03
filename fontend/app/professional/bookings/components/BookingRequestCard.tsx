@@ -116,7 +116,7 @@ export default function BookingRequestCard({ request, onAccept, onReject }: Book
 
       {/* View Details Link */}
       <Link
-        href={`/bookings/request/${request.id}`}
+        href={`/professional/bookings/request/${request.id}`}
         className="block text-center text-sm text-teal-600 hover:text-teal-700 font-semibold hover:underline mt-3"
       >
         View Full Details →

@@ -62,7 +62,7 @@ export default function ProfessionalNavbar({
               </Link>
 
               <Link
-                href="/bookings"
+                href="/professional/bookings"
                 className={`flex items-center gap-2 px-4 py-2 rounded-lg font-bold transition-all ${
                   activeTab === 'bookings'
                     ? 'bg-teal-600 text-white'
@@ -74,7 +74,7 @@ export default function ProfessionalNavbar({
               </Link>
 
               <Link
-                href="/services"
+                href="/professional/services"
                 className={`flex items-center gap-2 px-4 py-2 rounded-lg font-bold transition-all ${
                   activeTab === 'services'
                     ? 'bg-teal-600 text-white'
@@ -86,7 +86,7 @@ export default function ProfessionalNavbar({
               </Link>
 
               <Link
-                href="/messages"
+                href="/professional/messages"
                 className={`flex items-center gap-2 px-4 py-2 rounded-lg font-bold transition-all ${
                   activeTab === 'messages'
                     ? 'bg-teal-600 text-white'
@@ -170,7 +170,7 @@ export default function ProfessionalNavbar({
             </Link>
 
             <Link
-              href="/bookings"
+              href="/professional/bookings"
               className={`flex flex-col items-center gap-1 px-3 py-2 transition-colors ${
                 activeTab === 'bookings' ? 'text-teal-600' : 'text-gray-500 hover:text-gray-700'
               }`}
@@ -180,7 +180,7 @@ export default function ProfessionalNavbar({
             </Link>
 
             <Link
-              href="/services"
+              href="/professional/services"
               className={`flex flex-col items-center gap-1 px-3 py-2 transition-colors ${
                 activeTab === 'services' ? 'text-teal-600' : 'text-gray-500 hover:text-gray-700'
               }`}
@@ -200,7 +200,7 @@ export default function ProfessionalNavbar({
             </Link>
 
             <Link
-              href="/messages"
+              href="/professional/messages"
               className={`flex flex-col items-center gap-1 px-3 py-2 transition-colors ${
                 activeTab === 'messages' ? 'text-teal-600' : 'text-gray-500 hover:text-gray-700'
               }`}

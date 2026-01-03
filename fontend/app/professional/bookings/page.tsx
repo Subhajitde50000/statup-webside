@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { Calendar, CheckCircle, Clock, XCircle, AlertCircle, ArrowRight, TrendingUp, TrendingDown, DollarSign, Star, MapPin, Filter, Search, Download, Calendar as CalendarIcon } from 'lucide-react';
 import Link from 'next/link';
-import { ProfessionalNavbar } from '../professional/components';
+import { ProfessionalNavbar } from '../components';
 
 export default function BookingsPage() {
   const [currentTime, setCurrentTime] = useState<Date | null>(null);
@@ -44,7 +44,7 @@ export default function BookingsPage() {
       color: 'from-orange-500 to-red-500',
       bgColor: 'from-orange-50 to-red-50',
       borderColor: 'border-orange-300',
-      href: '/bookings/requests',
+      href: '/professional/bookings/requests',
       details: 'Avg. response needed: 15 min',
       earning: '₹1,850',
       image: 'https://images.unsplash.com/photo-1621905251918-48416bd8575a?w=400&h=300&fit=crop',
@@ -59,7 +59,7 @@ export default function BookingsPage() {
       color: 'from-blue-500 to-indigo-500',
       bgColor: 'from-blue-50 to-indigo-50',
       borderColor: 'border-blue-300',
-      href: '/bookings/accepted',
+      href: '/professional/bookings/accepted',
       details: 'Next job in 2 hours',
       earning: '₹2,400',
       image: 'https://images.unsplash.com/photo-1506784983877-45594efa4cbe?w=400&h=300&fit=crop',
@@ -74,7 +74,7 @@ export default function BookingsPage() {
       color: 'from-teal-500 to-green-500',
       bgColor: 'from-teal-50 to-green-50',
       borderColor: 'border-teal-300',
-      href: '/bookings/ongoing/1',
+      href: '/professional/bookings/ongoing/1',
       details: 'Started 45 min ago',
       earning: '₹650',
       isActive: true,
@@ -90,7 +90,7 @@ export default function BookingsPage() {
       color: 'from-green-500 to-emerald-500',
       bgColor: 'from-green-50 to-emerald-50',
       borderColor: 'border-green-300',
-      href: '/bookings/completed',
+      href: '/professional/bookings/completed',
       details: '3 completed today',
       earning: '₹8,750 this month',
       image: 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=400&h=300&fit=crop',
@@ -105,7 +105,7 @@ export default function BookingsPage() {
       color: 'from-gray-500 to-slate-500',
       bgColor: 'from-gray-50 to-slate-50',
       borderColor: 'border-gray-300',
-      href: '/bookings/cancelled',
+      href: '/professional/bookings/cancelled',
       details: 'Cancellation rate: 4%',
       earning: '-₹350',
       image: 'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?w=400&h=300&fit=crop',

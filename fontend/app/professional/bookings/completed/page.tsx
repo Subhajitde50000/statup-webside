@@ -5,7 +5,7 @@ import { ArrowLeft, Filter } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { CompletedJobCard } from '../components';
-import { ProfessionalNavbar } from '../../professional/components';
+import { ProfessionalNavbar } from '../../../professional/components';
 
 export default function CompletedJobsPage() {
   const router = useRouter();

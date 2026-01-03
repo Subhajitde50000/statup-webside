@@ -7,7 +7,7 @@ import {
   ChevronRight, ChevronLeft, Image as ImageIcon, Zap, Wrench, Droplet, Hammer,
   PaintBucket, Wind, Package, Sparkles, Home, Shield, Sun, Check
 } from 'lucide-react';
-import { ProfessionalNavbar } from '../professional/components';
+import { ProfessionalNavbar } from '../components';
 import { 
   Service, 
   ServiceCreate, 
@@ -18,8 +18,8 @@ import {
   updateService, 
   deleteService, 
   toggleServiceStatus 
-} from '../../utils/services';
-import { useAuth } from '../../utils/AuthContext';
+} from '../../../utils/services';
+import { useAuth } from '../../../utils/AuthContext';
 
 // Service categories with icons
 const SERVICE_CATEGORIES = [

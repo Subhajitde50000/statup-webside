@@ -80,7 +80,8 @@ export const getMyOffers = async (status?: string): Promise<PriceOffer[]> => {
     throw new Error(error.detail || 'Failed to fetch offers');
   }
 
-  return response.json();
+  const data = await response.json();
+  return data.offers || [];
 };
 
 // Get offers received by professional (professional only)
@@ -103,7 +104,8 @@ export const getReceivedOffers = async (status?: string): Promise<PriceOffer[]> 
     throw new Error(error.detail || 'Failed to fetch received offers');
   }
 
-  return response.json();
+  const data = await response.json();
+  return data.offers || [];
 };
 
 // Accept an offer (professional only)

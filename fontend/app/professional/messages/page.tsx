@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Settings, Phone, MapPin, MoreVertical, MessageSquare, Bell, Clock, Zap, CheckCircle } from 'lucide-react';
 import Link from 'next/link';
-import { ProfessionalNavbar } from '../professional/components';
+import { ProfessionalNavbar } from '../components';
 
 interface Message {
   id: number;
@@ -360,7 +360,7 @@ export default function MessagesPage() {
               {filteredMessages.map((message) => (
                 <Link
                   key={message.id}
-                  href={`/messages/${message.customerId}`}
+                  href={`/professional/messages/${message.customerId}`}
                   className={`block hover:bg-gray-50 transition-all ${message.unreadCount > 0 ? 'bg-[#00A884]/5' : ''}`}
                 >
                   <div className="p-4">

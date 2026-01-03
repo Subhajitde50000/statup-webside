@@ -5,7 +5,7 @@ import { ArrowLeft, Bell } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { AcceptedBookingCard } from '../components';
-import { ProfessionalNavbar } from '../../professional/components';
+import { ProfessionalNavbar } from '../../../professional/components';
 
 export default function AcceptedBookingsPage() {
   const router = useRouter();

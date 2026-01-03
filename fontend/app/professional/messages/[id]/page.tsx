@@ -293,7 +293,7 @@ export default function ChatConversationPage() {
                 <span className="text-sm">Open in Maps</span>
               </button>
               <Link
-                href={`/bookings/ongoing/${params.id}`}
+                href={`/professional/bookings/ongoing/${params.id}`}
                 className="flex-1 flex items-center justify-center gap-2 bg-[#00A884] hover:bg-[#00796B] text-white font-bold py-2 px-4 rounded-xl transition-colors"
               >
                 <FileText className="w-4 h-4" />
