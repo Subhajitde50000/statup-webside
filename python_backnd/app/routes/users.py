@@ -139,10 +139,46 @@ async def delete_profile_image(current_user: dict = Depends(get_current_user)):
     return {"message": "Profile image deleted successfully"}
 
 
+@router.get("/me", response_model=UserProfileResponse)
+async def get_current_user_profile(current_user: dict = Depends(get_current_user)):
+    """Get current authenticated user profile (alias for /profile)"""
+    return UserProfileResponse(**user_helper(current_user))
+
+
 @router.get("/profile", response_model=UserProfileResponse)
 async def get_profile(current_user: dict = Depends(get_current_user)):
     """Get current user profile"""
     return UserProfileResponse(**user_helper(current_user))
+
+
+@router.put("/update-profile")
+async def update_user_profile(
+    name: Optional[str] = None,
+    email: Optional[str] = None,
+    phone: Optional[str] = None,
+    current_user: dict = Depends(get_current_user)
+):
+    """Update user profile with flexible fields"""
+    users = get_users_collection()
+    
+    update_data = {}
+    if name:
+        update_data["name"] = name
+    if email:
+        update_data["email"] = email
+    if phone:
+        update_data["phone"] = phone
+    
+    if update_data:
+        update_data["updated_at"] = datetime.utcnow()
+        await users.update_one(
+            {"_id": current_user["_id"]},
+            {"$set": update_data}
+        )
+    
+    # Fetch updated user
+    updated_user = await users.find_one({"_id": current_user["_id"]})
+    return {"message": "Profile updated successfully", "user": user_helper(updated_user)}
 
 
 @router.put("/profile", response_model=UserProfileResponse)

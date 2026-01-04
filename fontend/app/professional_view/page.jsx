@@ -1,5 +1,5 @@
-import Professional from '../Page/Professional.jsx';
+import ProfessionalPublic from '../Page/ProfessionalPublic';
 
 export default function ProfessionalPage() {
-  return <Professional />;
+  return <ProfessionalPublic />;
 }

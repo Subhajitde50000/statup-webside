@@ -223,6 +223,14 @@ async def get_professional_detail(
         user_favorites = user.get("favorite_professionals", []) if user else []
         is_favorited = professional_id in user_favorites
     
+    # Calculate total bookings from bookings collection
+    from app.database import get_bookings_collection
+    bookings_collection = get_bookings_collection()
+    total_bookings = await bookings_collection.count_documents({
+        "professional_id": professional_id,
+        "status": {"$in": ["completed", "confirmed"]}
+    })
+    
     return {
         "success": True,
         "data": {
@@ -232,6 +240,8 @@ async def get_professional_detail(
             "email": professional.get("email"),
             "profile_image": professional.get("profile_image"),
             "profession": approval_data.get("profession"),
+            "category": approval_data.get("category"),
+            "experience": approval_data.get("experience"),
             "experience_years": approval_data.get("experience_years", 0),
             "hourly_rate": approval_data.get("hourly_rate"),
             "address": approval_data.get("address"),
@@ -242,13 +252,19 @@ async def get_professional_detail(
             "skills": approval_data.get("skills", []),
             "languages": approval_data.get("languages", []),
             "certifications": approval_data.get("certifications", []),
-            "working_hours": approval_data.get("working_hours"),
+            "service_areas": approval_data.get("service_areas", []),
+            "working_hours_start": approval_data.get("working_hours_start"),
+            "working_hours_end": approval_data.get("working_hours_end"),
+            "working_days": approval_data.get("working_days", []),
+            "emergency_available": approval_data.get("emergency_available", False),
             "is_verified": professional.get("is_verified", False),
             "is_favorited": is_favorited,
             "approval_status": professional.get("approval_status"),
             "created_at": professional.get("created_at"),
-            "rating": 4.5,
-            "total_reviews": 0
+            "member_since": professional.get("created_at"),
+            "total_bookings": total_bookings,
+            "rating": 4.5,  # TODO: Calculate from reviews
+            "total_reviews": 0  # TODO: Calculate from reviews
         }
     }
 

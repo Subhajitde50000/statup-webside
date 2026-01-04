@@ -1,11 +1,12 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { 
   Edit2, MapPin, Upload, X, Camera, Award, Check, Calendar, Save, AlertCircle, 
   CheckCircle2, User, Mail, Phone as PhoneIcon, FileText, Briefcase, RefreshCw,
   IndianRupee, Clock, Star, Shield, BadgeCheck, Wrench, Languages, Plus, Globe,
-  Building, Zap, MapPinned, CalendarDays, CreditCard, ShieldCheck
+  Building, Zap, MapPinned, CalendarDays, CreditCard, ShieldCheck, LogOut
 } from 'lucide-react';
 import ProfessionalNavbar from '../components/ProfessionalNavbar';
 import Link from 'next/link';
@@ -55,6 +56,7 @@ const SERVICE_CATEGORIES = [
 ];
 
 export default function ProfessionalProfilePage() {
+  const router = useRouter();
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -373,6 +375,17 @@ export default function ProfessionalProfilePage() {
     return Object.keys(newErrors).length === 0;
   };
 
+  const handleLogout = () => {
+    if (confirm('Are you sure you want to logout?')) {
+      // Clear all auth data
+      localStorage.removeItem('access_token');
+      localStorage.removeItem('refresh_token');
+      localStorage.removeItem('user');
+      // Redirect to login
+      router.push('/auth');
+    }
+  };
+
   const handleSave = async () => {
     if (!validateForm()) {
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -498,16 +511,27 @@ export default function ProfessionalProfilePage() {
                 {isEditing ? 'Edit your professional details below' : 'Manage your professional information'}
               </p>
             </div>
-            {!isEditing && (
-              <button
-                onClick={() => setIsEditing(true)}
-                className="bg-white text-[#2563EB] px-6 md:px-8 py-3 md:py-3.5 rounded-xl font-bold hover:bg-blue-50 transition-all duration-200 shadow-lg hover:shadow-xl flex items-center space-x-2 transform hover:scale-105"
-              >
-                <Edit2 className="w-5 h-5 md:w-5 md:h-5" />
-                <span className="hidden md:inline">Edit Profile</span>
-                <span className="md:hidden">Edit</span>
-              </button>
-            )}
+            <div className="flex items-center gap-3">
+              {!isEditing && (
+                <>
+                  <button
+                    onClick={handleLogout}
+                    className="bg-red-500 hover:bg-red-600 text-white px-6 md:px-8 py-3 md:py-3.5 rounded-xl font-bold transition-all duration-200 shadow-lg hover:shadow-xl flex items-center space-x-2 transform hover:scale-105"
+                  >
+                    <LogOut className="w-5 h-5" />
+                    <span className="hidden sm:inline">Logout</span>
+                  </button>
+                  <button
+                    onClick={() => setIsEditing(true)}
+                    className="bg-white text-teal-600 px-6 md:px-8 py-3 md:py-3.5 rounded-xl font-bold hover:bg-blue-50 transition-all duration-200 shadow-lg hover:shadow-xl flex items-center space-x-2 transform hover:scale-105"
+                  >
+                    <Edit2 className="w-5 h-5 md:w-5 md:h-5" />
+                    <span className="hidden md:inline">Edit Profile</span>
+                    <span className="md:hidden">Edit</span>
+                  </button>
+                </>
+              )}
+            </div>
           </div>
         </div>
 
@@ -563,7 +587,7 @@ export default function ProfessionalProfilePage() {
                         onChange={(e) => setProfileData({ ...profileData, bio: e.target.value })}
                         rows={4}
                         placeholder="Describe your experience, expertise, and what makes you stand out..."
-                        className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100 transition-all resize-none"
+                        className="w-full px-4 py-3 text-gray-900 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100 transition-all resize-none"
                       />
                       <p className="text-xs text-gray-400 mt-1">{profileData.bio.length}/500 characters</p>
                     </div>
@@ -574,7 +598,7 @@ export default function ProfessionalProfilePage() {
                         <select
                           value={profileData.experience}
                           onChange={(e) => setProfileData({ ...profileData, experience: e.target.value })}
-                          className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-teal-500 bg-white"
+                          className="w-full px-4 py-3 text-gray-900 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-teal-500 bg-white"
                         >
                           <option value="">Select experience</option>
                           <option value="0-1 years">0-1 years</option>
@@ -593,7 +617,7 @@ export default function ProfessionalProfilePage() {
                             value={profileData.hourlyRate}
                             onChange={(e) => setProfileData({ ...profileData, hourlyRate: e.target.value })}
                             placeholder="e.g., 500"
-                            className="w-full pl-12 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-teal-500"
+                            className="w-full pl-12 pr-4 py-3 text-gray-900 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-teal-500"
                           />
                         </div>
                       </div>
@@ -620,7 +644,7 @@ export default function ProfessionalProfilePage() {
                         value={newServiceArea}
                         onChange={(e) => setNewServiceArea(e.target.value)}
                         placeholder="e.g., Mumbai, Thane, Navi Mumbai"
-                        className="flex-1 px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-blue-500"
+                        className="flex-1 px-4 py-3 text-gray-900 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-blue-500"
                         onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addServiceArea())}
                       />
                       <button
@@ -674,7 +698,7 @@ export default function ProfessionalProfilePage() {
                         value={newSkill}
                         onChange={(e) => setNewSkill(e.target.value)}
                         placeholder="e.g., Wiring, Fan Repair, AC Installation"
-                        className="flex-1 px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-teal-500"
+                        className="flex-1 px-4 py-3 text-gray-900 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-teal-500"
                         onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addSkill())}
                       />
                       <button
@@ -759,7 +783,7 @@ export default function ProfessionalProfilePage() {
                         value={newCertification}
                         onChange={(e) => setNewCertification(e.target.value)}
                         placeholder="e.g., Electrical Safety Certificate, ITI Diploma"
-                        className="flex-1 px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-teal-500"
+                        className="flex-1 px-4 py-3 text-gray-900 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-teal-500"
                         onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addCertification())}
                       />
                       <button
@@ -838,7 +862,7 @@ export default function ProfessionalProfilePage() {
                           type="time"
                           value={profileData.workingHoursStart}
                           onChange={(e) => setProfileData({ ...profileData, workingHoursStart: e.target.value })}
-                          className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-blue-500"
+                          className="w-full px-4 py-3 text-gray-900 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-blue-500"
                         />
                       </div>
                       <div>
@@ -847,7 +871,7 @@ export default function ProfessionalProfilePage() {
                           type="time"
                           value={profileData.workingHoursEnd}
                           onChange={(e) => setProfileData({ ...profileData, workingHoursEnd: e.target.value })}
-                          className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-blue-500"
+                          className="w-full px-4 py-3 text-gray-900 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-blue-500"
                         />
                       </div>
                     </div>
@@ -897,7 +921,7 @@ export default function ProfessionalProfilePage() {
                         value={profileData.address}
                         onChange={(e) => setProfileData({ ...profileData, address: e.target.value })}
                         placeholder="Enter your full address"
-                        className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-teal-500"
+                        className="w-full px-4 py-3 text-gray-900 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-teal-500"
                       />
                     </div>
                     <div>
@@ -907,7 +931,7 @@ export default function ProfessionalProfilePage() {
                         value={profileData.city}
                         onChange={(e) => setProfileData({ ...profileData, city: e.target.value })}
                         placeholder="e.g., Mumbai"
-                        className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-teal-500"
+                        className="w-full px-4 py-3 text-gray-900 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-teal-500"
                       />
                     </div>
                     <div>
@@ -917,7 +941,7 @@ export default function ProfessionalProfilePage() {
                         value={profileData.state}
                         onChange={(e) => setProfileData({ ...profileData, state: e.target.value })}
                         placeholder="e.g., Maharashtra"
-                        className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-blue-500"
+                        className="w-full px-4 py-3 text-gray-900 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-blue-500"
                       />
                     </div>
                     <div>
@@ -928,18 +952,25 @@ export default function ProfessionalProfilePage() {
                         onChange={(e) => setProfileData({ ...profileData, pincode: e.target.value })}
                         placeholder="e.g., 400001"
                         maxLength={6}
-                        className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-blue-500"
+                        className="w-full px-4 py-3 text-gray-900 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-blue-500"
                       />
                     </div>
                   </div>
                 </div>
 
                 {/* Save Button */}
-                <div className="flex justify-end">
+                <div className="flex flex-col sm:flex-row gap-4 justify-end">
+                  <button
+                    onClick={handleLogout}
+                    className="bg-red-50 hover:bg-red-100 text-red-600 px-8 py-4 rounded-xl font-bold transition-all border-2 border-red-200 hover:border-red-300 flex items-center justify-center gap-2"
+                  >
+                    <LogOut className="w-5 h-5" />
+                    Logout
+                  </button>
                   <button
                     onClick={saveBusinessProfile}
                     disabled={isSavingBusinessProfile}
-                    className="bg-gradient-to-r from-teal-600 to-green-600 hover:from-teal-700 hover:to-green-700 text-white px-8 py-4 rounded-xl font-bold shadow-lg hover:shadow-xl transition-all flex items-center gap-2 disabled:opacity-50"
+                    className="bg-gradient-to-r from-teal-600 to-green-600 hover:from-teal-700 hover:to-green-700 text-white px-8 py-4 rounded-xl font-bold shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-2 disabled:opacity-50"
                   >
                     {isSavingBusinessProfile ? (
                       <>
@@ -1631,6 +1662,19 @@ export default function ProfessionalProfilePage() {
                   </div>
                 </div>
               </Link>
+            </div>
+
+            {/* Logout Button for Mobile */}
+            <div className="lg:hidden mt-6">
+              {!isEditing && (
+                <button
+                  onClick={handleLogout}
+                  className="w-full bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white px-6 py-4 rounded-2xl font-bold transition-all shadow-lg hover:shadow-xl flex items-center justify-center space-x-3"
+                >
+                  <LogOut className="w-6 h-6" />
+                  <span className="text-lg">Logout from Account</span>
+                </button>
+              )}
             </div>
           </div>
         </div>
