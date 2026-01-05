@@ -687,6 +687,132 @@ async def update_user_status(
     )
 
 
+@router.put("/{user_id}/suspend")
+async def suspend_user(
+    user_id: str,
+    suspension_reason: Optional[str] = Query(None, description="Reason for suspension"),
+    current_user: dict = Depends(require_roles([UserRole.ADMIN, UserRole.MANAGER]))
+):
+    """Suspend a professional or shopkeeper (Admin/Manager only)"""
+    users = get_users_collection()
+    
+    # Find the user
+    user_to_suspend = await users.find_one({"_id": ObjectId(user_id)})
+    
+    if not user_to_suspend:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
+        )
+    
+    # Check if user is actually a professional or shopkeeper
+    if user_to_suspend.get("role") not in ["professional", "pending_professional", "shopkeeper", "pending_shopkeeper"]:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Can only suspend professionals or shopkeepers"
+        )
+    
+    # Can't suspend yourself
+    if str(current_user["_id"]) == user_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot suspend yourself"
+        )
+    
+    # Check if already suspended
+    if user_to_suspend.get("is_suspended", False):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="User is already suspended"
+        )
+    
+    # Suspend the user
+    result = await users.update_one(
+        {"_id": ObjectId(user_id)},
+        {
+            "$set": {
+                "is_suspended": True,
+                "suspended_at": datetime.utcnow(),
+                "suspended_by": str(current_user["_id"]),
+                "suspension_reason": suspension_reason or "No reason provided",
+                "updated_at": datetime.utcnow()
+            }
+        }
+    )
+    
+    if result.modified_count == 0:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to suspend user"
+        )
+    
+    user_type = "shopkeeper" if "shopkeeper" in user_to_suspend.get("role") else "professional"
+    return MessageResponse(
+        message=f"{user_type.capitalize()} {user_to_suspend.get('name')} has been suspended",
+        success=True
+    )
+
+
+@router.put("/{user_id}/unsuspend")
+async def unsuspend_user(
+    user_id: str,
+    current_user: dict = Depends(require_roles([UserRole.ADMIN, UserRole.MANAGER]))
+):
+    """Unsuspend a professional or shopkeeper (Admin/Manager only)"""
+    users = get_users_collection()
+    
+    # Find the user
+    user_to_unsuspend = await users.find_one({"_id": ObjectId(user_id)})
+    
+    if not user_to_unsuspend:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
+        )
+    
+    # Check if user is actually a professional or shopkeeper
+    if user_to_unsuspend.get("role") not in ["professional", "pending_professional", "shopkeeper", "pending_shopkeeper"]:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Can only unsuspend professionals or shopkeepers"
+        )
+    
+    # Check if not suspended
+    if not user_to_unsuspend.get("is_suspended", False):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="User is not suspended"
+        )
+    
+    # Unsuspend the user
+    result = await users.update_one(
+        {"_id": ObjectId(user_id)},
+        {
+            "$set": {
+                "is_suspended": False,
+                "updated_at": datetime.utcnow()
+            },
+            "$unset": {
+                "suspended_at": "",
+                "suspended_by": "",
+                "suspension_reason": ""
+            }
+        }
+    )
+    
+    if result.modified_count == 0:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to unsuspend user"
+        )
+    
+    user_type = "shopkeeper" if "shopkeeper" in user_to_unsuspend.get("role") else "professional"
+    return MessageResponse(
+        message=f"{user_type.capitalize()} {user_to_unsuspend.get('name')} has been unsuspended",
+        success=True
+    )
+
+
 # ==================== ADDRESS MANAGEMENT ====================
 
 @router.get("/addresses", response_model=AddressListResponse)

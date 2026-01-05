@@ -15,7 +15,7 @@ export interface User {
   name: string;
   email: string | null;
   phone: string | null;
-  role: 'user' | 'professional' | 'shopkeeper' | 'manager' | 'admin';
+  role: 'user' | 'professional' | 'shopkeeper' | 'manager' | 'admin' | 'pending_professional';
   is_verified: boolean;
   profile_image: string | null;
   email_verified: boolean;
@@ -24,6 +24,9 @@ export interface User {
   approval_status?: 'pending' | 'approved' | 'rejected';
   approval_data?: Record<string, any>;
   rejected_reason?: string;
+  is_suspended?: boolean;
+  suspension_reason?: string;
+  suspended_at?: string;
 }
 
 export interface AuthResponse {

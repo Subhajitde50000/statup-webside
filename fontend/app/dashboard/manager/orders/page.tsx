@@ -14,6 +14,7 @@ export default function OrdersListPage() {
   const [orderStatusFilter, setOrderStatusFilter] = useState('all');
   const [paymentStatusFilter, setPaymentStatusFilter] = useState('all');
   const [deliveryModeFilter, setDeliveryModeFilter] = useState('all');
+  const [typeFilter, setTypeFilter] = useState('all'); // shop or professional
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
   const orders = [
@@ -21,6 +22,7 @@ export default function OrdersListPage() {
       id: 'ORD-2024-001',
       customer: { name: 'Amit Sharma', phone: '+91 98765 43210' },
       shop: 'ElectroWorld Pro',
+      type: 'shop',
       amount: 2500,
       paymentMode: 'UPI',
       paymentStatus: 'paid',
@@ -33,6 +35,7 @@ export default function OrdersListPage() {
       id: 'ORD-2024-002',
       customer: { name: 'Priya Singh', phone: '+91 98765 43211' },
       shop: 'Fresh Mart Groceries',
+      type: 'shop',
       amount: 1850,
       paymentMode: 'COD',
       paymentStatus: 'pending',
@@ -45,6 +48,7 @@ export default function OrdersListPage() {
       id: 'ORD-2024-003',
       customer: { name: 'Rahul Verma', phone: '+91 98765 43212' },
       shop: 'Tasty Bites Restaurant',
+      type: 'shop',
       amount: 650,
       paymentMode: 'Card',
       paymentStatus: 'paid',
@@ -54,9 +58,49 @@ export default function OrdersListPage() {
       deliveryMode: 'pickup',
     },
     {
+      id: 'BOOK-2024-001',
+      customer: { name: 'Arjun Mehta', phone: '+91 98765 43217' },
+      shop: 'Rajesh Kumar - Electrician',
+      type: 'professional',
+      amount: 1200,
+      paymentMode: 'UPI',
+      paymentStatus: 'paid',
+      orderStatus: 'completed',
+      deliveryPerson: null,
+      date: '2024-12-09 03:00 PM',
+      deliveryMode: 'service-location',
+    },
+    {
+      id: 'BOOK-2024-002',
+      customer: { name: 'Kavita Desai', phone: '+91 98765 43218' },
+      shop: 'Suresh Reddy - Plumber',
+      type: 'professional',
+      amount: 800,
+      paymentMode: 'COD',
+      paymentStatus: 'pending',
+      orderStatus: 'accepted',
+      deliveryPerson: null,
+      date: '2024-12-10 11:45 AM',
+      deliveryMode: 'service-location',
+    },
+    {
+      id: 'BOOK-2024-003',
+      customer: { name: 'Rohan Patel', phone: '+91 98765 43219' },
+      shop: 'Amit Yadav - Carpenter',
+      type: 'professional',
+      amount: 2500,
+      paymentMode: 'UPI',
+      paymentStatus: 'paid',
+      orderStatus: 'processing',
+      deliveryPerson: null,
+      date: '2024-12-10 09:30 AM',
+      deliveryMode: 'service-location',
+    },
+    {
       id: 'ORD-2024-004',
       customer: { name: 'Sneha Patel', phone: '+91 98765 43213' },
       shop: 'Quick Repairs',
+      type: 'shop',
       amount: 3200,
       paymentMode: 'UPI',
       paymentStatus: 'failed',
@@ -69,6 +113,7 @@ export default function OrdersListPage() {
       id: 'ORD-2024-005',
       customer: { name: 'Vikram Singh', phone: '+91 98765 43214' },
       shop: 'ElectroWorld Pro',
+      type: 'shop',
       amount: 4500,
       paymentMode: 'Card',
       paymentStatus: 'paid',
@@ -89,8 +134,9 @@ export default function OrdersListPage() {
     const matchesOrderStatus = orderStatusFilter === 'all' || order.orderStatus === orderStatusFilter;
     const matchesPaymentStatus = paymentStatusFilter === 'all' || order.paymentStatus === paymentStatusFilter;
     const matchesDeliveryMode = deliveryModeFilter === 'all' || order.deliveryMode === deliveryModeFilter;
+    const matchesType = typeFilter === 'all' || order.type === typeFilter;
     
-    return matchesSearch && matchesOrderStatus && matchesPaymentStatus && matchesDeliveryMode;
+    return matchesSearch && matchesOrderStatus && matchesPaymentStatus && matchesDeliveryMode && matchesType;
   });
 
   const getOrderStatusColor = (status: string) => {
@@ -125,8 +171,8 @@ export default function OrdersListPage() {
               <div className="mb-8">
                 <div className="flex items-center justify-between mb-6">
                   <div>
-                    <h1 className="text-3xl font-semibold text-[#1E293B] mb-2">Orders Management</h1>
-                    <p className="text-[#64748B] text-sm">Monitor and manage all customer orders from shops and professionals</p>
+                    <h1 className="text-3xl font-semibold text-[#1E293B] mb-2">Orders & Bookings Management</h1>
+                    <p className="text-[#64748B] text-sm">Monitor and manage all customer orders from shops and professional bookings</p>
                   </div>
                   
                   <div className="flex items-center gap-3">
@@ -144,14 +190,32 @@ export default function OrdersListPage() {
                 </div>
 
                 {/* Statistics Cards */}
-                <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
+                <div className="grid grid-cols-1 md:grid-cols-6 gap-4 mb-6">
                   <div className="bg-gradient-to-br from-[#3B82F6] to-[#2563EB] rounded-xl p-5 text-white">
                     <div className="flex items-center justify-between mb-2">
                       <span className="text-sm opacity-90">Total Orders</span>
                       <Package className="w-5 h-5 opacity-80" />
                     </div>
                     <h3 className="text-2xl font-bold">{orders.length}</h3>
-                    <p className="text-xs opacity-75 mt-1">Today</p>
+                    <p className="text-xs opacity-75 mt-1">Shop + Professional</p>
+                  </div>
+
+                  <div className="bg-gradient-to-br from-[#6366F1] to-[#4F46E5] rounded-xl p-5 text-white">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm opacity-90">Shop Orders</span>
+                      <Package className="w-5 h-5 opacity-80" />
+                    </div>
+                    <h3 className="text-2xl font-bold">{orders.filter(o => o.type === 'shop').length}</h3>
+                    <p className="text-xs opacity-75 mt-1">Product orders</p>
+                  </div>
+
+                  <div className="bg-gradient-to-br from-[#8B5CF6] to-[#7C3AED] rounded-xl p-5 text-white">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm opacity-90">Bookings</span>
+                      <Package className="w-5 h-5 opacity-80" />
+                    </div>
+                    <h3 className="text-2xl font-bold">{orders.filter(o => o.type === 'professional').length}</h3>
+                    <p className="text-xs opacity-75 mt-1">Service bookings</p>
                   </div>
 
                   <div className="bg-gradient-to-br from-[#10B981] to-[#059669] rounded-xl p-5 text-white">
@@ -183,7 +247,7 @@ export default function OrdersListPage() {
                     <p className="text-xs opacity-75 mt-1">Need review</p>
                   </div>
 
-                  <div className="bg-gradient-to-br from-[#8B5CF6] to-[#7C3AED] rounded-xl p-5 text-white">
+                  <div className="bg-gradient-to-br from-[#14B8A6] to-[#0D9488] rounded-xl p-5 text-white">
                     <div className="flex items-center justify-between mb-2">
                       <span className="text-sm opacity-90">Revenue</span>
                       <DollarSign className="w-5 h-5 opacity-80" />
@@ -191,10 +255,9 @@ export default function OrdersListPage() {
                     <h3 className="text-2xl font-bold">
                       ₹{orders.filter(o => o.paymentStatus === 'paid').reduce((sum, o) => sum + o.amount, 0).toLocaleString()}
                     </h3>
-                    <p className="text-xs opacity-75 mt-1">Paid orders</p>
+                    <p className="text-xs opacity-75 mt-1">Total paid</p>
                   </div>
                 </div>
-
                 {/* Search and Filters */}
                 <div className="bg-white rounded-xl border border-[#E2E8F0] p-4">
                   <div className="flex flex-col lg:flex-row gap-4 mb-4">
@@ -206,15 +269,25 @@ export default function OrdersListPage() {
                         placeholder="Search by Order ID, Customer Name, Shop, or Phone..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        className="w-full pl-11 pr-4 py-2.5 border border-[#E2E8F0] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#3B82F6] focus:border-transparent"
+                        className="w-full pl-11 pr-4 py-2.5 text-gray-700 border border-[#E2E8F0] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#3B82F6] focus:border-transparent"
                       />
                     </div>
 
                     {/* Filters */}
                     <select
+                      value={typeFilter}
+                      onChange={(e) => setTypeFilter(e.target.value)}
+                      className="px-4 py-2.5 text-gray-700 border border-[#E2E8F0] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#3B82F6] bg-white"
+                    >
+                      <option value="all">All Types</option>
+                      <option value="shop">Shop Orders</option>
+                      <option value="professional">Professional Bookings</option>
+                    </select>
+
+                    <select
                       value={paymentStatusFilter}
                       onChange={(e) => setPaymentStatusFilter(e.target.value)}
-                      className="px-4 py-2.5 border border-[#E2E8F0] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#3B82F6] bg-white"
+                      className="px-4 py-2.5 text-gray-700 border border-[#E2E8F0] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#3B82F6] bg-white"
                     >
                       <option value="all">All Payment Status</option>
                       <option value="paid">Paid</option>
@@ -225,11 +298,12 @@ export default function OrdersListPage() {
                     <select
                       value={deliveryModeFilter}
                       onChange={(e) => setDeliveryModeFilter(e.target.value)}
-                      className="px-4 py-2.5 border border-[#E2E8F0] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#3B82F6] bg-white"
+                      className="px-4 py-2.5 text-gray-700 border border-[#E2E8F0] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#3B82F6] bg-white"
                     >
                       <option value="all">All Delivery Modes</option>
                       <option value="home-delivery">Home Delivery</option>
                       <option value="pickup">Pickup</option>
+                      <option value="service-location">Service Location</option>
                     </select>
                   </div>
 
@@ -259,12 +333,12 @@ export default function OrdersListPage() {
                     <thead className="sticky top-0 bg-[#F8FAFC] z-10">
                       <tr className="border-b border-[#E2E8F0]">
                         <th className="text-left py-4 px-6 text-xs font-semibold text-[#64748B] uppercase tracking-wide">Order ID</th>
+                        <th className="text-left py-4 px-6 text-xs font-semibold text-[#64748B] uppercase tracking-wide">Type</th>
                         <th className="text-left py-4 px-6 text-xs font-semibold text-[#64748B] uppercase tracking-wide">Customer</th>
                         <th className="text-left py-4 px-6 text-xs font-semibold text-[#64748B] uppercase tracking-wide">Shop/Professional</th>
                         <th className="text-left py-4 px-6 text-xs font-semibold text-[#64748B] uppercase tracking-wide">Amount</th>
                         <th className="text-left py-4 px-6 text-xs font-semibold text-[#64748B] uppercase tracking-wide">Payment</th>
-                        <th className="text-left py-4 px-6 text-xs font-semibold text-[#64748B] uppercase tracking-wide">Order Status</th>
-                        <th className="text-left py-4 px-6 text-xs font-semibold text-[#64748B] uppercase tracking-wide">Delivery Person</th>
+                        <th className="text-left py-4 px-6 text-xs font-semibold text-[#64748B] uppercase tracking-wide">Status</th>
                         <th className="text-left py-4 px-6 text-xs font-semibold text-[#64748B] uppercase tracking-wide">Date & Time</th>
                         <th className="text-left py-4 px-6 text-xs font-semibold text-[#64748B] uppercase tracking-wide">Actions</th>
                       </tr>
@@ -282,6 +356,17 @@ export default function OrdersListPage() {
                                 {order.id}
                               </span>
                             </Link>
+                          </td>
+
+                          {/* Type */}
+                          <td className="py-4 px-6">
+                            <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                              order.type === 'shop' 
+                                ? 'bg-[#DBEAFE] text-[#2563EB]' 
+                                : 'bg-[#E0E7FF] text-[#6366F1]'
+                            }`}>
+                              {order.type === 'shop' ? 'SHOP' : 'BOOKING'}
+                            </span>
                           </td>
 
                           {/* Customer */}

@@ -1,6 +1,8 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { Ban, Mail } from 'lucide-react';
 import ShopkeeperNavbar from './components/ShopkeeperNavbar';
 import QuickStats from './components/QuickStats';
 import OrdersOverview from './components/OrdersOverview';
@@ -11,7 +13,106 @@ import QuickActions from './components/QuickActions';
 import { Store, Clock } from 'lucide-react';
 
 export default function ShopkeeperDashboard() {
+  const router = useRouter();
   const [isShopOpen, setIsShopOpen] = useState(true);
+  const [user, setUser] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    checkAuthAndSuspension();
+  }, []);
+
+  const checkAuthAndSuspension = async () => {
+    try {
+      const token = localStorage.getItem('access_token');
+      const storedUser = localStorage.getItem('user');
+      
+      if (!token || !storedUser) {
+        router.push('/auth');
+        return;
+      }
+
+      const userData = JSON.parse(storedUser);
+      
+      // Check if user is a shopkeeper
+      if (userData.role !== 'shopkeeper' && userData.role !== 'pending_shopkeeper') {
+        router.push('/');
+        return;
+      }
+
+      // Check if suspended
+      if (userData.is_suspended) {
+        setUser(userData);
+        setLoading(false);
+        return;
+      }
+
+      setUser(userData);
+      setLoading(false);
+    } catch (error) {
+      console.error('Auth check error:', error);
+      router.push('/auth');
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#F5F7FA] flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#3B82F6]"></div>
+      </div>
+    );
+  }
+
+  // Show suspension message if suspended
+  if (user?.is_suspended) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-red-50 to-orange-50 flex items-center justify-center p-4">
+        <div className="max-w-md w-full bg-white rounded-2xl shadow-2xl p-8 text-center">
+          <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6">
+            <Ban className="w-10 h-10 text-red-600" />
+          </div>
+          
+          <h1 className="text-3xl font-bold text-gray-900 mb-3">
+            Account Suspended
+          </h1>
+          
+          <p className="text-gray-600 mb-6">
+            Your shop account has been suspended by the management team.
+          </p>
+          
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6 text-left">
+            <p className="text-sm font-semibold text-red-900 mb-2">Suspension Reason:</p>
+            <p className="text-sm text-red-800">
+              {user.suspension_reason || 'No specific reason provided'}
+            </p>
+          </div>
+          
+          <p className="text-sm text-gray-500 mb-6">
+            If you believe this is a mistake or would like to appeal this decision,
+            please contact our support team.
+          </p>
+          
+          <a
+            href="mailto:support@electromart.com"
+            className="inline-flex items-center gap-2 px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium"
+          >
+            <Mail className="w-5 h-5" />
+            Contact Support
+          </a>
+          
+          <button
+            onClick={() => {
+              localStorage.clear();
+              router.push('/auth');
+            }}
+            className="mt-4 w-full px-6 py-3 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium"
+          >
+            Logout
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   const handleToggleShop = () => {
     const newStatus = !isShopOpen;

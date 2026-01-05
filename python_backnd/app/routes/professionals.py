@@ -36,6 +36,7 @@ async def search_professionals(
     search_filter = {
         "role": "professional",
         "is_active": True,
+        "is_suspended": False,  # Exclude suspended professionals
         "approval_status": "approved"
     }
     
@@ -158,6 +159,7 @@ async def get_professions():
         {
             "role": "professional",
             "is_active": True,
+            "is_suspended": False,  # Exclude suspended professionals
             "approval_status": "approved"
         }
     )
@@ -178,6 +180,7 @@ async def get_cities():
         {
             "role": "professional",
             "is_active": True,
+            "is_suspended": False,  # Exclude suspended professionals
             "approval_status": "approved"
         }
     )
@@ -205,7 +208,8 @@ async def get_professional_detail(
     professional = await users_collection.find_one({
         "_id": ObjectId(professional_id),
         "role": "professional",
-        "is_active": True
+        "is_active": True,
+        "is_suspended": False  # Don't show suspended professionals to public
     })
     
     if not professional:

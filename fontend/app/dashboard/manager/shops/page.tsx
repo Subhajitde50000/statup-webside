@@ -15,6 +15,9 @@ interface Shop {
   role: string;
   is_active: boolean;
   is_verified?: boolean;
+  is_suspended?: boolean;
+  suspension_reason?: string;
+  suspended_at?: string;
   profile_image?: string;
   created_at: string;
   updated_at: string;
@@ -28,6 +31,10 @@ export default function ShopsListPage() {
   const [shops, setShops] = useState<Shop[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [showSuspendModal, setShowSuspendModal] = useState(false);
+  const [selectedShop, setSelectedShop] = useState<Shop | null>(null);
+  const [suspensionReason, setSuspensionReason] = useState('');
+  const [isSuspending, setIsSuspending] = useState(false);
 
   React.useEffect(() => {
     fetchShops();
@@ -86,13 +93,59 @@ export default function ShopsListPage() {
       shop.phone.includes(searchQuery);
     
     const matchesFilter = statusFilter === 'all' || 
-      (statusFilter === 'active' && shop.is_active) ||
+      (statusFilter === 'active' && shop.is_active && !shop.is_suspended) ||
       (statusFilter === 'inactive' && !shop.is_active) ||
       (statusFilter === 'pending' && shop.role === 'pending_shopkeeper') ||
-      (statusFilter === 'suspended' && !shop.is_active);
+      (statusFilter === 'suspended' && shop.is_suspended);
     
     return matchesSearch && matchesFilter;
   });
+
+  const handleSuspendClick = (shop: Shop) => {
+    setSelectedShop(shop);
+    setSuspensionReason(shop.suspension_reason || '');
+    setShowSuspendModal(true);
+    setShowMoreMenu(null);
+  };
+
+  const handleConfirmSuspend = async () => {
+    if (!selectedShop) return;
+
+    try {
+      setIsSuspending(true);
+      const token = localStorage.getItem('access_token');
+      
+      const endpoint = selectedShop.is_suspended 
+        ? `http://localhost:8000/api/users/${selectedShop.id}/unsuspend`
+        : `http://localhost:8000/api/users/${selectedShop.id}/suspend?suspension_reason=${encodeURIComponent(suspensionReason)}`;
+      
+      const response = await fetch(endpoint, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.detail || 'Failed to update suspension status');
+      }
+
+      // Refresh shops list
+      await fetchShops();
+      setShowSuspendModal(false);
+      setSuspensionReason('');
+      setSelectedShop(null);
+      
+      alert(`Shop ${selectedShop.is_suspended ? 'unsuspended' : 'suspended'} successfully!`);
+    } catch (error) {
+      console.error('Error updating suspension:', error);
+      alert(error instanceof Error ? error.message : 'Failed to update suspension status');
+    } finally {
+      setIsSuspending(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-[#F8FAFC]">
@@ -237,9 +290,15 @@ export default function ShopsListPage() {
 
                     {/* Status */}
                     <td className="py-4 px-6">
-                      <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getStatusBadge(shop.is_active ? 'active' : 'inactive')}`}>
-                        {shop.is_active ? 'Active' : 'Inactive'}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                          shop.is_suspended 
+                            ? getStatusBadge('suspended') 
+                            : getStatusBadge(shop.is_active ? 'active' : 'inactive')
+                        }`}>
+                          {shop.is_suspended ? 'Suspended' : (shop.is_active ? 'Active' : 'Inactive')}
+                        </span>
+                      </div>
                     </td>
 
                     {/* Verification Badge */}
@@ -283,11 +342,17 @@ export default function ShopsListPage() {
                           </button>
                         )}
                         
-                        {shop.is_active && (
-                          <button className="p-2 text-[#EF4444] hover:bg-[#FEF2F2] rounded-lg transition-colors" title="Suspend">
-                            <Ban className="w-4 h-4" />
-                          </button>
-                        )}
+                        <button 
+                          onClick={() => handleSuspendClick(shop)}
+                          className={`p-2 rounded-lg transition-colors ${
+                            shop.is_suspended
+                              ? 'text-[#10B981] hover:bg-[#ECFDF5]'
+                              : 'text-[#EF4444] hover:bg-[#FEF2F2]'
+                          }`}
+                          title={shop.is_suspended ? 'Unsuspend' : 'Suspend'}
+                        >
+                          <Ban className="w-4 h-4" />
+                        </button>
                         
                         <div className="relative">
                           <button 
@@ -346,6 +411,73 @@ export default function ShopsListPage() {
           </div>
         </main>
       </div>
+
+      {/* Suspend Modal */}
+      {showSuspendModal && selectedShop && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+          <div className="w-full max-w-md bg-white rounded-xl shadow-lg p-6">
+            <h3 className="text-xl font-semibold text-[#1E293B] mb-4">
+              {selectedShop.is_suspended ? 'Unsuspend Shop' : 'Suspend Shop'}
+            </h3>
+            
+            {selectedShop.is_suspended ? (
+              <div className="mb-6">
+                <p className="text-sm text-[#64748B] mb-4">
+                  Are you sure you want to unsuspend <strong>{selectedShop.name}</strong>? 
+                  They will regain access to their shop dashboard immediately.
+                </p>
+                <div className="bg-[#FEF3C7] border border-[#FDE68A] rounded-lg p-4">
+                  <p className="text-sm font-semibold text-[#92400E] mb-1">Current Suspension Reason:</p>
+                  <p className="text-sm text-[#92400E]">{selectedShop.suspension_reason || 'No reason provided'}</p>
+                </div>
+              </div>
+            ) : (
+              <div className="mb-6">
+                <p className="text-sm text-[#64748B] mb-4">
+                  You are about to suspend <strong>{selectedShop.name}</strong>. 
+                  They will lose access to their shop dashboard and their shop will not appear in user searches.
+                </p>
+                <label className="block text-sm font-medium text-[#1E293B] mb-2">
+                  Reason for suspension <span className="text-red-500">*</span>
+                </label>
+                <textarea
+                  value={suspensionReason}
+                  onChange={(e) => setSuspensionReason(e.target.value)}
+                  placeholder="Enter the reason for suspending this shop..."
+                  className="w-full p-3 border border-[#E2E8F0] rounded-lg text-sm text-[#1E293B] placeholder-[#94A3B8] focus:outline-none focus:ring-2 focus:ring-[#3B82F6] focus:border-transparent resize-none"
+                  rows={4}
+                  required
+                />
+              </div>
+            )}
+            
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => {
+                  setShowSuspendModal(false);
+                  setSuspensionReason('');
+                  setSelectedShop(null);
+                }}
+                disabled={isSuspending}
+                className="flex-1 px-4 py-2 bg-[#F1F5F9] text-[#64748B] rounded-lg hover:bg-[#E2E8F0] transition-colors font-medium disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmSuspend}
+                disabled={isSuspending || (!selectedShop.is_suspended && !suspensionReason.trim())}
+                className={`flex-1 px-4 py-2 rounded-lg transition-colors font-medium disabled:opacity-50 ${
+                  selectedShop.is_suspended
+                    ? 'bg-[#10B981] text-white hover:bg-[#059669]'
+                    : 'bg-[#EF4444] text-white hover:bg-[#DC2626]'
+                }`}
+              >
+                {isSuspending ? 'Processing...' : (selectedShop.is_suspended ? 'Unsuspend' : 'Suspend')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

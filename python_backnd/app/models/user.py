@@ -78,6 +78,12 @@ class UserBase(BaseModel):
     reviewed_by: Optional[str] = None
     reviewed_at: Optional[datetime] = None
     
+    # Suspension fields for professionals
+    is_suspended: bool = False
+    suspended_at: Optional[datetime] = None
+    suspended_by: Optional[str] = None  # Manager/Admin who suspended
+    suspension_reason: Optional[str] = None
+    
     # Favorites
     favorite_professionals: List[str] = Field(default_factory=list)  # List of professional user IDs
 
@@ -146,6 +152,12 @@ def user_helper(user: dict) -> dict:
         "approval_status": user.get("approval_status"),
         "approval_data": user.get("approval_data"),
         "rejection_reason": user.get("rejection_reason"),
+        
+        # Suspension fields
+        "is_suspended": user.get("is_suspended", False),
+        "suspended_at": user.get("suspended_at"),
+        "suspended_by": user.get("suspended_by"),
+        "suspension_reason": user.get("suspension_reason"),
         
         # Favorites
         "favorite_professionals": user.get("favorite_professionals", []),

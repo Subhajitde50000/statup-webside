@@ -190,8 +190,21 @@ async def get_all_services(
     services = await get_services_collection()
     users = get_users_collection()
     
-    # Build query - only show active services
-    query = {"is_active": True}
+    # First, get all non-suspended professional IDs
+    non_suspended_pros = await users.find(
+        {
+            "role": "professional",
+            "is_suspended": {"$ne": True}
+        },
+        {"_id": 1}
+    ).to_list(None)
+    non_suspended_pro_ids = [pro["_id"] for pro in non_suspended_pros]
+    
+    # Build query - only show active services from non-suspended professionals
+    query = {
+        "is_active": True,
+        "professional_id": {"$in": non_suspended_pro_ids}
+    }
     
     if category:
         query["category"] = {"$regex": category, "$options": "i"}

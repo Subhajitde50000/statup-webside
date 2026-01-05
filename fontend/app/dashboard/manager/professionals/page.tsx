@@ -17,6 +17,8 @@ interface Professional {
   profile_image?: string;
   created_at: string;
   updated_at: string;
+  is_suspended?: boolean;
+  suspension_reason?: string;
 }
 
 export default function ProfessionalsListPage() {
@@ -77,7 +79,7 @@ export default function ProfessionalsListPage() {
       (statusFilter === 'active' && professional.is_active) ||
       (statusFilter === 'inactive' && !professional.is_active) ||
       (statusFilter === 'pending' && professional.role === 'pending_professional') ||
-      (statusFilter === 'suspended' && !professional.is_active);
+      (statusFilter === 'suspended' && professional.is_suspended);
     
     const matchesKyc = kycFilter === 'all' || 
       (kycFilter === 'verified' && professional.is_verified) ||
@@ -125,7 +127,7 @@ export default function ProfessionalsListPage() {
                         placeholder="Search by name, phone, or category..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        className="w-full pl-11 pr-4 py-2.5 border border-[#E2E8F0] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#3B82F6] focus:border-transparent"
+                        className="w-full pl-11 pr-4 py-2.5 text-gray-700 border border-[#E2E8F0] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#3B82F6] focus:border-transparent"
                       />
                     </div>
 
@@ -133,7 +135,7 @@ export default function ProfessionalsListPage() {
                     <select
                       value={categoryFilter}
                       onChange={(e) => setCategoryFilter(e.target.value)}
-                      className="px-4 py-2.5 border border-[#E2E8F0] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#3B82F6] bg-white"
+                      className="px-4 py-2.5 text-gray-700 border border-[#E2E8F0] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#3B82F6] bg-white"
                     >
                       <option value="all">All Categories</option>
                       {categories.slice(1).map((cat) => (
@@ -145,7 +147,7 @@ export default function ProfessionalsListPage() {
                     <select
                       value={kycFilter}
                       onChange={(e) => setKycFilter(e.target.value)}
-                      className="px-4 py-2.5 border border-[#E2E8F0] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#3B82F6] bg-white"
+                      className="px-4 py-2.5 text-gray-700 border border-[#E2E8F0] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#3B82F6] bg-white"
                     >
                       <option value="all">All KYC Status</option>
                       <option value="verified">Verified</option>
@@ -198,20 +200,20 @@ export default function ProfessionalsListPage() {
 
                 <div className="bg-gradient-to-br from-[#F59E0B] to-[#D97706] rounded-xl p-5 text-white">
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm opacity-90">Pending</span>
+                    <span className="text-sm opacity-90">Suspended</span>
                     <div className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center">
-                      <Clock className="w-4 h-4" />
+                      <Ban className="w-4 h-4" />
                     </div>
                   </div>
-                  <h3 className="text-3xl font-bold">{professionals.filter(p => p.role === 'pending_professional').length}</h3>
-                  <p className="text-xs opacity-75 mt-1">Awaiting approval</p>
+                  <h3 className="text-3xl font-bold">{professionals.filter(p => p.is_suspended).length}</h3>
+                  <p className="text-xs opacity-75 mt-1">Suspended accounts</p>
                 </div>
 
                 <div className="bg-gradient-to-br from-[#EF4444] to-[#DC2626] rounded-xl p-5 text-white">
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-sm opacity-90">Inactive</span>
                     <div className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center">
-                      <Ban className="w-4 h-4" />
+                      <Clock className="w-4 h-4" />
                     </div>
                   </div>
                   <h3 className="text-3xl font-bold">{professionals.filter(p => !p.is_active).length}</h3>
@@ -297,13 +299,20 @@ export default function ProfessionalsListPage() {
 
                           {/* Status Badge */}
                           <td className="py-4 px-6">
-                            <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                              professional.is_active 
-                                ? 'bg-[#D1FAE5] text-[#059669]' 
-                                : 'bg-[#F1F5F9] text-[#64748B]'
-                            }`}>
-                              {professional.is_active ? 'ACTIVE' : 'INACTIVE'}
-                            </span>
+                            <div className="flex flex-col gap-1">
+                              <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                                professional.is_active 
+                                  ? 'bg-[#D1FAE5] text-[#059669]' 
+                                  : 'bg-[#F1F5F9] text-[#64748B]'
+                              }`}>
+                                {professional.is_active ? 'ACTIVE' : 'INACTIVE'}
+                              </span>
+                              {professional.is_suspended && (
+                                <span className="px-3 py-1 bg-[#FEF3C7] text-[#D97706] rounded-full text-xs font-semibold">
+                                  SUSPENDED
+                                </span>
+                              )}
+                            </div>
                           </td>
 
                           {/* Verification */}
