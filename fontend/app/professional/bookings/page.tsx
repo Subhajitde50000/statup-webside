@@ -595,16 +595,16 @@ export default function BookingsDashboardPage() {
               <h3 className="text-xl font-black mb-4">💡 Pro Tips</h3>
               <div className="space-y-3">
                 <div className="bg-white bg-opacity-20 rounded-xl p-3">
-                  <p className="text-sm font-bold">Respond within 10 minutes</p>
+                  <p className="text-gray-100 text-sm font-bold">Respond within 10 minutes</p>
                   <p className="text-xs opacity-90 mt-1">Fast responses get 40% more bookings!</p>
                 </div>
                 <div className="bg-white bg-opacity-20 rounded-xl p-3">
-                  <p className="text-sm font-bold">Update availability daily</p>
+                  <p className="text-gray-100 text-sm font-bold">Update availability daily</p>
                   <p className="text-xs opacity-90 mt-1">Keep your schedule accurate to avoid cancellations</p>
                 </div>
                 <div className="bg-white bg-opacity-20 rounded-xl p-3">
-                  <p className="text-sm font-bold">Maintain 4.5+ rating</p>
-                  <p className="text-xs opacity-90 mt-1">Higher ratings mean more visibility</p>
+                  <p className="text-gray-200 text-sm font-bold">Maintain 4.5+ rating</p>
+                  <p className="text-gray-100 text-xs opacity-90 mt-1">Higher ratings mean more visibility</p>
                 </div>
               </div>
             </div>

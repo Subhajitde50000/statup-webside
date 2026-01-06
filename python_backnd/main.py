@@ -12,7 +12,7 @@ import socketio
 
 from app.database import connect_to_mongo, close_mongo_connection
 from app.routes import auth, users, oauth, vacancies, applications, verifications, upload, subscriptions
-from app.routes import services, offers, favorites, professionals, notifications, bookings
+from app.routes import services, offers, favorites, professionals, notifications, bookings, messages
 from app.socket_manager import sio
 
 
@@ -62,6 +62,7 @@ app.include_router(favorites.router, prefix="/api", tags=["Favorites"])
 app.include_router(professionals.router, prefix="/api", tags=["Professionals"])
 app.include_router(notifications.router, prefix="/api", tags=["Notifications"])
 app.include_router(bookings.router, prefix="/api/bookings", tags=["Bookings"])
+app.include_router(messages.router, prefix="/api/messages", tags=["Messages"])
 
 # Mount static files for uploads
 uploads_dir = Path("uploads")

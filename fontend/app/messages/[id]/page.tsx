@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { ArrowLeft, Phone, MapPin, MoreVertical, Smile, Paperclip, Mic, Send, Camera, Image as ImageIcon, FileText, Navigation, ChevronDown, ChevronUp, AlertCircle, CheckCheck, Check, Loader2 } from 'lucide-react';
+import { ArrowLeft, Phone, MapPin, MoreVertical, Smile, Paperclip, Mic, Send, Camera, Image as ImageIcon, FileText, Navigation, ChevronDown, ChevronUp, AlertCircle, CheckCheck, Check, Loader2, Star } from 'lucide-react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useMessageSocket } from '@/utils/MessageSocketContext';
@@ -9,6 +9,7 @@ import {
   getConversationDetail, 
   sendMessage as sendMessageApi, 
   markConversationRead,
+  startConversation,
   Message,
   Conversation,
   NewMessageEvent,
@@ -18,7 +19,7 @@ import {
 
 interface ChatMessage {
   id: string;
-  sender: 'customer' | 'professional' | 'system';
+  sender: 'user' | 'professional' | 'system';
   message: string;
   timestamp: string;
   status?: 'sent' | 'delivered' | 'seen';
@@ -26,11 +27,11 @@ interface ChatMessage {
 }
 
 function transformMessage(msg: Message, currentUserId: string): ChatMessage {
-  let sender: 'customer' | 'professional' | 'system' = 'customer';
+  let sender: 'user' | 'professional' | 'system' = 'professional';
   if (msg.message_type === 'system') {
     sender = 'system';
   } else if (msg.sender_id === currentUserId) {
-    sender = 'professional';
+    sender = 'user';
   }
   
   return {
@@ -43,11 +44,12 @@ function transformMessage(msg: Message, currentUserId: string): ChatMessage {
   };
 }
 
-export default function ChatConversationPage() {
+export default function UserChatPage() {
   const params = useParams();
   const router = useRouter();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const conversationId = params.id as string;
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const [message, setMessage] = useState('');
   const [showBookingCard, setShowBookingCard] = useState(true);
@@ -58,168 +60,171 @@ export default function ChatConversationPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
+  
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [conversation, setConversation] = useState<Conversation | null>(null);
   const [otherParticipant, setOtherParticipant] = useState<{
     id: string;
     name: string;
-    photo: string;
-    isOnline: boolean;
-    lastSeen: string;
-    phone: string;
+    photo?: string;
+    phone?: string;
+    isOnline?: boolean;
+    lastSeen?: string;
+    rating?: number;
+    profession?: string;
   } | null>(null);
   const [booking, setBooking] = useState<{
     service: string;
     time: string;
     location: string;
-    earnings: number;
-    status: 'pending' | 'ongoing' | 'completed';
+    price: number;
+    status: string;
   } | null>(null);
 
   const { 
-    isConnected, 
     joinConversation, 
     leaveConversation, 
-    emitTyping, 
-    emitMessageSeen,
     onNewMessage, 
     onMessageStatusChange, 
     onTyping,
-    isUserOnline 
+    emitTyping,
+    isUserOnline, 
+    isConnected,
+    getCurrentUserId
   } = useMessageSocket();
 
-  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-
-  // Get current user ID with fallback to stored user object
-  const getCurrentUserId = () => {
-    if (typeof window === 'undefined') return '';
-    
-    // Try direct user_id first
-    let userId = localStorage.getItem('user_id');
-    if (userId) return userId;
-    
-    // Fallback: get from stored user object
-    const userStr = localStorage.getItem('user');
-    if (userStr) {
-      try {
-        const user = JSON.parse(userStr);
-        if (user?.id) {
-          // Store it for future use
-          localStorage.setItem('user_id', user.id);
-          return user.id;
-        }
-      } catch (e) {
-        console.error('Error parsing user from localStorage:', e);
-      }
-    }
-    return '';
-  };
-
-  // Fetch conversation and messages
+  // Fetch conversation details
   const fetchConversation = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
-      const response = await getConversationDetail(conversationId, 100);
       
-      if (!response.success || !response.data) {
-        setError(response.error || 'Failed to load conversation');
-        return;
+      // First try to get the conversation directly
+      let response = await getConversationDetail(conversationId);
+      
+      // If 404, it might be a professional ID - try to start/get conversation
+      if (!response.success && response.error?.includes('not found')) {
+        console.log('Conversation not found, attempting to start conversation with professional:', conversationId);
+        
+        try {
+          // Try to start a conversation with this professional
+          const newConversation = await startConversation({
+            professional_id: conversationId,
+            initial_message: ''
+          });
+          
+          // Redirect to the actual conversation ID
+          router.replace(`/messages/${newConversation.id}`);
+          return;
+        } catch (startError) {
+          setError('Could not start conversation. Please try again.');
+          setLoading(false);
+          return;
+        }
       }
       
-      const data = response.data;
-      const currentUserId = getCurrentUserId();
-      
-      // Transform messages
-      const transformedMessages = data.messages?.map(msg => transformMessage(msg, currentUserId)) || [];
-      setMessages(transformedMessages);
-      setConversation(data.conversation);
-      
-      // Set other participant info
-      const other = data.conversation?.other_participant || 
-        data.conversation?.participants?.find(p => p.user_id !== currentUserId);
-      
-      if (other) {
-        setOtherParticipant({
-          id: other.user_id,
-          name: other.name,
-          photo: other.photo || `https://ui-avatars.com/api/?name=${encodeURIComponent(other.name)}&background=1E2A5E&color=fff`,
-          isOnline: other.is_online,
-          lastSeen: other.is_online ? 'Online' : (other.last_seen ? `Last seen ${new Date(other.last_seen).toLocaleTimeString()}` : 'Offline'),
-          phone: other.phone || ''
-        });
-      }
-      
-      // Set booking info
-      if (data.conversation?.booking_reference) {
-        const bookingRef = data.conversation.booking_reference;
-        setBooking({
-          service: bookingRef.service_name,
-          time: `${bookingRef.scheduled_date}, ${bookingRef.scheduled_time}`,
-          location: bookingRef.address || 'Address not specified',
-          earnings: bookingRef.price,
-          status: bookingRef.status as 'pending' | 'ongoing' | 'completed'
-        });
-      }
-      
-      // Mark conversation as read
-      try {
+      if (response.success && response.data) {
+        const data = response.data;
+        setConversation(data.conversation);
+        
+        // Find the professional (other participant)
+        const currentUserId = getCurrentUserId();
+        const professional = data.conversation.participants?.find(
+          (p: any) => p.user_id !== currentUserId && p.user_type === 'professional'
+        );
+        
+        if (professional) {
+          setOtherParticipant({
+            id: professional.user_id,
+            name: professional.name || 'Professional',
+            photo: professional.photo,
+            phone: professional.phone,
+            isOnline: isUserOnline(professional.user_id),
+            lastSeen: professional.last_seen ? new Date(professional.last_seen).toLocaleString() : 'Recently',
+            rating: professional.rating,
+            profession: professional.profession
+          });
+        }
+
+        // Transform messages
+        if (data.messages) {
+          const transformedMessages = data.messages.map((msg: Message) => 
+            transformMessage(msg, currentUserId)
+          );
+          setMessages(transformedMessages);
+        }
+
+        // Set booking if exists
+        if (data.booking) {
+          setBooking({
+            service: data.booking.service_name || 'Service',
+            time: new Date(data.booking.scheduled_time || data.booking.created_at).toLocaleString(),
+            location: data.booking.address || 'Location not specified',
+            price: data.booking.total_amount || 0,
+            status: data.booking.status || 'pending'
+          });
+        }
+
+        // Mark as read
         await markConversationRead(conversationId);
-      } catch (e) {
-        console.error('Error marking conversation read:', e);
+      } else {
+        setError(response.error || 'Failed to load conversation');
       }
-      
-      setError(null);
     } catch (err) {
       console.error('Error fetching conversation:', err);
-      setError(err instanceof Error ? err.message : 'Failed to load conversation');
+      setError('Failed to load conversation');
     } finally {
       setLoading(false);
     }
-  }, [conversationId]);
+  }, [conversationId, getCurrentUserId, isUserOnline]);
 
   // Initial fetch
   useEffect(() => {
     fetchConversation();
   }, [fetchConversation]);
 
-  // Join conversation room on mount
+  // Join/leave conversation room
   useEffect(() => {
-    if (isConnected && conversationId) {
+    if (conversationId && isConnected) {
       joinConversation(conversationId);
-    }
-    
-    return () => {
-      if (conversationId) {
+      
+      return () => {
         leaveConversation(conversationId);
-      }
-    };
-  }, [isConnected, conversationId, joinConversation, leaveConversation]);
+      };
+    }
+  }, [conversationId, isConnected, joinConversation, leaveConversation]);
 
   // Listen for new messages
   useEffect(() => {
     const unsubscribe = onNewMessage((event: NewMessageEvent) => {
       if (event.conversation_id === conversationId) {
         const currentUserId = getCurrentUserId();
-        const newMsg = transformMessage(event.message, currentUserId);
+        const newMessage: ChatMessage = {
+          id: event.message?.id || event.message_id,
+          sender: event.sender_id === currentUserId ? 'user' : 'professional',
+          message: event.message?.content || event.content,
+          timestamp: new Date(event.created_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+          status: event.message?.status || 'delivered',
+          type: (event.message?.message_type || event.message_type) as 'text' | 'image' | 'location' | 'system'
+        };
         
         setMessages(prev => {
-          // Avoid duplicates
-          if (prev.some(m => m.id === newMsg.id)) {
+          // Check for duplicates - avoid adding if message ID already exists
+          if (prev.some(m => m.id === newMessage.id)) {
             return prev;
           }
-          return [...prev, newMsg];
+          return [...prev, newMessage];
         });
         
-        // Mark as seen if from other user
+        // Mark as read only if message is from other user
         if (event.sender_id !== currentUserId) {
-          emitMessageSeen(event.message.id, conversationId);
+          markConversationRead(conversationId);
         }
       }
     });
     
     return unsubscribe;
-  }, [conversationId, onNewMessage, emitMessageSeen]);
+  }, [conversationId, getCurrentUserId, onNewMessage]);
 
   // Listen for message status changes
   useEffect(() => {
@@ -251,7 +256,7 @@ export default function ChatConversationPage() {
     });
     
     return unsubscribe;
-  }, [conversationId, onTyping]);
+  }, [conversationId, onTyping, getCurrentUserId]);
 
   // Scroll to bottom on new messages
   useEffect(() => {
@@ -307,7 +312,7 @@ export default function ChatConversationPage() {
     const tempId = `temp-${Date.now()}`;
     const optimisticMessage: ChatMessage = {
       id: tempId,
-      sender: 'professional',
+      sender: 'user',
       message: messageText,
       timestamp: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
       status: 'sent',
@@ -364,21 +369,24 @@ export default function ChatConversationPage() {
       case 'pending':
         return 'bg-yellow-100 text-yellow-800 border-yellow-300';
       case 'ongoing':
+      case 'in_progress':
         return 'bg-green-100 text-green-800 border-green-300';
       case 'completed':
         return 'bg-blue-100 text-blue-800 border-blue-300';
+      case 'cancelled':
+        return 'bg-red-100 text-red-800 border-red-300';
       default:
         return 'bg-gray-100 text-gray-800 border-gray-300';
     }
   };
 
   const quickReplies = [
-    "I'm on the way. Reaching in 10 min.",
-    "Running 5 minutes late.",
-    "Please share the OTP.",
-    "Can you describe the problem in detail?",
-    "Job completed successfully!",
-    "I'll need to check and get back to you."
+    "Thanks! On my way.",
+    "Can you share your location?",
+    "What's the status?",
+    "How long will it take?",
+    "Please share photos of work.",
+    "Great work! Thank you."
   ];
 
   if (loading) {
@@ -421,8 +429,8 @@ export default function ChatConversationPage() {
               </button>
               <div className="relative">
                 <img
-                  src={otherParticipant?.photo || 'https://ui-avatars.com/api/?name=U&background=1E2A5E&color=fff'}
-                  alt={otherParticipant?.name || 'User'}
+                  src={otherParticipant?.photo || 'https://ui-avatars.com/api/?name=P&background=1E2A5E&color=fff'}
+                  alt={otherParticipant?.name || 'Professional'}
                   className="w-10 h-10 rounded-full border-2 border-white object-cover"
                 />
                 {(otherParticipant?.isOnline || isUserOnline(otherParticipant?.id || '')) && (
@@ -430,10 +438,18 @@ export default function ChatConversationPage() {
                 )}
               </div>
               <div>
-                <h2 className="text-white font-black">{otherParticipant?.name || 'Customer'}</h2>
-                <p className="text-white/90 text-xs font-semibold">
-                  {isOtherTyping ? 'typing...' : (otherParticipant?.isOnline || isUserOnline(otherParticipant?.id || '') ? 'Online' : otherParticipant?.lastSeen)}
-                </p>
+                <h2 className="text-white font-black">{otherParticipant?.name || 'Professional'}</h2>
+                <div className="flex items-center gap-2">
+                  <p className="text-white/90 text-xs font-semibold">
+                    {isOtherTyping ? 'typing...' : (otherParticipant?.isOnline || isUserOnline(otherParticipant?.id || '') ? 'Online' : otherParticipant?.lastSeen)}
+                  </p>
+                  {otherParticipant?.rating && (
+                    <div className="flex items-center gap-1">
+                      <Star className="w-3 h-3 text-yellow-400 fill-yellow-400" />
+                      <span className="text-white/90 text-xs font-semibold">{otherParticipant.rating}</span>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
 
@@ -446,9 +462,6 @@ export default function ChatConversationPage() {
                   <Phone className="w-5 h-5 text-white" />
                 </a>
               )}
-              <button className="p-2 hover:bg-white/20 rounded-full transition-colors">
-                <MapPin className="w-5 h-5 text-white" />
-              </button>
               <button className="p-2 hover:bg-white/20 rounded-full transition-colors">
                 <MoreVertical className="w-5 h-5 text-white" />
               </button>
@@ -463,14 +476,15 @@ export default function ChatConversationPage() {
           </div>
         )}
       </header>
+
       {/* Booking Info Card */}
       {showBookingCard && booking && (
         <div className="bg-gradient-to-br from-[#00A884]/10 to-blue-50 border-b-2 border-[#00A884]/20 p-4">
           <div className="bg-white rounded-2xl shadow-lg p-4 border-2 border-[#00A884]/30">
             <div className="flex items-start justify-between mb-3">
               <div className="flex items-center gap-2">
-                <div className="p-2 bg-yellow-100 rounded-lg">
-                  <AlertCircle className="w-5 h-5 text-yellow-600" />
+                <div className="p-2 bg-blue-100 rounded-lg">
+                  <FileText className="w-5 h-5 text-blue-600" />
                 </div>
                 <div>
                   <h3 className="font-black text-gray-900">{booking.service}</h3>
@@ -488,32 +502,28 @@ export default function ChatConversationPage() {
             <div className="grid grid-cols-2 gap-3 mb-3">
               <div className="flex items-center gap-2 text-sm">
                 <MapPin className="w-4 h-4 text-gray-500" />
-                <span className="text-gray-700 font-semibold">{booking.location}</span>
+                <span className="text-gray-700 font-semibold truncate">{booking.location}</span>
               </div>
               <div className="flex items-center gap-2 text-sm justify-end">
-                <span className="text-gray-600 font-semibold">Earnings:</span>
-                <span className="text-green-700 font-black">₹{booking.earnings}</span>
+                <span className="text-gray-600 font-semibold">Price:</span>
+                <span className="text-green-700 font-black">₹{booking.price}</span>
               </div>
             </div>
 
             <div className="flex items-center gap-2 mb-3">
               <span className="text-sm text-gray-600 font-semibold">Status:</span>
               <span className={`px-3 py-1 rounded-full text-xs font-black border-2 ${getStatusColor(booking.status)}`}>
-                {booking.status.toUpperCase()}
+                {booking.status.replace('_', ' ').toUpperCase()}
               </span>
             </div>
 
             <div className="flex gap-2">
-              <button className="flex-1 flex items-center justify-center gap-2 bg-blue-100 hover:bg-blue-200 text-blue-800 font-bold py-2 px-4 rounded-xl border-2 border-blue-300 transition-colors">
-                <Navigation className="w-4 h-4" />
-                <span className="text-sm">Open in Maps</span>
-              </button>
               <Link
-                href={`/professional/bookings/ongoing/${conversation?.booking_id || params.id}`}
+                href={`/booking/${conversation?.booking_id || params.id}`}
                 className="flex-1 flex items-center justify-center gap-2 bg-[#00A884] hover:bg-[#00796B] text-white font-bold py-2 px-4 rounded-xl transition-colors"
               >
                 <FileText className="w-4 h-4" />
-                <span className="text-sm">View Full Details</span>
+                <span className="text-sm">View Booking</span>
               </Link>
             </div>
           </div>
@@ -543,24 +553,24 @@ export default function ChatConversationPage() {
             );
           }
 
-          const isCustomer = msg.sender === 'customer';
+          const isProfessional = msg.sender === 'professional';
           return (
-            <div key={msg.id} className={`flex ${isCustomer ? 'justify-start' : 'justify-end'}`}>
-              <div className={`max-w-[80%] ${isCustomer ? 'order-1' : 'order-2'}`}>
+            <div key={msg.id} className={`flex ${isProfessional ? 'justify-start' : 'justify-end'}`}>
+              <div className={`max-w-[80%] ${isProfessional ? 'order-1' : 'order-2'}`}>
                 <div
                   className={`rounded-2xl px-4 py-3 shadow-md ${
-                    isCustomer
+                    isProfessional
                       ? 'bg-white text-gray-900 border-2 border-gray-200 rounded-tl-sm'
                       : 'bg-[#00A884] text-white rounded-tr-sm'
                   }`}
                 >
                   <p className="text-sm font-medium break-words leading-relaxed">{msg.message}</p>
                 </div>
-                <div className={`flex items-center gap-1.5 mt-1 px-1 ${isCustomer ? 'justify-start' : 'justify-end'}`}>
-                  <span className={`font-semibold text-xs ${isCustomer ? 'text-gray-500' : 'text-gray-600'}`}>
+                <div className={`flex items-center gap-1.5 mt-1 px-1 ${isProfessional ? 'justify-start' : 'justify-end'}`}>
+                  <span className={`font-semibold text-xs ${isProfessional ? 'text-gray-500' : 'text-gray-600'}`}>
                     {msg.timestamp}
                   </span>
-                  {!isCustomer && msg.status && (
+                  {!isProfessional && msg.status && (
                     <span className="flex items-center">
                       {getStatusIcon(msg.status)}
                     </span>
@@ -571,7 +581,7 @@ export default function ChatConversationPage() {
           );
         })}
         
-        {/* Typing Indicator - shows when other user is typing */}
+        {/* Typing Indicator */}
         {isOtherTyping && (
           <div className="flex justify-start">
             <div className="bg-white text-gray-900 border-2 border-gray-200 rounded-2xl rounded-tl-sm px-4 py-3 shadow-md">
@@ -681,18 +691,6 @@ export default function ChatConversationPage() {
             <button className="flex flex-col items-center gap-2 p-4 bg-green-100 hover:bg-green-200 rounded-2xl transition-colors">
               <MapPin className="w-8 h-8 text-green-600" />
               <span className="text-xs font-bold text-green-900">Location</span>
-            </button>
-            <button className="flex flex-col items-center gap-2 p-4 bg-orange-100 hover:bg-orange-200 rounded-2xl transition-colors">
-              <FileText className="w-8 h-8 text-orange-600" />
-              <span className="text-xs font-bold text-orange-900">Invoice</span>
-            </button>
-            <button className="flex flex-col items-center gap-2 p-4 bg-red-100 hover:bg-red-200 rounded-2xl transition-colors">
-              <Mic className="w-8 h-8 text-red-600" />
-              <span className="text-xs font-bold text-red-900">Voice</span>
-            </button>
-            <button className="flex flex-col items-center gap-2 p-4 bg-teal-100 hover:bg-teal-200 rounded-2xl transition-colors">
-              <FileText className="w-8 h-8 text-teal-600" />
-              <span className="text-xs font-bold text-teal-900">Summary</span>
             </button>
           </div>
         </div>

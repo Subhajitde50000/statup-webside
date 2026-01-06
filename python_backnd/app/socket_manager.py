@@ -361,3 +361,146 @@ async def emit_booking_cancelled(booking_id: str, user_id: str, professional_id:
     # Emit to booking room
     await emit_booking_status_update(booking_id, 'cancelled', cancel_data)
     print(f"Booking {booking_id} cancelled by {cancelled_by}")
+
+
+# ============================================
+# REAL-TIME MESSAGING EVENTS
+# ============================================
+
+@sio.event
+async def join_conversation(sid, data):
+    """Allow user to join a conversation room for real-time messages"""
+    conversation_id = data.get('conversation_id')
+    if conversation_id:
+        room = f"conversation_{conversation_id}"
+        await sio.enter_room(sid, room)
+        print(f"Session {sid} joined conversation room {room}")
+        await sio.emit('joined_conversation', {
+            'conversation_id': conversation_id,
+            'message': f'Joined conversation room'
+        }, room=sid)
+
+
+@sio.event
+async def leave_conversation(sid, data):
+    """Allow user to leave a conversation room"""
+    conversation_id = data.get('conversation_id')
+    if conversation_id:
+        room = f"conversation_{conversation_id}"
+        await sio.leave_room(sid, room)
+        print(f"Session {sid} left conversation room {room}")
+
+
+@sio.event
+async def typing(sid, data):
+    """Handle typing indicator event from client"""
+    conversation_id = data.get('conversation_id')
+    is_typing = data.get('is_typing', False)
+    
+    session = await sio.get_session(sid)
+    user_id = session.get('user_id') if session else None
+    user_name = data.get('user_name', 'User')
+    
+    if conversation_id and user_id:
+        # Emit to conversation room (excluding sender)
+        await sio.emit('user_typing', {
+            'conversation_id': conversation_id,
+            'user_id': user_id,
+            'user_name': user_name,
+            'is_typing': is_typing,
+            'timestamp': datetime.utcnow().isoformat()
+        }, room=f"conversation_{conversation_id}", skip_sid=sid)
+
+
+@sio.event
+async def message_seen(sid, data):
+    """Handle message seen event from client"""
+    message_id = data.get('message_id')
+    conversation_id = data.get('conversation_id')
+    
+    session = await sio.get_session(sid)
+    user_id = session.get('user_id') if session else None
+    
+    if message_id and conversation_id and user_id:
+        # Emit to conversation room
+        await sio.emit('message_status_changed', {
+            'message_id': message_id,
+            'conversation_id': conversation_id,
+            'status': 'seen',
+            'seen_by': user_id,
+            'timestamp': datetime.utcnow().isoformat()
+        }, room=f"conversation_{conversation_id}")
+
+
+# Utility functions for messaging
+
+async def emit_new_message(conversation_id: str, message: dict, sender_id: str, receiver_id: str):
+    """Emit new message to conversation participants"""
+    room = f"conversation_{conversation_id}"
+    
+    event_data = {
+        'message': message,
+        'conversation_id': conversation_id,
+        'sender_id': sender_id,
+        'timestamp': datetime.utcnow().isoformat()
+    }
+    
+    # Emit to conversation room (both participants if they're in it)
+    await sio.emit('new_message', event_data, room=room)
+    
+    # Also emit to receiver's personal room in case they're not in conversation room
+    await sio.emit('new_message', event_data, room=f"user_{receiver_id}")
+    
+    # Also emit to sender's personal room for immediate feedback/sync across tabs
+    await sio.emit('new_message', event_data, room=f"user_{sender_id}")
+    
+    print(f"Emitted new message to conversation {conversation_id} (sender: {sender_id}, receiver: {receiver_id})")
+
+
+async def emit_message_status_update(conversation_id: str, message_id: str, status: str, sender_id: str):
+    """Emit message status update (delivered/seen)"""
+    room = f"conversation_{conversation_id}"
+    
+    event_data = {
+        'message_id': message_id,
+        'conversation_id': conversation_id,
+        'status': status,
+        'timestamp': datetime.utcnow().isoformat()
+    }
+    
+    await sio.emit('message_status_changed', event_data, room=room)
+    
+    # Also notify the original sender
+    await sio.emit('message_status_changed', event_data, room=f"user_{sender_id}")
+    
+    print(f"Emitted message status update: {message_id} -> {status}")
+
+
+async def emit_typing_indicator(conversation_id: str, user_id: str, user_name: str, is_typing: bool, receiver_id: str):
+    """Emit typing indicator to conversation"""
+    event_data = {
+        'conversation_id': conversation_id,
+        'user_id': user_id,
+        'user_name': user_name,
+        'is_typing': is_typing,
+        'timestamp': datetime.utcnow().isoformat()
+    }
+    
+    # Emit to conversation room
+    await sio.emit('user_typing', event_data, room=f"conversation_{conversation_id}")
+    
+    # Also emit to receiver's personal room
+    await sio.emit('user_typing', event_data, room=f"user_{receiver_id}")
+
+
+async def emit_user_online_status(user_id: str, is_online: bool):
+    """Emit user online status change"""
+    event_data = {
+        'user_id': user_id,
+        'is_online': is_online,
+        'last_seen': datetime.utcnow().isoformat() if not is_online else None,
+        'timestamp': datetime.utcnow().isoformat()
+    }
+    
+    # Broadcast to all connected users (they can filter relevant ones)
+    await sio.emit('user_online_status', event_data)

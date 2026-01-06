@@ -143,12 +143,17 @@ export function saveAuthData(accessToken: string, refreshToken: string, user: Us
   localStorage.setItem(ACCESS_TOKEN_KEY, accessToken);
   localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
   localStorage.setItem(USER_KEY, JSON.stringify(user));
+  // Store user_id separately for socket connections
+  localStorage.setItem('user_id', user.id);
+  localStorage.setItem('user_name', user.name);
 }
 
 export function clearAuthData(): void {
   localStorage.removeItem(ACCESS_TOKEN_KEY);
   localStorage.removeItem(REFRESH_TOKEN_KEY);
   localStorage.removeItem(USER_KEY);
+  localStorage.removeItem('user_id');
+  localStorage.removeItem('user_name');
 }
 
 export function isAuthenticated(): boolean {

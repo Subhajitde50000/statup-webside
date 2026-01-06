@@ -77,6 +77,28 @@ async def create_indexes():
             await db.db.notifications.create_index([("user_id", 1), ("is_read", 1)])
         if "expires_at_1" not in notif_indexes:
             await db.db.notifications.create_index("expires_at", expireAfterSeconds=0)  # TTL index
+        
+        # Message collection indexes
+        msg_indexes = await db.db.messages.index_information()
+        if "conversation_id_1_created_at_-1" not in msg_indexes:
+            await db.db.messages.create_index([("conversation_id", 1), ("created_at", -1)])
+        if "sender_id_1" not in msg_indexes:
+            await db.db.messages.create_index("sender_id")
+        if "status_1" not in msg_indexes:
+            await db.db.messages.create_index("status")
+        
+        # Conversation collection indexes
+        conv_indexes = await db.db.conversations.index_information()
+        if "user_id_1_professional_id_1" not in conv_indexes:
+            await db.db.conversations.create_index([("user_id", 1), ("professional_id", 1)])
+        if "user_id_1_status_1" not in conv_indexes:
+            await db.db.conversations.create_index([("user_id", 1), ("status", 1)])
+        if "professional_id_1_status_1" not in conv_indexes:
+            await db.db.conversations.create_index([("professional_id", 1), ("status", 1)])
+        if "last_message_at_-1" not in conv_indexes:
+            await db.db.conversations.create_index([("last_message_at", -1)])
+        if "booking_id_1" not in conv_indexes:
+            await db.db.conversations.create_index("booking_id", sparse=True)
     
     except Exception as e:
         print(f"Warning: Error creating indexes: {e}")

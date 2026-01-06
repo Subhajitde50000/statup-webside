@@ -1,13 +1,20 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { Search, Settings, Phone, MapPin, MoreVertical, MessageSquare, Bell, Clock, Zap, CheckCircle } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Search, Settings, Bell, Clock, Zap, CheckCircle, MessageSquare, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { ProfessionalNavbar } from '../components';
+import { useMessageSocket } from '@/utils/MessageSocketContext';
+import { 
+  getConversations, 
+  Conversation, 
+  ConversationListResponse,
+  NewMessageEvent 
+} from '@/utils/messages';
 
-interface Message {
-  id: number;
-  customerId: number;
+interface ConversationDisplay {
+  id: string;
+  customerId: string;
   customerName: string;
   customerPhoto: string;
   isOnline: boolean;
@@ -22,12 +29,139 @@ interface Message {
   bookingStatus: 'pending' | 'ongoing' | 'completed';
 }
 
+const SERVICE_BADGE_COLORS: Record<string, string> = {
+  'electrical': 'bg-yellow-500',
+  'plumbing': 'bg-blue-500',
+  'wiring': 'bg-orange-500',
+  'repair': 'bg-red-500',
+  'installation': 'bg-green-500',
+  'service': 'bg-cyan-500',
+  'emergency': 'bg-red-600',
+  'default': 'bg-teal-500'
+};
+
+function getServiceBadgeColor(serviceName: string): string {
+  const lowerName = serviceName.toLowerCase();
+  for (const [key, color] of Object.entries(SERVICE_BADGE_COLORS)) {
+    if (lowerName.includes(key)) {
+      return color;
+    }
+  }
+  return SERVICE_BADGE_COLORS.default;
+}
+
+function formatTimestamp(dateStr: string): string {
+  if (!dateStr) return '';
+  const date = new Date(dateStr);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffHours = diffMs / (1000 * 60 * 60);
+  const diffDays = diffMs / (1000 * 60 * 60 * 24);
+  
+  if (diffHours < 24 && date.getDate() === now.getDate()) {
+    return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+  } else if (diffDays < 2) {
+    return 'Yesterday';
+  } else if (diffDays < 7) {
+    return date.toLocaleDateString('en-US', { weekday: 'short' });
+  } else {
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  }
+}
+
+function transformConversation(conv: Conversation, currentUserId: string): ConversationDisplay {
+  const otherParticipant = conv.other_participant || conv.participants.find(p => p.user_id !== currentUserId);
+  const currentUserParticipant = conv.participants.find(p => p.user_id === currentUserId);
+  
+  // Determine booking status
+  let bookingStatus: 'pending' | 'ongoing' | 'completed' = 'pending';
+  if (conv.booking_reference) {
+    const status = conv.booking_reference.status.toLowerCase();
+    if (status === 'completed' || status === 'cancelled') {
+      bookingStatus = 'completed';
+    } else if (status === 'ongoing' || status === 'accepted' || status === 'started') {
+      bookingStatus = 'ongoing';
+    }
+  }
+  
+  return {
+    id: conv.id,
+    customerId: otherParticipant?.user_id || conv.user_id,
+    customerName: otherParticipant?.name || 'Customer',
+    customerPhoto: otherParticipant?.photo || `https://ui-avatars.com/api/?name=${encodeURIComponent(otherParticipant?.name || 'C')}&background=1E2A5E&color=fff`,
+    isOnline: otherParticipant?.is_online || false,
+    lastMessage: conv.last_message_content || 'Start a conversation',
+    timestamp: conv.last_message_at ? formatTimestamp(conv.last_message_at) : formatTimestamp(conv.created_at),
+    unreadCount: conv.unread_count,
+    serviceBadge: conv.service_badge || conv.booking_reference?.service_name || 'Message',
+    serviceBadgeColor: conv.service_badge_color || getServiceBadgeColor(conv.service_badge || conv.booking_reference?.service_name || ''),
+    isMuted: currentUserParticipant?.is_muted || false,
+    isPriority: conv.is_priority,
+    priorityText: conv.priority_text,
+    bookingStatus
+  };
+}
+
 export default function MessagesPage() {
   const [currentTime, setCurrentTime] = useState<string>('--:--');
   const [mounted, setMounted] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState<'all' | 'new' | 'unread' | 'ongoing' | 'completed'>('all');
   const [showQuickStats, setShowQuickStats] = useState(true);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [conversations, setConversations] = useState<ConversationDisplay[]>([]);
+  const [totalUnread, setTotalUnread] = useState(0);
+  
+  const { isConnected, onNewMessage, onUserOnlineStatus, isUserOnline } = useMessageSocket();
+
+  // Get current user ID with fallback to stored user object
+  const getCurrentUserId = () => {
+    if (typeof window === 'undefined') return '';
+    
+    // Try direct user_id first
+    let userId = localStorage.getItem('user_id');
+    if (userId) return userId;
+    
+    // Fallback: get from stored user object
+    const userStr = localStorage.getItem('user');
+    if (userStr) {
+      try {
+        const user = JSON.parse(userStr);
+        if (user?.id) {
+          localStorage.setItem('user_id', user.id);
+          return user.id;
+        }
+      } catch (e) {}
+    }
+    return '';
+  };
+
+  // Fetch conversations
+  const fetchConversations = useCallback(async () => {
+    try {
+      setLoading(true);
+      const response = await getConversations({
+        status: 'active',
+        limit: 50
+      });
+      
+      if (response.success && response.data) {
+        const currentUserId = getCurrentUserId();
+        const transformed = response.data.map(conv => transformConversation(conv, currentUserId));
+        
+        setConversations(transformed);
+        setTotalUnread(transformed.reduce((sum, c) => sum + c.unreadCount, 0));
+      } else {
+        setError(response.error || 'Failed to load conversations');
+      }
+    } catch (err) {
+      console.error('Error fetching conversations:', err);
+      setError(err instanceof Error ? err.message : 'Failed to load conversations');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     setMounted(true);
@@ -37,166 +171,57 @@ export default function MessagesPage() {
     };
     updateTime();
     const timer = setInterval(updateTime, 60000);
+    
+    fetchConversations();
+    
     return () => clearInterval(timer);
-  }, []);
+  }, [fetchConversations]);
 
-  const messages: Message[] = [
-    {
-      id: 1,
-      customerId: 101,
-      customerName: 'Subhajit De',
-      customerPhoto: 'https://i.pravatar.cc/150?img=33',
-      isOnline: true,
-      lastMessage: 'Hi, can you come 30 minutes earlier? I have to leave by 5 PM.',
-      timestamp: '4:32 PM',
-      unreadCount: 3,
-      serviceBadge: 'Fan Repair',
-      serviceBadgeColor: 'bg-yellow-500',
-      isMuted: false,
-      isPriority: true,
-      priorityText: 'Urgent — Awaiting response (8 min)',
-      bookingStatus: 'ongoing'
-    },
-    {
-      id: 2,
-      customerId: 102,
-      customerName: 'Priya Sharma',
-      customerPhoto: 'https://i.pravatar.cc/150?img=45',
-      isOnline: false,
-      lastMessage: '5 stars! Really impressed with your professional work. Will recommend to friends.',
-      timestamp: '3:15 PM',
-      unreadCount: 0,
-      serviceBadge: 'Plumbing',
-      serviceBadgeColor: 'bg-blue-500',
-      isMuted: false,
-      isPriority: false,
-      bookingStatus: 'completed'
-    },
-    {
-      id: 3,
-      customerId: 103,
-      customerName: 'Rajesh Kumar',
-      customerPhoto: 'https://i.pravatar.cc/150?img=12',
-      isOnline: true,
-      lastMessage: 'What is your current location? Expected time of arrival?',
-      timestamp: '2:45 PM',
-      unreadCount: 2,
-      serviceBadge: 'Wiring Work',
-      serviceBadgeColor: 'bg-orange-500',
-      isMuted: false,
-      isPriority: true,
-      priorityText: 'Customer tracking your location',
-      bookingStatus: 'ongoing'
-    },
-    {
-      id: 4,
-      customerId: 104,
-      customerName: 'Anita Das',
-      customerPhoto: 'https://i.pravatar.cc/150?img=25',
-      isOnline: false,
-      lastMessage: 'The fan is making noise again. Can you check once more tomorrow?',
-      timestamp: '1:30 PM',
-      unreadCount: 0,
-      serviceBadge: 'Follow-up',
-      serviceBadgeColor: 'bg-purple-500',
-      isMuted: true,
-      isPriority: false,
-      bookingStatus: 'completed'
-    },
-    {
-      id: 5,
-      customerId: 105,
-      customerName: 'Amit Gupta',
-      customerPhoto: 'https://i.pravatar.cc/150?img=8',
-      isOnline: true,
-      lastMessage: 'OTP is 4567. Please verify when you arrive.',
-      timestamp: '12:20 PM',
-      unreadCount: 0,
-      serviceBadge: 'MCB Repair',
-      serviceBadgeColor: 'bg-red-500',
-      isMuted: false,
-      isPriority: false,
-      bookingStatus: 'ongoing'
-    },
-    {
-      id: 6,
-      customerId: 106,
-      customerName: 'Neha Singh',
-      customerPhoto: 'https://i.pravatar.cc/150?img=47',
-      isOnline: false,
-      lastMessage: 'I need urgent help. Water pipe is leaking badly in kitchen. Can you come today?',
-      timestamp: '11:45 AM',
-      unreadCount: 5,
-      serviceBadge: 'Emergency',
-      serviceBadgeColor: 'bg-red-600',
-      isMuted: false,
-      isPriority: true,
-      priorityText: 'URGENT — Emergency service needed',
-      bookingStatus: 'pending'
-    },
-    {
-      id: 7,
-      customerId: 107,
-      customerName: 'Vikram Rao',
-      customerPhoto: 'https://i.pravatar.cc/150?img=15',
-      isOnline: false,
-      lastMessage: 'Payment completed via UPI. Thank you for quick service!',
-      timestamp: '10:30 AM',
-      unreadCount: 0,
-      serviceBadge: 'Switch Repair',
-      serviceBadgeColor: 'bg-yellow-500',
-      isMuted: false,
-      isPriority: false,
-      bookingStatus: 'completed'
-    },
-    {
-      id: 8,
-      customerId: 108,
-      customerName: 'Deepa Menon',
-      customerPhoto: 'https://i.pravatar.cc/150?img=32',
-      isOnline: true,
-      lastMessage: 'Rescheduling to tomorrow 11 AM. Is that okay for you?',
-      timestamp: '9:15 AM',
-      unreadCount: 1,
-      serviceBadge: 'AC Service',
-      serviceBadgeColor: 'bg-cyan-500',
-      isMuted: false,
-      isPriority: false,
-      bookingStatus: 'pending'
-    },
-    {
-      id: 9,
-      customerId: 109,
-      customerName: 'Arjun Patel',
-      customerPhoto: 'https://i.pravatar.cc/150?img=68',
-      isOnline: false,
-      lastMessage: 'Job completed successfully! Added ₹50 tip for excellent work 👍',
-      timestamp: 'Yesterday',
-      unreadCount: 0,
-      serviceBadge: 'Geyser Install',
-      serviceBadgeColor: 'bg-orange-500',
-      isMuted: false,
-      isPriority: false,
-      bookingStatus: 'completed'
-    },
-    {
-      id: 10,
-      customerId: 110,
-      customerName: 'Kavita Joshi',
-      customerPhoto: 'https://i.pravatar.cc/150?img=41',
-      isOnline: false,
-      lastMessage: 'Booking cancelled due to change in plans. Sorry for inconvenience.',
-      timestamp: 'Yesterday',
-      unreadCount: 0,
-      serviceBadge: 'Light Install',
-      serviceBadgeColor: 'bg-gray-500',
-      isMuted: false,
-      isPriority: false,
-      bookingStatus: 'completed'
-    }
-  ];
+  // Listen for new messages
+  useEffect(() => {
+    const unsubscribe = onNewMessage((event: NewMessageEvent) => {
+      // Update conversation list with new message
+      setConversations(prev => {
+        const updated = [...prev];
+        const index = updated.findIndex(c => c.id === event.conversation_id);
+        
+        if (index !== -1) {
+          updated[index] = {
+            ...updated[index],
+            lastMessage: event.message.content,
+            timestamp: 'Just now',
+            unreadCount: updated[index].unreadCount + (event.sender_id !== getCurrentUserId() ? 1 : 0)
+          };
+          // Move to top
+          const [conv] = updated.splice(index, 1);
+          updated.unshift(conv);
+        }
+        
+        return updated;
+      });
+      
+      // Refresh to get accurate data
+      fetchConversations();
+    });
+    
+    return unsubscribe;
+  }, [onNewMessage, fetchConversations]);
 
-  const filteredMessages = messages.filter(message => {
+  // Update online status
+  useEffect(() => {
+    const unsubscribe = onUserOnlineStatus((event) => {
+      setConversations(prev => prev.map(conv => {
+        if (conv.customerId === event.user_id) {
+          return { ...conv, isOnline: event.is_online };
+        }
+        return conv;
+      }));
+    });
+    
+    return unsubscribe;
+  }, [onUserOnlineStatus]);
+
+  const filteredMessages = conversations.filter(message => {
     // Filter by search
     const matchesSearch = message.customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          message.lastMessage.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -219,24 +244,36 @@ export default function MessagesPage() {
     }
   });
 
-  const unreadCount = messages.filter(m => m.unreadCount > 0).length;
-  const ongoingCount = messages.filter(m => m.bookingStatus === 'ongoing').length;
-  const newCount = messages.filter(m => m.unreadCount > 0 && m.bookingStatus === 'pending').length;
-  const urgentCount = messages.filter(m => m.isPriority).length;
-  const totalUnreadMessages = messages.reduce((sum, m) => sum + m.unreadCount, 0);
+  const unreadCount = conversations.filter(m => m.unreadCount > 0).length;
+  const ongoingCount = conversations.filter(m => m.bookingStatus === 'ongoing').length;
+  const newCount = conversations.filter(m => m.unreadCount > 0 && m.bookingStatus === 'pending').length;
+  const urgentCount = conversations.filter(m => m.isPriority).length;
+  const totalUnreadMessages = conversations.reduce((sum, m) => sum + m.unreadCount, 0);
   const avgResponseTime = '4 min';
+
+  if (!mounted) {
+    return null;
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-teal-50">
       {/* Navbar */}
       <ProfessionalNavbar
         activeTab="messages"
-        notificationCount={3}
+        notificationCount={totalUnreadMessages}
         currentTime={currentTime}
       />
 
       {/* Main Content */}
       <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        {/* Connection Status */}
+        <div className={`mb-2 px-3 py-1.5 rounded-lg flex items-center gap-2 w-fit text-sm ${
+          isConnected ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
+        }`}>
+          <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`} />
+          {isConnected ? 'Connected' : 'Disconnected'}
+        </div>
+
         {/* Header */}
         <div className="bg-[#00A884] rounded-t-3xl shadow-lg px-6 py-5">
           <div className="flex items-center justify-between mb-4">
@@ -259,7 +296,7 @@ export default function MessagesPage() {
               placeholder="Search customers, bookings..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-12 pr-4 py-3 rounded-xl bg-white/95 backdrop-blur-sm border-2 border-white/50 focus:border-white focus:ring-2 focus:ring-white/30 outline-none font-medium transition-all"
+              className="w-full text-gray-900 pl-12 pr-4 py-3 rounded-xl bg-white/95 backdrop-blur-sm border-2 border-white/50 focus:border-white focus:ring-2 focus:ring-white/30 outline-none font-medium transition-all"
             />
           </div>
         </div>
@@ -301,7 +338,7 @@ export default function MessagesPage() {
                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
             }`}
           >
-            All ({messages.length})
+            All ({conversations.length})
           </button>
           <button
             onClick={() => setActiveTab('new')}
@@ -347,7 +384,24 @@ export default function MessagesPage() {
 
         {/* Messages List */}
         <div className="bg-white rounded-b-3xl shadow-lg overflow-hidden">
-          {filteredMessages.length === 0 ? (
+          {loading ? (
+            <div className="flex items-center justify-center py-16">
+              <Loader2 className="w-8 h-8 text-[#00A884] animate-spin" />
+              <span className="ml-3 text-gray-600 font-medium">Loading conversations...</span>
+            </div>
+          ) : error ? (
+            <div className="text-center py-16">
+              <MessageSquare className="w-16 h-16 text-red-300 mx-auto mb-4" />
+              <h3 className="text-xl font-bold text-gray-900 mb-2">Error Loading Messages</h3>
+              <p className="text-gray-600 mb-4">{error}</p>
+              <button
+                onClick={fetchConversations}
+                className="px-4 py-2 bg-[#00A884] text-white rounded-lg font-bold hover:bg-[#00796B] transition-colors"
+              >
+                Retry
+              </button>
+            </div>
+          ) : filteredMessages.length === 0 ? (
             <div className="text-center py-16">
               <MessageSquare className="w-16 h-16 text-gray-300 mx-auto mb-4" />
               <h3 className="text-xl font-bold text-gray-900 mb-2">No Messages</h3>
@@ -360,7 +414,7 @@ export default function MessagesPage() {
               {filteredMessages.map((message) => (
                 <Link
                   key={message.id}
-                  href={`/professional/messages/${message.customerId}`}
+                  href={`/professional/messages/${message.id}`}
                   className={`block hover:bg-gray-50 transition-all ${message.unreadCount > 0 ? 'bg-[#00A884]/5' : ''}`}
                 >
                   <div className="p-4">
@@ -371,10 +425,10 @@ export default function MessagesPage() {
                           src={message.customerPhoto}
                           alt={message.customerName}
                           className={`w-14 h-14 rounded-full object-cover border-2 ${
-                            message.isOnline ? 'border-green-500' : 'border-gray-200'
+                            message.isOnline || isUserOnline(message.customerId) ? 'border-green-500' : 'border-gray-200'
                           }`}
                         />
-                        {message.isOnline && (
+                        {(message.isOnline || isUserOnline(message.customerId)) && (
                           <div className="absolute bottom-0 right-0 w-4 h-4 bg-green-500 rounded-full border-2 border-white animate-pulse"></div>
                         )}
                       </div>
@@ -434,15 +488,15 @@ export default function MessagesPage() {
                         {/* Priority Indicator */}
                         {message.isPriority && message.priorityText && (
                           <div className={`mt-2 flex items-center gap-2 text-xs px-3 py-1.5 rounded-lg ${
-                            message.serviceBadge === 'Emergency' 
+                            message.serviceBadge.toLowerCase().includes('emergency')
                               ? 'bg-red-50 border border-red-200'
                               : 'bg-orange-50 border border-orange-200'
                           }`}>
                             <Clock className={`w-3.5 h-3.5 ${
-                              message.serviceBadge === 'Emergency' ? 'text-red-500' : 'text-orange-500'
+                              message.serviceBadge.toLowerCase().includes('emergency') ? 'text-red-500' : 'text-orange-500'
                             } animate-pulse`} />
                             <span className={`font-bold ${
-                              message.serviceBadge === 'Emergency' ? 'text-red-700' : 'text-orange-700'
+                              message.serviceBadge.toLowerCase().includes('emergency') ? 'text-red-700' : 'text-orange-700'
                             }`}>
                               {message.priorityText}
                             </span>
