@@ -77,19 +77,25 @@ export default function AboutPage() {
 
   const team = [
     {
-      name: 'Femala',
+      name: 'Subhajit De',
       role: 'CEO',
       description: 'Visionary leader with passion for innovation and excellence.',
-      image: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=400&h=400&fit=crop'
-    },
-    {
-      name: 'CTO',
-      role: 'CTO',
-      description: 'Technology expert in the construction of service.',
       image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=400&fit=crop'
     },
     {
-      name: 'Sarmila',
+      name: 'Shreya Patra',
+      role: 'CTO',
+      description: 'Technology expert in the construction of service.',
+      image: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=400&h=400&fit=crop'
+    },
+    {
+      name: 'indrani Das',
+      role: 'Operations Head',
+      description: 'Manages daily operations and ensures seamless service.',
+      image: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=400&h=400&fit=crop'
+    },
+    {
+      name: 'LOkesh Ghosse',
       role: 'Operations Head',
       description: 'Manages daily operations and ensures seamless service.',
       image: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=400&h=400&fit=crop'
