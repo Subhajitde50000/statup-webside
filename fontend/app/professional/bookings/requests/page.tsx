@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
   Clock, 
   MapPin, 
@@ -12,11 +12,14 @@ import {
   MessageCircle,
   AlertCircle,
   Filter,
-  SortAsc
+  SortAsc,
+  Loader2
 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import ProfessionalNavbar from '../../components/ProfessionalNavbar';
+import { getProfessionalBookings, acceptBooking, rejectBooking, Booking } from '@/utils/bookings';
+import { useBookingSocket } from '@/utils/BookingSocketContext';
 
 interface BookingRequest {
   id: string;
@@ -39,141 +42,123 @@ interface BookingRequest {
 
 export default function BookingRequestsPage() {
   const router = useRouter();
+  const { isConnected } = useBookingSocket();
   const [sortBy, setSortBy] = useState<'time' | 'distance' | 'earnings'>('time');
   const [filterUrgent, setFilterUrgent] = useState(false);
-  const [requests, setRequests] = useState<BookingRequest[]>([
-    {
-      id: '1',
-      customerName: 'Subhajit De',
-      customerPhoto: 'https://i.pravatar.cc/150?img=33',
-      customerRating: 4.8,
-      totalBookings: 23,
-      isVerified: true,
-      service: 'Switchboard Repair',
-      description: 'Main switchboard tripping frequently. Need urgent inspection and repair.',
-      time: 'Today, 2:00 PM',
-      date: '15 Dec 2025',
-      duration: '40–50 minutes',
-      distance: 1.1,
-      location: 'Sector 5, Salt Lake',
-      earnings: 450,
-      isUrgent: true,
-      requestedAt: '5 min ago'
-    },
-    {
-      id: '2',
-      customerName: 'Priya Sharma',
-      customerPhoto: 'https://i.pravatar.cc/150?img=5',
-      customerRating: 4.6,
-      totalBookings: 12,
-      isVerified: true,
-      service: 'Fan Installation',
-      description: 'Need to install 2 ceiling fans in newly painted rooms.',
-      time: 'Today, 4:30 PM',
-      date: '15 Dec 2025',
-      duration: '60–90 minutes',
-      distance: 2.2,
-      location: 'New Town, Action Area 1',
-      earnings: 600,
-      isUrgent: false,
-      requestedAt: '12 min ago'
-    },
-    {
-      id: '3',
-      customerName: 'Rajesh Kumar',
-      customerPhoto: 'https://i.pravatar.cc/150?img=12',
-      customerRating: 4.9,
-      totalBookings: 45,
-      isVerified: true,
-      service: 'Wiring Check',
-      description: 'Complete home wiring inspection before moving in. Need detailed report.',
-      time: 'Tomorrow, 10:00 AM',
-      date: '16 Dec 2025',
-      duration: '120 minutes',
-      distance: 4.5,
-      location: 'EM Bypass, Kasba',
-      earnings: 800,
-      isUrgent: false,
-      requestedAt: '25 min ago'
-    },
-    {
-      id: '4',
-      customerName: 'Ananya Das',
-      customerPhoto: 'https://i.pravatar.cc/150?img=10',
-      customerRating: 4.7,
-      totalBookings: 8,
-      isVerified: false,
-      service: 'Light Fitting',
-      description: 'Install LED panel lights in 3 rooms.',
-      time: 'Tomorrow, 3:00 PM',
-      date: '16 Dec 2025',
-      duration: '45 minutes',
-      distance: 3.5,
-      location: 'Park Street',
-      earnings: 350,
-      isUrgent: true,
-      requestedAt: '32 min ago'
-    },
-    {
-      id: '5',
-      customerName: 'Vikram Singh',
-      customerPhoto: 'https://i.pravatar.cc/150?img=15',
-      customerRating: 4.5,
-      totalBookings: 5,
-      isVerified: true,
-      service: 'MCB Replacement',
-      description: 'Replace faulty MCB in distribution board.',
-      time: 'Tomorrow, 5:00 PM',
-      date: '16 Dec 2025',
-      duration: '30 minutes',
-      distance: 6.2,
-      location: 'Howrah, Shibpur',
-      earnings: 300,
-      isUrgent: false,
-      requestedAt: '1 hour ago'
-    }
-  ]);
-
+  const [requests, setRequests] = useState<BookingRequest[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [acceptingId, setAcceptingId] = useState<string | null>(null);
   const [rejectingId, setRejectingId] = useState<string | null>(null);
+
+  // Fetch pending bookings from API
+  const fetchRequests = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      const response = await getProfessionalBookings({ status: 'pending' });
+      
+      // Transform API response to BookingRequest format
+      const transformedRequests: BookingRequest[] = response.bookings.map((booking: Booking) => ({
+        id: booking.id,
+        customerName: booking.user?.name || 'Customer',
+        customerPhoto: `https://ui-avatars.com/api/?name=${encodeURIComponent(booking.user?.name || 'Customer')}&size=80&background=1E2A5E&color=fff`,
+        customerRating: 4.5,
+        totalBookings: 0,
+        isVerified: true,
+        service: booking.service_name || booking.service_type,
+        description: booking.notes || 'Service request',
+        time: booking.time,
+        date: booking.date,
+        duration: '30-60 minutes',
+        distance: 0,
+        location: booking.address_display,
+        earnings: booking.price,
+        isUrgent: false,
+        requestedAt: new Date(booking.created_at).toLocaleString()
+      }));
+      
+      setRequests(transformedRequests);
+    } catch (err) {
+      console.error('Error fetching requests:', err);
+      setError(err instanceof Error ? err.message : 'Failed to fetch requests');
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchRequests();
+  }, [fetchRequests]);
 
   const filteredRequests = requests
     .filter(r => !filterUrgent || r.isUrgent)
     .sort((a, b) => {
       if (sortBy === 'distance') return a.distance - b.distance;
       if (sortBy === 'earnings') return b.earnings - a.earnings;
-      return 0; // time sorting (default order)
+      return 0;
     });
 
   const handleAccept = async (id: string) => {
     setAcceptingId(id);
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    setRequests(prev => prev.filter(r => r.id !== id));
-    setAcceptingId(null);
-    // Show success message or redirect
-    router.push('/professional/bookings/accepted');
+    try {
+      await acceptBooking(id);
+      setRequests(prev => prev.filter(r => r.id !== id));
+      router.push('/professional/bookings/accepted');
+    } catch (err) {
+      console.error('Error accepting booking:', err);
+      alert(err instanceof Error ? err.message : 'Failed to accept booking');
+    } finally {
+      setAcceptingId(null);
+    }
   };
 
   const handleReject = async (id: string) => {
     if (!confirm('Are you sure you want to reject this request?')) return;
     
     setRejectingId(id);
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 800));
-    setRequests(prev => prev.filter(r => r.id !== id));
-    setRejectingId(null);
+    try {
+      await rejectBooking(id, 'Rejected by professional');
+      setRequests(prev => prev.filter(r => r.id !== id));
+    } catch (err) {
+      console.error('Error rejecting booking:', err);
+      alert(err instanceof Error ? err.message : 'Failed to reject booking');
+    } finally {
+      setRejectingId(null);
+    }
   };
 
   const handleViewDetails = (id: string) => {
     router.push(`/professional/bookings/request/${id}`);
   };
 
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-orange-50 to-red-50">
+        <ProfessionalNavbar activeTab="bookings" />
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <div className="text-center">
+            <Loader2 className="w-12 h-12 animate-spin text-orange-600 mx-auto mb-4" />
+            <p className="text-gray-600 font-medium">Loading requests...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-orange-50 to-red-50">
       <ProfessionalNavbar activeTab="bookings" notificationCount={requests.length} />
       
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Connection Status */}
+        <div className={`mb-4 px-4 py-2 rounded-lg flex items-center gap-2 ${isConnected ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
+          <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`} />
+          <span className="text-sm font-medium">
+            {isConnected ? 'Live Updates Active' : 'Reconnecting...'}
+          </span>
+        </div>
+
         {/* Header */}
         <div className="mb-8">
           <div className="flex items-center gap-3 mb-3">
@@ -182,7 +167,7 @@ export default function BookingRequestsPage() {
             </div>
             <div>
               <h1 className="text-4xl font-black text-gray-900">New Requests</h1>
-              <p className="text-gray-600 font-medium">{requests.length} customer{requests.length > 1 ? 's' : ''} waiting for response</p>
+              <p className="text-gray-600 font-medium">{requests.length} customer{requests.length !== 1 ? 's' : ''} waiting for response</p>
             </div>
           </div>
 

@@ -3,6 +3,7 @@ import { Geist, Geist_Mono, Inter, Poppins } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/utils/AuthContext";
 import { NotificationProvider } from "@/utils/NotificationContext";
+import { BookingSocketProvider } from "@/utils/BookingSocketContext";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -44,7 +45,9 @@ export default function RootLayout({
       >
         <AuthProvider>
           <NotificationProvider>
-            {children}
+            <BookingSocketProvider>
+              {children}
+            </BookingSocketProvider>
           </NotificationProvider>
         </AuthProvider>
       </body>

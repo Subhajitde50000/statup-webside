@@ -29,7 +29,8 @@ import {
   Lock,
   LogIn,
   Loader2,
-  X
+  X,
+  Bell
 } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -37,12 +38,14 @@ import Navbar from '@/app/Component/Navbar';
 import Footer from '@/app/Component/Footer';
 import { getAccessToken } from '@/utils/auth';
 import { getUserBookings, cancelBooking, rateBooking, Booking } from '@/utils/bookings';
+import { useBookingSocket, BookingStatusEvent, OTPRequestEvent } from '@/utils/BookingSocketContext';
 
 // API Base URL for images
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'http://localhost:8000';
 
 export default function BookingHistoryPage() {
   const router = useRouter();
+  const { isConnected, setBookingEventHandlers } = useBookingSocket();
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [statusCounts, setStatusCounts] = useState({
     all: 0,
@@ -58,6 +61,8 @@ export default function BookingHistoryPage() {
   const [showFilters, setShowFilters] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [showOTPNotification, setShowOTPNotification] = useState(false);
+  const [otpNotificationData, setOtpNotificationData] = useState<{ bookingId: string; otp: string } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [filters, setFilters] = useState({
@@ -110,6 +115,74 @@ export default function BookingHistoryPage() {
       setIsLoading(false);
     }
   }, [fetchBookings]);
+
+  // WebSocket event handlers for real-time booking updates
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    const handleStatusChange = (event: BookingStatusEvent) => {
+      // Update the booking in the list
+      setBookings(prev => prev.map(booking => 
+        booking.id === event.booking_id 
+          ? { ...booking, status: event.status }
+          : booking
+      ));
+      // Show notification
+      if (event.status === 'accepted') {
+        alert(`Your booking has been accepted!`);
+      }
+    };
+
+    const handleOTPRequest = (event: OTPRequestEvent) => {
+      // Show OTP notification to user
+      setOtpNotificationData({ bookingId: event.booking_id, otp: event.otp });
+      setShowOTPNotification(true);
+      // Update booking status
+      setBookings(prev => prev.map(booking => 
+        booking.id === event.booking_id 
+          ? { ...booking, status: 'accepted' }
+          : booking
+      ));
+    };
+
+    const handleWorkStarted = (event: BookingStatusEvent) => {
+      setBookings(prev => prev.map(booking => 
+        booking.id === event.booking_id 
+          ? { ...booking, status: 'ongoing' }
+          : booking
+      ));
+      setShowOTPNotification(false);
+      setOtpNotificationData(null);
+    };
+
+    const handleWorkCompleted = (event: BookingStatusEvent) => {
+      setBookings(prev => prev.map(booking => 
+        booking.id === event.booking_id 
+          ? { ...booking, status: 'completed' }
+          : booking
+      ));
+    };
+
+    const handleBookingCancelled = (event: BookingStatusEvent) => {
+      setBookings(prev => prev.map(booking => 
+        booking.id === event.booking_id 
+          ? { ...booking, status: 'cancelled' }
+          : booking
+      ));
+    };
+
+    setBookingEventHandlers({
+      onStatusChange: handleStatusChange,
+      onOTPRequest: handleOTPRequest,
+      onWorkStarted: handleWorkStarted,
+      onWorkCompleted: handleWorkCompleted,
+      onBookingCancelled: handleBookingCancelled
+    });
+
+    return () => {
+      setBookingEventHandlers({});
+    };
+  }, [isAuthenticated, setBookingEventHandlers]);
 
   // Handle cancel booking
   const handleCancelBooking = async () => {
@@ -178,8 +251,9 @@ export default function BookingHistoryPage() {
     const badges = {
       'pending': { bg: 'bg-[#FFA500]', text: 'text-white', label: '🟠 Pending' },
       'confirmed': { bg: 'bg-[#00BFA6]', text: 'text-white', label: '✅ Confirmed' },
+      'accepted': { bg: 'bg-[#0EA5E9]', text: 'text-white', label: '✅ Accepted' },
       'upcoming': { bg: 'bg-[#00BFA6]', text: 'text-white', label: '🟨 Upcoming' },
-      'ongoing': { bg: 'bg-[#FF9F43]', text: 'text-white', label: '🟧 Ongoing' },
+      'ongoing': { bg: 'bg-[#FF9F43]', text: 'text-white', label: '🔶 Work Started' },
       'completed': { bg: 'bg-[#22C55E]', text: 'text-white', label: '🟩 Completed' },
       'cancelled': { bg: 'bg-[#EF4444]', text: 'text-white', label: '🟥 Cancelled' }
     };
@@ -229,6 +303,58 @@ export default function BookingHistoryPage() {
         onNotificationClick={() => setIsNotificationsOpen(!isNotificationsOpen)}
         isNotificationsOpen={isNotificationsOpen}
       />
+
+      {/* OTP Notification Modal */}
+      {showOTPNotification && otpNotificationData && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl animate-pulse">
+            <div className="text-center">
+              <div className="w-16 h-16 bg-gradient-to-br from-[#1E2A5E] to-[#00BFA6] rounded-full mx-auto flex items-center justify-center mb-4">
+                <Bell className="w-8 h-8 text-white" />
+              </div>
+              <h3 className="text-xl font-bold text-gray-900 mb-2">Professional Has Arrived!</h3>
+              <p className="text-gray-600 mb-4">
+                Your professional has arrived and is ready to start. Share this OTP code with them to verify.
+              </p>
+              <div className="bg-gradient-to-br from-[#1E2A5E]/10 to-[#00BFA6]/10 rounded-xl p-6 mb-4">
+                <p className="text-sm text-gray-600 mb-2">Your OTP Code</p>
+                <p className="text-4xl font-bold tracking-[0.5em] text-[#1E2A5E]">{otpNotificationData.otp}</p>
+              </div>
+              <p className="text-sm text-gray-500 mb-4">
+                Tell this code to the professional to confirm your identity and start the service.
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => router.push(`/booking/${otpNotificationData.bookingId}`)}
+                  className="flex-1 bg-gradient-to-r from-[#1E2A5E] to-[#00BFA6] text-white py-3 rounded-xl font-semibold"
+                >
+                  View Booking
+                </button>
+                <button
+                  onClick={() => setShowOTPNotification(false)}
+                  className="px-4 py-3 text-gray-600 hover:bg-gray-100 rounded-xl"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Real-time Connection Status */}
+      {isAuthenticated && (
+        <div className="fixed bottom-4 left-4 z-40">
+          <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs ${
+            isConnected 
+              ? 'bg-green-100 text-green-700' 
+              : 'bg-yellow-100 text-yellow-700'
+          }`}>
+            <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-yellow-500 animate-pulse'}`} />
+            {isConnected ? 'Live Updates Active' : 'Connecting...'}
+          </div>
+        </div>
+      )}
 
       {/* Page Header */}
       <div className="pt-20 bg-gradient-to-br from-[#1E2A5E] to-[#00BFA6] text-white">

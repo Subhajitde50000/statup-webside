@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
   Calendar, 
   Clock, 
@@ -13,12 +13,15 @@ import {
   Star,
   ArrowRight,
   Loader,
+  Loader2,
   User,
   Phone
 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import ProfessionalNavbar from '../components/ProfessionalNavbar';
+import { getProfessionalBookings, acceptBooking, rejectBooking, Booking } from '@/utils/bookings';
+import { useBookingSocket } from '@/utils/BookingSocketContext';
 
 interface BookingStats {
   pending: number;
@@ -37,6 +40,7 @@ interface UpcomingBooking {
   customerPhoto: string;
   service: string;
   time: string;
+  date: string;
   location: string;
   distance: number;
   isUrgent?: boolean;
@@ -50,6 +54,7 @@ interface NewRequest {
   service: string;
   description: string;
   time: string;
+  date: string;
   distance: number;
   location: string;
   earnings: number;
@@ -59,106 +64,149 @@ interface NewRequest {
 
 export default function BookingsDashboardPage() {
   const router = useRouter();
+  const { isConnected } = useBookingSocket();
+  const [isLoading, setIsLoading] = useState(true);
+  const [acceptingId, setAcceptingId] = useState<string | null>(null);
+  const [rejectingId, setRejectingId] = useState<string | null>(null);
+  
   const [stats, setStats] = useState<BookingStats>({
-    pending: 5,
-    accepted: 8,
-    ongoing: 2,
-    completed: 142,
-    cancelled: 12,
-    todayEarnings: 1250,
-    weekEarnings: 8450,
-    rating: 4.8
+    pending: 0,
+    accepted: 0,
+    ongoing: 0,
+    completed: 0,
+    cancelled: 0,
+    todayEarnings: 0,
+    weekEarnings: 0,
+    rating: 0
   });
 
-  const [upcomingBookings, setUpcomingBookings] = useState<UpcomingBooking[]>([
-    {
-      id: '1',
-      customerName: 'Subhajit De',
-      customerPhoto: 'https://i.pravatar.cc/150?img=33',
-      service: 'Switchboard Repair',
-      time: 'Today, 2:00 PM',
-      location: 'Sector 5, Salt Lake',
-      distance: 1.1,
-      isUrgent: true
-    },
-    {
-      id: '2',
-      customerName: 'Priya Sharma',
-      customerPhoto: 'https://i.pravatar.cc/150?img=5',
-      service: 'Fan Installation',
-      time: 'Today, 4:30 PM',
-      location: 'New Town, Action Area 1',
-      distance: 2.2
-    },
-    {
-      id: '3',
-      customerName: 'Ananya Das',
-      customerPhoto: 'https://i.pravatar.cc/150?img=10',
-      service: 'Light Fitting',
-      time: 'Tomorrow, 10:00 AM',
-      location: 'Park Street',
-      distance: 3.5
-    }
-  ]);
+  const [upcomingBookings, setUpcomingBookings] = useState<UpcomingBooking[]>([]);
+  const [newRequests, setNewRequests] = useState<NewRequest[]>([]);
 
-  const [newRequests, setNewRequests] = useState<NewRequest[]>([
-    {
-      id: 'req1',
-      customerName: 'Ramesh Gupta',
-      customerPhoto: 'https://i.pravatar.cc/150?img=20',
-      customerRating: 4.7,
-      service: 'AC Installation',
-      description: 'Need to install new 1.5 ton split AC in bedroom',
-      time: 'Tomorrow, 11:00 AM',
-      distance: 2.5,
-      location: 'Salt Lake, Sector 3',
-      earnings: 650,
-      isUrgent: true,
-      requestedAt: '8 min ago'
-    },
-    {
-      id: 'req2',
-      customerName: 'Neha Singh',
-      customerPhoto: 'https://i.pravatar.cc/150?img=25',
-      customerRating: 4.9,
-      service: 'Wiring Repair',
-      description: 'Loose wiring in kitchen area, sparking issue',
-      time: 'Today, 5:00 PM',
-      distance: 1.8,
-      location: 'New Town, Block AA',
-      earnings: 400,
-      isUrgent: false,
-      requestedAt: '15 min ago'
-    },
-    {
-      id: 'req3',
-      customerName: 'Amit Sharma',
-      customerPhoto: 'https://i.pravatar.cc/150?img=30',
-      customerRating: 4.6,
-      service: 'MCB Replacement',
-      description: 'Main circuit breaker keeps tripping',
-      time: 'Tomorrow, 2:00 PM',
-      distance: 3.2,
-      location: 'Park Circus',
-      earnings: 350,
-      isUrgent: false,
-      requestedAt: '22 min ago'
+  const fetchDashboardData = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      
+      // Fetch all booking types in parallel
+      const [pendingRes, acceptedRes, ongoingRes, completedRes, cancelledRes] = await Promise.all([
+        getProfessionalBookings({ status: 'pending' }),
+        getProfessionalBookings({ status: 'accepted' }),
+        getProfessionalBookings({ status: 'ongoing' }),
+        getProfessionalBookings({ status: 'completed' }),
+        getProfessionalBookings({ status: 'cancelled' })
+      ]);
+      
+      // Calculate stats
+      const completedBookings = completedRes.bookings;
+      const todayStr = new Date().toISOString().split('T')[0];
+      const weekAgo = new Date();
+      weekAgo.setDate(weekAgo.getDate() - 7);
+      
+      const todayEarnings = completedBookings
+        .filter((b: Booking) => b.completed_at && b.completed_at.startsWith(todayStr))
+        .reduce((sum: number, b: Booking) => sum + b.price, 0);
+      
+      const weekEarnings = completedBookings
+        .filter((b: Booking) => b.completed_at && new Date(b.completed_at) >= weekAgo)
+        .reduce((sum: number, b: Booking) => sum + b.price, 0);
+      
+      const ratings = completedBookings.filter((b: Booking) => b.rating).map((b: Booking) => b.rating || 0);
+      const avgRating = ratings.length > 0 ? ratings.reduce((a: number, b: number) => a + b, 0) / ratings.length : 0;
+      
+      setStats({
+        pending: pendingRes.bookings.length,
+        accepted: acceptedRes.bookings.length,
+        ongoing: ongoingRes.bookings.length,
+        completed: completedRes.bookings.length,
+        cancelled: cancelledRes.bookings.length,
+        todayEarnings,
+        weekEarnings,
+        rating: avgRating
+      });
+      
+      // Transform pending bookings to new requests
+      const transformedRequests: NewRequest[] = pendingRes.bookings.slice(0, 5).map((booking: Booking) => ({
+        id: booking.id,
+        customerName: booking.user?.name || 'Customer',
+        customerPhoto: `https://ui-avatars.com/api/?name=${encodeURIComponent(booking.user?.name || 'Customer')}&size=80&background=1E2A5E&color=fff`,
+        customerRating: 4.5,
+        service: booking.service_name || booking.service_type,
+        description: booking.notes || 'Service request',
+        time: booking.time,
+        date: booking.date,
+        distance: 0,
+        location: booking.address_display,
+        earnings: booking.price,
+        isUrgent: false,
+        requestedAt: getTimeAgo(booking.created_at)
+      }));
+      setNewRequests(transformedRequests);
+      
+      // Transform accepted bookings to upcoming
+      const transformedUpcoming: UpcomingBooking[] = acceptedRes.bookings.slice(0, 5).map((booking: Booking) => ({
+        id: booking.id,
+        customerName: booking.user?.name || 'Customer',
+        customerPhoto: `https://ui-avatars.com/api/?name=${encodeURIComponent(booking.user?.name || 'Customer')}&size=80&background=1E2A5E&color=fff`,
+        service: booking.service_name || booking.service_type,
+        time: booking.time,
+        date: booking.date,
+        location: booking.address_display,
+        distance: 0,
+        isUrgent: false
+      }));
+      setUpcomingBookings(transformedUpcoming);
+      
+    } catch (err) {
+      console.error('Error fetching dashboard data:', err);
+    } finally {
+      setIsLoading(false);
     }
-  ]);
+  }, []);
+
+  const getTimeAgo = (dateStr: string): string => {
+    const date = new Date(dateStr);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / (1000 * 60));
+    if (diffMins < 60) return `${diffMins} min ago`;
+    const diffHours = Math.floor(diffMins / 60);
+    if (diffHours < 24) return `${diffHours}h ago`;
+    const diffDays = Math.floor(diffHours / 24);
+    return `${diffDays}d ago`;
+  };
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, [fetchDashboardData]);
 
   const handleAcceptRequest = async (id: string) => {
-    // Simulate accepting request
-    const request = newRequests.find(r => r.id === id);
-    if (request) {
+    setAcceptingId(id);
+    try {
+      await acceptBooking(id);
       setNewRequests(prev => prev.filter(r => r.id !== id));
       setStats(prev => ({ ...prev, pending: prev.pending - 1, accepted: prev.accepted + 1 }));
+      fetchDashboardData(); // Refresh data
+    } catch (err) {
+      console.error('Error accepting request:', err);
+      alert(err instanceof Error ? err.message : 'Failed to accept request');
+    } finally {
+      setAcceptingId(null);
     }
   };
 
   const handleRejectRequest = async (id: string) => {
     if (!confirm('Are you sure you want to reject this request?')) return;
-    setNewRequests(prev => prev.filter(r => r.id !== id));
-    setStats(prev => ({ ...prev, pending: prev.pending - 1 }));
+    setRejectingId(id);
+    try {
+      await rejectBooking(id, 'Rejected by professional');
+      setNewRequests(prev => prev.filter(r => r.id !== id));
+      setStats(prev => ({ ...prev, pending: prev.pending - 1 }));
+    } catch (err) {
+      console.error('Error rejecting request:', err);
+      alert(err instanceof Error ? err.message : 'Failed to reject request');
+    } finally {
+      setRejectingId(null);
+    }
   };
 
   const todayDate = new Date().toLocaleDateString('en-US', { 
@@ -168,11 +216,33 @@ export default function BookingsDashboardPage() {
     day: 'numeric' 
   });
 
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-teal-50 to-green-50">
+        <ProfessionalNavbar activeTab="bookings" notificationCount={0} />
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <div className="text-center">
+            <Loader2 className="w-12 h-12 animate-spin text-teal-600 mx-auto mb-4" />
+            <p className="text-gray-600 font-medium">Loading dashboard...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-teal-50 to-green-50">
       <ProfessionalNavbar activeTab="bookings" notificationCount={stats.pending} />
       
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Connection Status */}
+        <div className={`mb-4 px-4 py-2 rounded-lg flex items-center gap-2 w-fit ${isConnected ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
+          <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`} />
+          <span className="text-sm font-medium">
+            {isConnected ? 'Live Updates Active' : 'Reconnecting...'}
+          </span>
+        </div>
+
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-4xl font-black text-gray-900 mb-2">Bookings Dashboard</h1>

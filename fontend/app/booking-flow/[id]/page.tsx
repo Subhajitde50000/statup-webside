@@ -23,6 +23,7 @@ import {
   AddressCreate,
   getAccessToken
 } from '../../../utils/auth';
+import { createBooking } from '../../../utils/bookings';
 
 // Premium Color Palette
 const colors = {
@@ -294,27 +295,66 @@ export default function BookingFlowPage() {
     });
   };
 
-  // Process payment
+  // Process payment and create booking
   const handlePayment = async () => {
     if (!selectedPaymentMethod) {
       alert('Please select a payment method');
       return;
     }
 
+    if (!selectedAddress || !selectedDate || !selectedTimeSlot) {
+      alert('Please complete all booking details');
+      return;
+    }
+
+    const token = getAccessToken();
+    if (!token) {
+      alert('Please login to continue');
+      router.push('/auth');
+      return;
+    }
+
     setPaymentProcessing(true);
     try {
-      // Simulate payment processing
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // Format the scheduled date
+      const formattedDate = selectedDate.toISOString().split('T')[0];
       
-      // Generate booking ID
-      const generatedBookingId = `BK${Date.now()}${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
-      setBookingId(generatedBookingId);
-      setBookingSuccess(true);
-      setCurrentStep(5);
+      // Create booking via API
+      const bookingData = {
+        professional_id: professionalId,
+        service_id: selectedService?.id,
+        service_type: selectedService?.category || professional?.category || 'General',
+        service_name: selectedService?.name || professional?.category || 'Service',
+        category: selectedService?.category || professional?.category || 'General',
+        description: notes || `Booking for ${selectedService?.name || 'service'}`,
+        scheduled_date: formattedDate,
+        scheduled_time: selectedTimeSlot,
+        address: {
+          house_no: selectedAddress.house_no,
+          area: selectedAddress.area,
+          landmark: selectedAddress.landmark || '',
+          city: selectedAddress.city,
+          state: selectedAddress.state || '',
+          pincode: selectedAddress.pincode,
+        },
+        price: pricing.total,
+        payment_method: selectedPaymentMethod,
+        notes: notes || '',
+      };
+
+      const response = await createBooking(bookingData);
       
-    } catch (error) {
-      console.error('Payment error:', error);
-      alert('Payment failed. Please try again.');
+      if (response.booking) {
+        setBookingId(response.booking.id || response.booking.booking_id);
+        setBookingSuccess(true);
+        setCurrentStep(5);
+      } else {
+        throw new Error('Failed to create booking');
+      }
+      
+    } catch (error: any) {
+      console.error('Booking error:', error);
+      alert(error.message || 'Failed to create booking. Please try again.');
     } finally {
       setPaymentProcessing(false);
     }

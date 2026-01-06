@@ -27,16 +27,25 @@ class NotificationService:
     def get_icon_for_type(notification_type: NotificationType) -> str:
         """Get icon name for notification type"""
         icons = {
-            # Booking
+            # Booking - User side
             NotificationType.BOOKING_CONFIRMED: "CheckCircle",
             NotificationType.BOOKING_CANCELLED: "XCircle",
             NotificationType.BOOKING_RESCHEDULED: "Calendar",
             NotificationType.BOOKING_COMPLETED: "CheckCircle",
             NotificationType.BOOKING_STARTED: "Play",
+            NotificationType.BOOKING_ACCEPTED: "CheckCircle",
+            NotificationType.BOOKING_REJECTED: "XCircle",
             NotificationType.PROFESSIONAL_ASSIGNED: "User",
             NotificationType.PROFESSIONAL_ON_WAY: "Truck",
             NotificationType.PROFESSIONAL_ARRIVED: "MapPin",
             NotificationType.OTP_GENERATED: "Key",
+            
+            # Booking - Professional side
+            NotificationType.NEW_BOOKING_REQUEST: "Calendar",
+            NotificationType.BOOKING_CANCELLED_BY_USER: "XCircle",
+            NotificationType.BOOKING_RESCHEDULED_BY_USER: "Calendar",
+            NotificationType.USER_SHARED_OTP: "Key",
+            NotificationType.NEW_REVIEW_RECEIVED: "Star",
             
             # Payment
             NotificationType.PAYMENT_RECEIVED: "DollarSign",
@@ -391,6 +400,295 @@ class NotificationService:
             priority=NotificationPriority.NORMAL,
             action_url="/services",
             action_text="Browse Services"
+        )
+    
+    # =============================================
+    # PROFESSIONAL-SIDE NOTIFICATIONS
+    # =============================================
+    
+    @classmethod
+    async def new_booking_request(
+        cls,
+        professional_id: str,
+        booking_id: str,
+        service_name: str,
+        customer_name: str,
+        date: str,
+        time: str,
+        price: float
+    ):
+        """Send new booking notification to professional"""
+        return await cls.create(
+            user_id=professional_id,
+            notification_type=NotificationType.NEW_BOOKING_REQUEST,
+            title="New Booking Request! 📅",
+            message=f"{customer_name} booked {service_name} for {date} at {time}",
+            category=NotificationCategory.BOOKING,
+            priority=NotificationPriority.HIGH,
+            data={
+                "booking_id": booking_id,
+                "service_name": service_name,
+                "customer_name": customer_name,
+                "date": date,
+                "time": time,
+                "price": price
+            },
+            action_url=f"/professional/bookings/requests",
+            action_text="View Request"
+        )
+    
+    @classmethod
+    async def booking_accepted_user(
+        cls,
+        user_id: str,
+        booking_id: str,
+        service_name: str,
+        professional_name: str,
+        date: str,
+        time: str
+    ):
+        """Notify user when professional accepts their booking"""
+        return await cls.create(
+            user_id=user_id,
+            notification_type=NotificationType.BOOKING_ACCEPTED,
+            title="Booking Accepted! ✓",
+            message=f"{professional_name} has accepted your {service_name} booking for {date} at {time}",
+            category=NotificationCategory.BOOKING,
+            priority=NotificationPriority.HIGH,
+            data={
+                "booking_id": booking_id,
+                "service_name": service_name,
+                "professional_name": professional_name,
+                "date": date,
+                "time": time
+            },
+            action_url=f"/booking/{booking_id}",
+            action_text="View Booking"
+        )
+    
+    @classmethod
+    async def booking_rejected_user(
+        cls,
+        user_id: str,
+        booking_id: str,
+        service_name: str,
+        professional_name: str,
+        reason: str = None
+    ):
+        """Notify user when professional rejects their booking"""
+        return await cls.create(
+            user_id=user_id,
+            notification_type=NotificationType.BOOKING_REJECTED,
+            title="Booking Not Available",
+            message=f"{professional_name} couldn't accept your {service_name} booking. {reason or 'Please try another time slot.'}",
+            category=NotificationCategory.BOOKING,
+            priority=NotificationPriority.HIGH,
+            data={
+                "booking_id": booking_id,
+                "service_name": service_name,
+                "professional_name": professional_name,
+                "reason": reason
+            },
+            action_url=f"/service",
+            action_text="Book Again"
+        )
+    
+    @classmethod
+    async def booking_cancelled_notify_professional(
+        cls,
+        professional_id: str,
+        booking_id: str,
+        service_name: str,
+        customer_name: str,
+        date: str,
+        time: str,
+        reason: str = None
+    ):
+        """Notify professional when user cancels booking"""
+        return await cls.create(
+            user_id=professional_id,
+            notification_type=NotificationType.BOOKING_CANCELLED_BY_USER,
+            title="Booking Cancelled",
+            message=f"{customer_name} cancelled their {service_name} booking for {date} at {time}",
+            category=NotificationCategory.BOOKING,
+            priority=NotificationPriority.HIGH,
+            data={
+                "booking_id": booking_id,
+                "service_name": service_name,
+                "customer_name": customer_name,
+                "date": date,
+                "time": time,
+                "reason": reason
+            },
+            action_url=f"/professional/bookings",
+            action_text="View Bookings"
+        )
+    
+    @classmethod
+    async def booking_cancelled_notify_user(
+        cls,
+        user_id: str,
+        booking_id: str,
+        service_name: str,
+        professional_name: str,
+        reason: str = None
+    ):
+        """Notify user when professional cancels/rejects booking"""
+        return await cls.create(
+            user_id=user_id,
+            notification_type=NotificationType.BOOKING_CANCELLED,
+            title="Booking Cancelled",
+            message=f"Your {service_name} booking with {professional_name} has been cancelled. {reason or ''}",
+            category=NotificationCategory.BOOKING,
+            priority=NotificationPriority.HIGH,
+            data={
+                "booking_id": booking_id,
+                "service_name": service_name,
+                "professional_name": professional_name,
+                "reason": reason
+            },
+            action_url=f"/service",
+            action_text="Book Again"
+        )
+    
+    @classmethod
+    async def work_started_user(
+        cls,
+        user_id: str,
+        booking_id: str,
+        service_name: str,
+        professional_name: str
+    ):
+        """Notify user when work starts"""
+        return await cls.create(
+            user_id=user_id,
+            notification_type=NotificationType.BOOKING_STARTED,
+            title="Work Started! 🔧",
+            message=f"{professional_name} has started working on your {service_name}",
+            category=NotificationCategory.BOOKING,
+            priority=NotificationPriority.HIGH,
+            data={
+                "booking_id": booking_id,
+                "service_name": service_name,
+                "professional_name": professional_name
+            },
+            action_url=f"/booking/{booking_id}",
+            action_text="Track Progress"
+        )
+    
+    @classmethod
+    async def work_completed_user(
+        cls,
+        user_id: str,
+        booking_id: str,
+        service_name: str,
+        professional_name: str,
+        amount: float
+    ):
+        """Notify user when work is completed"""
+        return await cls.create(
+            user_id=user_id,
+            notification_type=NotificationType.BOOKING_COMPLETED,
+            title="Service Completed! ✅",
+            message=f"Your {service_name} with {professional_name} is complete. Total: ₹{amount}",
+            category=NotificationCategory.BOOKING,
+            priority=NotificationPriority.HIGH,
+            data={
+                "booking_id": booking_id,
+                "service_name": service_name,
+                "professional_name": professional_name,
+                "amount": amount
+            },
+            action_url=f"/booking/{booking_id}",
+            action_text="Rate Service"
+        )
+    
+    @classmethod
+    async def work_completed_professional(
+        cls,
+        professional_id: str,
+        booking_id: str,
+        service_name: str,
+        customer_name: str,
+        amount: float
+    ):
+        """Notify professional when work is completed"""
+        return await cls.create(
+            user_id=professional_id,
+            notification_type=NotificationType.BOOKING_COMPLETED,
+            title="Job Completed! 💰",
+            message=f"You've completed {service_name} for {customer_name}. Earnings: ₹{amount}",
+            category=NotificationCategory.BOOKING,
+            priority=NotificationPriority.NORMAL,
+            data={
+                "booking_id": booking_id,
+                "service_name": service_name,
+                "customer_name": customer_name,
+                "amount": amount
+            },
+            action_url=f"/professional/bookings/completed",
+            action_text="View Completed"
+        )
+    
+    @classmethod
+    async def new_review_received(
+        cls,
+        professional_id: str,
+        booking_id: str,
+        customer_name: str,
+        rating: int,
+        review: str = None
+    ):
+        """Notify professional when they receive a review"""
+        stars = "⭐" * rating
+        return await cls.create(
+            user_id=professional_id,
+            notification_type=NotificationType.NEW_REVIEW_RECEIVED,
+            title=f"New Review: {stars}",
+            message=f"{customer_name} rated you {rating}/5. {review[:50] + '...' if review and len(review) > 50 else review or ''}",
+            category=NotificationCategory.BOOKING,
+            priority=NotificationPriority.NORMAL,
+            data={
+                "booking_id": booking_id,
+                "customer_name": customer_name,
+                "rating": rating,
+                "review": review
+            },
+            action_url=f"/professional/profile",
+            action_text="View Reviews"
+        )
+    
+    @classmethod
+    async def booking_rescheduled_professional(
+        cls,
+        professional_id: str,
+        booking_id: str,
+        service_name: str,
+        customer_name: str,
+        old_date: str,
+        old_time: str,
+        new_date: str,
+        new_time: str
+    ):
+        """Notify professional when user reschedules"""
+        return await cls.create(
+            user_id=professional_id,
+            notification_type=NotificationType.BOOKING_RESCHEDULED_BY_USER,
+            title="Booking Rescheduled 📅",
+            message=f"{customer_name} rescheduled {service_name} from {old_date} to {new_date} at {new_time}",
+            category=NotificationCategory.BOOKING,
+            priority=NotificationPriority.HIGH,
+            data={
+                "booking_id": booking_id,
+                "service_name": service_name,
+                "customer_name": customer_name,
+                "old_date": old_date,
+                "old_time": old_time,
+                "new_date": new_date,
+                "new_time": new_time
+            },
+            action_url=f"/professional/bookings/accepted",
+            action_text="View Booking"
         )
 
 

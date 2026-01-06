@@ -10,16 +10,25 @@ from bson import ObjectId
 
 
 class NotificationType(str, Enum):
-    # Booking related
+    # Booking related - User receives
     BOOKING_CONFIRMED = "booking_confirmed"
     BOOKING_CANCELLED = "booking_cancelled"
     BOOKING_RESCHEDULED = "booking_rescheduled"
     BOOKING_COMPLETED = "booking_completed"
     BOOKING_STARTED = "booking_started"
+    BOOKING_ACCEPTED = "booking_accepted"
+    BOOKING_REJECTED = "booking_rejected"
     PROFESSIONAL_ASSIGNED = "professional_assigned"
     PROFESSIONAL_ON_WAY = "professional_on_way"
     PROFESSIONAL_ARRIVED = "professional_arrived"
     OTP_GENERATED = "otp_generated"
+    
+    # Booking related - Professional receives
+    NEW_BOOKING_REQUEST = "new_booking_request"
+    BOOKING_CANCELLED_BY_USER = "booking_cancelled_by_user"
+    BOOKING_RESCHEDULED_BY_USER = "booking_rescheduled_by_user"
+    USER_SHARED_OTP = "user_shared_otp"
+    NEW_REVIEW_RECEIVED = "new_review_received"
     
     # Payment related
     PAYMENT_RECEIVED = "payment_received"

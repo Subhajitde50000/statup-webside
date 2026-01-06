@@ -76,7 +76,7 @@ export interface Booking {
   service_type: string;
   service_name: string;
   category: string;
-  status: 'pending' | 'confirmed' | 'upcoming' | 'ongoing' | 'completed' | 'cancelled';
+  status: 'pending' | 'confirmed' | 'accepted' | 'upcoming' | 'ongoing' | 'completed' | 'cancelled';
   date: string;
   time: string;
   address: BookingAddress;
@@ -89,11 +89,22 @@ export interface Booking {
   rating?: number;
   review?: string;
   cancellation_reason?: string;
+  cancelled_by?: string;
   refund_status?: string;
   created_at: string;
   updated_at: string;
+  accepted_at?: string;
+  started_at?: string;
+  completed_at?: string;
+  otp_requested_at?: string;
   professional?: BookingProfessional;
   service?: BookingService;
+  user?: {
+    id: string;
+    name: string;
+    phone?: string;
+    email?: string;
+  };
 }
 
 export interface BookingsResponse {
@@ -265,6 +276,43 @@ export async function completeBooking(
   bookingId: string
 ): Promise<{ message: string; booking: Booking }> {
   return apiRequest(`/bookings/complete/${bookingId}`, {
+    method: 'POST',
+  });
+}
+
+/**
+ * Accept a booking (professional accepts the job)
+ */
+export async function acceptBooking(
+  bookingId: string
+): Promise<{ message: string; booking: Booking }> {
+  return apiRequest(`/bookings/accept/${bookingId}`, {
+    method: 'POST',
+  });
+}
+
+/**
+ * Reject a booking (professional rejects the job)
+ */
+export async function rejectBooking(
+  bookingId: string,
+  reason?: string
+): Promise<{ message: string; booking: Booking }> {
+  const searchParams = new URLSearchParams();
+  if (reason) searchParams.append('rejection_reason', reason);
+  
+  return apiRequest(`/bookings/reject/${bookingId}?${searchParams.toString()}`, {
+    method: 'POST',
+  });
+}
+
+/**
+ * Send OTP request (professional arrived at location)
+ */
+export async function sendOTPRequest(
+  bookingId: string
+): Promise<{ message: string; booking_id: string }> {
+  return apiRequest(`/bookings/send-otp/${bookingId}`, {
     method: 'POST',
   });
 }

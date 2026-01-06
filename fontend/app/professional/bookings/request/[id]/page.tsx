@@ -1,51 +1,173 @@
 'use client';
 
-import React from 'react';
-import { ArrowLeft, MapPin, Phone, CheckCircle, Clock, DollarSign } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { ArrowLeft, MapPin, Phone, CheckCircle, Clock, DollarSign, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
+import { getBookingById, acceptBooking, rejectBooking, Booking } from '@/utils/bookings';
+
+interface BookingRequest {
+  id: string;
+  customerName: string;
+  customerPhoto: string;
+  customerRating: number;
+  isVerified: boolean;
+  previousBookings: number;
+  isRepeatCustomer: boolean;
+  serviceCategory: string;
+  service: string;
+  problemDescription: string;
+  estimatedDuration: string;
+  customerBudget: number;
+  address: string;
+  distance: number;
+  timeToReach: string;
+  date: string;
+  time: string;
+  customerPrefersSooner: boolean;
+  basePrice: number;
+  platformFee: number;
+  earnings: number;
+}
 
 export default function BookingRequestDetailsPage() {
   const params = useParams();
   const router = useRouter();
-  
-  // Sample data - replace with API call using params.id
-  const request = {
-    id: params.id,
-    customerName: 'Subhajit De',
-    customerPhoto: 'https://i.pravatar.cc/150?img=33',
-    customerRating: 4.8,
-    isVerified: true,
-    previousBookings: 12,
-    isRepeatCustomer: true,
-    serviceCategory: 'Electrical',
-    service: 'Fan Repair',
-    problemDescription: 'Fan is not rotating properly, motor sound, needs inspection',
-    estimatedDuration: '60 mins',
-    customerBudget: 300,
-    address: '22/5 Lake Town, Kolkata',
-    distance: 2.2,
-    timeToReach: '8 mins',
-    date: '15 Dec 2025',
-    time: '4:30 PM – 5:30 PM',
-    customerPrefersSooner: true,
-    basePrice: 300,
-    platformFee: 50,
-    earnings: 250
-  };
+  const [request, setRequest] = useState<BookingRequest | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [isAccepting, setIsAccepting] = useState(false);
+  const [isRejecting, setIsRejecting] = useState(false);
 
-  const handleAccept = () => {
-    alert(`✅ Booking Accepted!\n\nYou can now contact ${request.customerName}.\n\nMoving to Accepted Bookings...`);
-    router.push('/professional/bookings/accepted');
-  };
+  const fetchBooking = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      const response = await getBookingById(params.id as string);
+      const booking = response.booking;
+      
+      // Transform to request format
+      const platformFee = Math.round(booking.price * 0.1); // Assuming 10% platform fee
+      setRequest({
+        id: booking.id,
+        customerName: booking.user?.name || 'Customer',
+        customerPhoto: `https://ui-avatars.com/api/?name=${encodeURIComponent(booking.user?.name || 'Customer')}&size=80&background=1E2A5E&color=fff`,
+        customerRating: 4.5,
+        isVerified: true,
+        previousBookings: 0,
+        isRepeatCustomer: false,
+        serviceCategory: booking.category || 'Service',
+        service: booking.service_name || booking.service_type,
+        problemDescription: booking.notes || 'No description provided',
+        estimatedDuration: '30-60 mins',
+        customerBudget: booking.price,
+        address: booking.address_display,
+        distance: 0,
+        timeToReach: 'N/A',
+        date: booking.date,
+        time: booking.time,
+        customerPrefersSooner: false,
+        basePrice: booking.price,
+        platformFee: platformFee,
+        earnings: booking.price - platformFee
+      });
+    } catch (err) {
+      console.error('Error fetching booking:', err);
+      setError(err instanceof Error ? err.message : 'Failed to fetch booking');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [params.id]);
 
-  const handleReject = () => {
-    const confirmed = confirm(`Are you sure you want to reject this booking?`);
-    if (confirmed) {
-      alert('Booking rejected.');
-      router.push('/professional/bookings/requests');
+  useEffect(() => {
+    if (params.id) {
+      fetchBooking();
+    }
+  }, [params.id, fetchBooking]);
+
+  const handleAccept = async () => {
+    if (!request) return;
+    setIsAccepting(true);
+    try {
+      await acceptBooking(request.id);
+      alert(`✅ Booking Accepted!\n\nYou can now contact ${request.customerName}.`);
+      router.push('/professional/bookings/accepted');
+    } catch (err) {
+      console.error('Error accepting booking:', err);
+      alert(err instanceof Error ? err.message : 'Failed to accept booking');
+    } finally {
+      setIsAccepting(false);
     }
   };
+
+  const handleReject = async () => {
+    if (!request) return;
+    if (!confirm('Are you sure you want to reject this booking?')) return;
+    
+    setIsRejecting(true);
+    try {
+      await rejectBooking(request.id, 'Rejected by professional');
+      alert('Booking rejected.');
+      router.push('/professional/bookings/requests');
+    } catch (err) {
+      console.error('Error rejecting booking:', err);
+      alert(err instanceof Error ? err.message : 'Failed to reject booking');
+    } finally {
+      setIsRejecting(false);
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-teal-50">
+        <header className="bg-white shadow-md sticky top-0 z-50">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex items-center justify-between h-16">
+              <Link href="/professional/bookings/requests" className="flex items-center gap-2 text-gray-700">
+                <ArrowLeft className="w-5 h-5" />
+                <span className="font-bold">Back</span>
+              </Link>
+              <h1 className="text-lg font-black text-gray-900">Booking Request Details</h1>
+              <div className="w-20"></div>
+            </div>
+          </div>
+        </header>
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <div className="text-center">
+            <Loader2 className="w-12 h-12 animate-spin text-teal-600 mx-auto mb-4" />
+            <p className="text-gray-600 font-medium">Loading booking details...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !request) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-teal-50">
+        <header className="bg-white shadow-md sticky top-0 z-50">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex items-center justify-between h-16">
+              <Link href="/professional/bookings/requests" className="flex items-center gap-2 text-gray-700">
+                <ArrowLeft className="w-5 h-5" />
+                <span className="font-bold">Back</span>
+              </Link>
+              <h1 className="text-lg font-black text-gray-900">Booking Request Details</h1>
+              <div className="w-20"></div>
+            </div>
+          </div>
+        </header>
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <div className="text-center">
+            <p className="text-red-600 font-semibold mb-4">{error || 'Booking not found'}</p>
+            <Link href="/professional/bookings/requests" className="text-teal-600 font-bold hover:underline">
+              Back to Requests
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-teal-50">
@@ -246,16 +368,32 @@ export default function BookingRequestDetailsPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
           <button
             onClick={handleAccept}
-            className="bg-teal-600 hover:bg-teal-700 text-white font-black py-5 px-8 rounded-2xl transition-all shadow-lg hover:shadow-xl text-lg"
+            disabled={isAccepting || isRejecting}
+            className="bg-teal-600 hover:bg-teal-700 text-white font-black py-5 px-8 rounded-2xl transition-all shadow-lg hover:shadow-xl text-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
-            ✅ Accept Booking
+            {isAccepting ? (
+              <>
+                <Loader2 className="w-5 h-5 animate-spin" />
+                Accepting...
+              </>
+            ) : (
+              '✅ Accept Booking'
+            )}
           </button>
           
           <button
             onClick={handleReject}
-            className="bg-white hover:bg-gray-50 text-gray-700 font-bold py-5 px-8 rounded-2xl transition-all border-2 border-gray-300 hover:border-gray-400"
+            disabled={isAccepting || isRejecting}
+            className="bg-white hover:bg-gray-50 text-gray-700 font-bold py-5 px-8 rounded-2xl transition-all border-2 border-gray-300 hover:border-gray-400 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
-            ❌ Reject Request
+            {isRejecting ? (
+              <>
+                <Loader2 className="w-5 h-5 animate-spin" />
+                Rejecting...
+              </>
+            ) : (
+              '❌ Reject Request'
+            )}
           </button>
         </div>
       </main>

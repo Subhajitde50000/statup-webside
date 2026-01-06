@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
   ArrowLeft,
   Clock, 
@@ -11,11 +11,16 @@ import {
   Navigation,
   Play,
   AlertCircle,
-  CheckCircle
+  CheckCircle,
+  Loader2,
+  Key,
+  Send
 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import ProfessionalNavbar from '../../components/ProfessionalNavbar';
+import { getProfessionalBookings, sendOTPRequest, startBooking, completeBooking, Booking } from '@/utils/bookings';
+import { useBookingSocket } from '@/utils/BookingSocketContext';
 
 interface OngoingJob {
   id: string;
@@ -37,41 +42,123 @@ interface OngoingJob {
 
 export default function OngoingJobsPage() {
   const router = useRouter();
+  const { isConnected } = useBookingSocket();
   
-  const [ongoingJobs] = useState<OngoingJob[]>([
-    {
-      id: '1',
-      customerName: 'Subhajit De',
-      customerPhoto: 'https://i.pravatar.cc/150?img=33',
-      customerRating: 4.8,
-      customerPhone: '+91 98765 43210',
-      service: 'Switchboard Repair',
-      description: 'Main switchboard tripping frequently',
-      startTime: '2:00 PM',
-      expectedDuration: '40-50 min',
-      address: '22/5, Sector 5, Salt Lake, Kolkata',
-      distance: 1.1,
-      earnings: 450,
-      status: 'otp-pending',
-      isUrgent: true
-    },
-    {
-      id: '2',
-      customerName: 'Priya Sharma',
-      customerPhoto: 'https://i.pravatar.cc/150?img=5',
-      customerRating: 4.6,
-      customerPhone: '+91 98765 43211',
-      service: 'Fan Installation',
-      description: 'Install new ceiling fan in bedroom',
-      startTime: '4:30 PM',
-      expectedDuration: '30-40 min',
-      address: 'New Town, Action Area 1, Kolkata',
-      distance: 2.2,
-      earnings: 350,
-      status: 'in-progress',
-      elapsedTime: '00:18:42'
+  const [ongoingJobs, setOngoingJobs] = useState<OngoingJob[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [showOTPModal, setShowOTPModal] = useState(false);
+  const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
+  const [otpInput, setOtpInput] = useState('');
+  const [isVerifyingOTP, setIsVerifyingOTP] = useState(false);
+  const [isSendingOTP, setIsSendingOTP] = useState<string | null>(null);
+  const [isCompleting, setIsCompleting] = useState<string | null>(null);
+
+  // Fetch ongoing bookings
+  const fetchOngoingJobs = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      
+      // Get accepted and ongoing bookings
+      const [acceptedResponse, ongoingResponse] = await Promise.all([
+        getProfessionalBookings({ status: 'accepted' }),
+        getProfessionalBookings({ status: 'ongoing' })
+      ]);
+      
+      const allBookings = [...acceptedResponse.bookings, ...ongoingResponse.bookings];
+      
+      // Transform to OngoingJob format
+      const transformedJobs: OngoingJob[] = allBookings.map((booking: Booking) => ({
+        id: booking.id,
+        customerName: booking.user?.name || 'Customer',
+        customerPhoto: `https://ui-avatars.com/api/?name=${encodeURIComponent(booking.user?.name || 'Customer')}&size=80&background=1E2A5E&color=fff`,
+        customerRating: 4.5,
+        customerPhone: booking.user?.phone || '',
+        service: booking.service_name || booking.service_type,
+        description: booking.notes || 'Service request',
+        startTime: booking.time,
+        expectedDuration: '30-60 min',
+        address: booking.address_display,
+        distance: 0,
+        earnings: booking.price,
+        status: booking.status === 'ongoing' ? 'in-progress' : 'otp-pending',
+        isUrgent: false,
+        elapsedTime: booking.started_at ? calculateElapsed(booking.started_at) : undefined
+      }));
+      
+      setOngoingJobs(transformedJobs);
+    } catch (err) {
+      console.error('Error fetching ongoing jobs:', err);
+      setError(err instanceof Error ? err.message : 'Failed to fetch jobs');
+    } finally {
+      setIsLoading(false);
     }
-  ]);
+  }, []);
+
+  useEffect(() => {
+    fetchOngoingJobs();
+  }, [fetchOngoingJobs]);
+
+  // Calculate elapsed time
+  const calculateElapsed = (startedAt: string): string => {
+    const start = new Date(startedAt);
+    const now = new Date();
+    const diff = now.getTime() - start.getTime();
+    const hours = Math.floor(diff / (1000 * 60 * 60));
+    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+    const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+  };
+
+  // Handle send OTP request
+  const handleSendOTP = async (jobId: string) => {
+    setIsSendingOTP(jobId);
+    try {
+      await sendOTPRequest(jobId);
+      alert('OTP request sent to customer. They will share it with you.');
+    } catch (err) {
+      console.error('Error sending OTP:', err);
+      alert(err instanceof Error ? err.message : 'Failed to send OTP request');
+    } finally {
+      setIsSendingOTP(null);
+    }
+  };
+
+  // Handle verify OTP and start work
+  const handleVerifyOTP = async () => {
+    if (!selectedJobId || !otpInput) return;
+    
+    setIsVerifyingOTP(true);
+    try {
+      await startBooking(selectedJobId, otpInput);
+      setShowOTPModal(false);
+      setOtpInput('');
+      setSelectedJobId(null);
+      fetchOngoingJobs(); // Refresh the list
+    } catch (err) {
+      console.error('Error verifying OTP:', err);
+      alert(err instanceof Error ? err.message : 'Invalid OTP. Please try again.');
+    } finally {
+      setIsVerifyingOTP(false);
+    }
+  };
+
+  // Handle complete job
+  const handleCompleteJob = async (jobId: string) => {
+    if (!confirm('Are you sure you want to mark this job as completed?')) return;
+    
+    setIsCompleting(jobId);
+    try {
+      await completeBooking(jobId);
+      router.push('/professional/bookings/completed');
+    } catch (err) {
+      console.error('Error completing job:', err);
+      alert(err instanceof Error ? err.message : 'Failed to complete job');
+    } finally {
+      setIsCompleting(null);
+    }
+  };
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -111,11 +198,33 @@ export default function OngoingJobsPage() {
     }
   };
 
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-purple-50 to-pink-50">
+        <ProfessionalNavbar activeTab="bookings" />
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <div className="text-center">
+            <Loader2 className="w-12 h-12 animate-spin text-purple-600 mx-auto mb-4" />
+            <p className="text-gray-600 font-medium">Loading jobs...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-purple-50 to-pink-50">
       <ProfessionalNavbar activeTab="bookings" />
       
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Connection Status */}
+        <div className={`mb-4 px-4 py-2 rounded-lg flex items-center gap-2 ${isConnected ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
+          <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`} />
+          <span className="text-sm font-medium">
+            {isConnected ? 'Live Updates Active' : 'Reconnecting...'}
+          </span>
+        </div>
+
         {/* Header */}
         <div className="mb-8">
           <Link
@@ -143,7 +252,7 @@ export default function OngoingJobsPage() {
               <div>
                 <h3 className="font-black text-orange-900 mb-1">OTP Verification Required</h3>
                 <p className="text-sm text-orange-800 font-semibold">
-                  Some jobs are waiting for OTP verification before you can start work
+                  Click &quot;Request OTP&quot; button when you arrive at the customer&apos;s location
                 </p>
               </div>
             </div>
@@ -260,22 +369,58 @@ export default function OngoingJobsPage() {
                       Navigate
                     </a>
                     
-                    <button
-                      onClick={() => router.push(`/professional/bookings/ongoing/${job.id}`)}
-                      className="flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold rounded-xl hover:shadow-xl transition-all"
-                    >
-                      {job.status === 'otp-pending' ? (
-                        <>
-                          <CheckCircle className="w-4 h-4" />
-                          Verify & Start
-                        </>
-                      ) : (
-                        <>
-                          <Play className="w-4 h-4" />
-                          Continue
-                        </>
-                      )}
-                    </button>
+                    {job.status === 'otp-pending' ? (
+                      <>
+                        {/* Send OTP Request Button */}
+                        <button
+                          onClick={() => handleSendOTP(job.id)}
+                          disabled={isSendingOTP === job.id}
+                          className="flex items-center justify-center gap-2 px-4 py-3 bg-orange-500 text-white font-bold rounded-xl hover:bg-orange-600 transition-all disabled:opacity-50"
+                        >
+                          {isSendingOTP === job.id ? (
+                            <>
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                              Sending...
+                            </>
+                          ) : (
+                            <>
+                              <Send className="w-4 h-4" />
+                              Request OTP
+                            </>
+                          )}
+                        </button>
+                        
+                        {/* Enter OTP Button */}
+                        <button
+                          onClick={() => {
+                            setSelectedJobId(job.id);
+                            setShowOTPModal(true);
+                          }}
+                          className="flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold rounded-xl hover:shadow-xl transition-all col-span-2 lg:col-span-1"
+                        >
+                          <Key className="w-4 h-4" />
+                          Enter OTP & Start
+                        </button>
+                      </>
+                    ) : (
+                      <button
+                        onClick={() => handleCompleteJob(job.id)}
+                        disabled={isCompleting === job.id}
+                        className="flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white font-bold rounded-xl hover:shadow-xl transition-all disabled:opacity-50"
+                      >
+                        {isCompleting === job.id ? (
+                          <>
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            Completing...
+                          </>
+                        ) : (
+                          <>
+                            <CheckCircle className="w-4 h-4" />
+                            Complete Job
+                          </>
+                        )}
+                      </button>
+                    )}
                   </div>
 
                   {/* Status Message */}
@@ -337,6 +482,71 @@ export default function OngoingJobsPage() {
           </div>
         )}
       </div>
+
+      {/* OTP Verification Modal */}
+      {showOTPModal && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl">
+            <div className="text-center">
+              {/* Key Icon */}
+              <div className="w-20 h-20 bg-gradient-to-br from-purple-500 to-pink-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Key className="w-10 h-10 text-white" />
+              </div>
+              
+              <h3 className="text-2xl font-bold text-gray-900 mb-2">
+                Enter OTP to Start Work
+              </h3>
+              <p className="text-gray-600 mb-6">
+                Ask the customer for the OTP code they received
+              </p>
+              
+              {/* OTP Input */}
+              <div className="mb-6">
+                <input
+                  type="text"
+                  value={otpInput}
+                  onChange={(e) => setOtpInput(e.target.value.replace(/\D/g, '').slice(0, 5))}
+                  placeholder="Enter 5-digit OTP"
+                  className="w-full text-center text-2xl font-bold tracking-widest border-2 border-purple-300 rounded-xl py-4 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 outline-none"
+                  maxLength={5}
+                />
+              </div>
+              
+              {/* Buttons */}
+              <div className="flex gap-3">
+                <button
+                  onClick={() => {
+                    setShowOTPModal(false);
+                    setOtpInput('');
+                    setSelectedJobId(null);
+                  }}
+                  disabled={isVerifyingOTP}
+                  className="flex-1 border-2 border-gray-300 text-gray-700 py-3 rounded-xl font-semibold hover:bg-gray-50 transition-colors disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleVerifyOTP}
+                  disabled={isVerifyingOTP || otpInput.length !== 5}
+                  className="flex-1 bg-gradient-to-r from-purple-600 to-pink-600 text-white py-3 rounded-xl font-semibold hover:from-purple-700 hover:to-pink-700 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {isVerifyingOTP ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Verifying...
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle className="w-4 h-4" />
+                      Verify & Start Work
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

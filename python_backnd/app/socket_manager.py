@@ -186,3 +186,178 @@ def get_online_users() -> list:
 def get_online_count() -> int:
     """Get count of online users"""
     return len(connected_users)
+
+
+# ============================================
+# BOOKING REAL-TIME EVENTS
+# ============================================
+
+@sio.event
+async def join_booking_room(sid, data):
+    """Allow user to join a booking-specific room for real-time updates"""
+    booking_id = data.get('booking_id')
+    if booking_id:
+        room = f"booking_{booking_id}"
+        await sio.enter_room(sid, room)
+        print(f"Session {sid} joined booking room {room}")
+        await sio.emit('joined_booking_room', {
+            'booking_id': booking_id,
+            'message': f'Joined booking room {booking_id}'
+        }, room=sid)
+
+
+@sio.event
+async def leave_booking_room(sid, data):
+    """Allow user to leave a booking room"""
+    booking_id = data.get('booking_id')
+    if booking_id:
+        room = f"booking_{booking_id}"
+        await sio.leave_room(sid, room)
+        print(f"Session {sid} left booking room {room}")
+
+
+async def emit_booking_status_update(booking_id: str, status: str, data: dict = None):
+    """Emit booking status update to all users in the booking room"""
+    room = f"booking_{booking_id}"
+    event_data = {
+        'booking_id': booking_id,
+        'status': status,
+        'timestamp': datetime.utcnow().isoformat(),
+        **(data or {})
+    }
+    await sio.emit('booking_status_update', event_data, room=room)
+    print(f"Emitted booking status update to room {room}: {status}")
+
+
+async def emit_booking_confirmed(booking_id: str, user_id: str, professional_id: str, booking_data: dict = None):
+    """Emit when user confirms a booking - notify professional"""
+    # Notify both user and professional
+    for uid in [user_id, professional_id]:
+        await sio.emit('booking_confirmed', {
+            'booking_id': booking_id,
+            'message': 'New booking confirmed',
+            'booking': booking_data,
+            'timestamp': datetime.utcnow().isoformat()
+        }, room=f"user_{uid}")
+    
+    # Also emit to booking room
+    await emit_booking_status_update(booking_id, 'confirmed', booking_data)
+    print(f"Booking {booking_id} confirmed - notified user {user_id} and professional {professional_id}")
+
+
+async def emit_booking_accepted(booking_id: str, user_id: str, professional_id: str, booking_data: dict = None):
+    """Emit when professional accepts a booking - notify user"""
+    # Notify user
+    await sio.emit('booking_accepted', {
+        'booking_id': booking_id,
+        'message': 'Professional has accepted your booking',
+        'booking': booking_data,
+        'timestamp': datetime.utcnow().isoformat()
+    }, room=f"user_{user_id}")
+    
+    # Notify professional (confirmation)
+    await sio.emit('booking_accepted', {
+        'booking_id': booking_id,
+        'message': 'You have accepted the booking',
+        'booking': booking_data,
+        'timestamp': datetime.utcnow().isoformat()
+    }, room=f"user_{professional_id}")
+    
+    # Emit to booking room
+    await emit_booking_status_update(booking_id, 'accepted', booking_data)
+    print(f"Booking {booking_id} accepted by professional {professional_id}")
+
+
+async def emit_otp_sent(booking_id: str, user_id: str, professional_id: str, otp: str = None):
+    """Emit when professional sends OTP request - notify user to share OTP"""
+    # Notify user that professional has arrived and needs OTP
+    await sio.emit('otp_requested', {
+        'booking_id': booking_id,
+        'message': 'Professional has arrived. Please share the OTP to start work.',
+        'otp': otp,  # Send OTP to user so they can verify
+        'timestamp': datetime.utcnow().isoformat()
+    }, room=f"user_{user_id}")
+    
+    # Notify professional that OTP request was sent
+    await sio.emit('otp_request_sent', {
+        'booking_id': booking_id,
+        'message': 'OTP request sent to customer',
+        'timestamp': datetime.utcnow().isoformat()
+    }, room=f"user_{professional_id}")
+    
+    # Emit to booking room
+    await emit_booking_status_update(booking_id, 'otp_requested', {'message': 'Professional arrived, OTP verification pending'})
+    print(f"OTP request sent for booking {booking_id}")
+
+
+async def emit_work_started(booking_id: str, user_id: str, professional_id: str, booking_data: dict = None):
+    """Emit when OTP is verified and work starts"""
+    # Notify user
+    await sio.emit('work_started', {
+        'booking_id': booking_id,
+        'message': 'Work has started on your booking',
+        'booking': booking_data,
+        'timestamp': datetime.utcnow().isoformat()
+    }, room=f"user_{user_id}")
+    
+    # Notify professional
+    await sio.emit('work_started', {
+        'booking_id': booking_id,
+        'message': 'Work started - OTP verified successfully',
+        'booking': booking_data,
+        'timestamp': datetime.utcnow().isoformat()
+    }, room=f"user_{professional_id}")
+    
+    # Emit to booking room
+    await emit_booking_status_update(booking_id, 'ongoing', booking_data)
+    print(f"Work started on booking {booking_id}")
+
+
+async def emit_work_completed(booking_id: str, user_id: str, professional_id: str, booking_data: dict = None):
+    """Emit when work is completed"""
+    # Notify user
+    await sio.emit('work_completed', {
+        'booking_id': booking_id,
+        'message': 'Work has been completed. Please rate your experience.',
+        'booking': booking_data,
+        'timestamp': datetime.utcnow().isoformat()
+    }, room=f"user_{user_id}")
+    
+    # Notify professional
+    await sio.emit('work_completed', {
+        'booking_id': booking_id,
+        'message': 'Job completed successfully',
+        'booking': booking_data,
+        'timestamp': datetime.utcnow().isoformat()
+    }, room=f"user_{professional_id}")
+    
+    # Emit to booking room
+    await emit_booking_status_update(booking_id, 'completed', booking_data)
+    print(f"Work completed on booking {booking_id}")
+
+
+async def emit_booking_cancelled(booking_id: str, user_id: str, professional_id: str, cancelled_by: str, reason: str = None):
+    """Emit when booking is cancelled"""
+    cancel_data = {
+        'booking_id': booking_id,
+        'cancelled_by': cancelled_by,
+        'reason': reason,
+        'timestamp': datetime.utcnow().isoformat()
+    }
+    
+    # Notify user
+    await sio.emit('booking_cancelled', {
+        **cancel_data,
+        'message': 'Your booking has been cancelled' if cancelled_by == 'user' else 'Professional has cancelled the booking'
+    }, room=f"user_{user_id}")
+    
+    # Notify professional
+    if professional_id:
+        await sio.emit('booking_cancelled', {
+            **cancel_data,
+            'message': 'Booking has been cancelled by customer' if cancelled_by == 'user' else 'You have cancelled the booking'
+        }, room=f"user_{professional_id}")
+    
+    # Emit to booking room
+    await emit_booking_status_update(booking_id, 'cancelled', cancel_data)
+    print(f"Booking {booking_id} cancelled by {cancelled_by}")

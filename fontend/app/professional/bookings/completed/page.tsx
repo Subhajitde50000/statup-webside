@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
   ArrowLeft, 
   Filter,
@@ -15,11 +15,13 @@ import {
   Phone,
   MessageCircle,
   Award,
-  DollarSign
+  DollarSign,
+  Loader2
 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import ProfessionalNavbar from '../../components/ProfessionalNavbar';
+import { getProfessionalBookings, Booking } from '@/utils/bookings';
 
 interface CompletedJob {
   id: string;
@@ -41,103 +43,79 @@ interface CompletedJob {
 export default function CompletedJobsPage() {
   const router = useRouter();
   const [filterOption, setFilterOption] = useState<'today' | 'week' | 'month' | 'all'>('all');
+  const [completedJobs, setCompletedJobs] = useState<CompletedJob[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const completedJobs: CompletedJob[] = [
-    {
-      id: '1',
-      customerName: 'Subhajit De',
-      customerPhoto: 'https://i.pravatar.cc/150?img=33',
-      service: 'Switchboard Repair',
-      description: 'Fixed main switchboard tripping issue',
-      date: 'Today',
-      time: '2:00 PM',
-      duration: '45 min',
-      earnings: 450,
-      customerRating: 5,
-      customerFeedback: 'Excellent work! Very professional and quick.',
-      category: 'today',
-      paymentStatus: 'paid',
-      hasInvoice: true
-    },
-    {
-      id: '2',
-      customerName: 'Priya Sharma',
-      customerPhoto: 'https://i.pravatar.cc/150?img=5',
-      service: 'Fan Installation',
-      description: 'Installed new ceiling fan in bedroom',
-      date: 'Yesterday',
-      time: '4:30 PM',
-      duration: '35 min',
-      earnings: 350,
-      customerRating: 4,
-      customerFeedback: 'Good service, but took a bit longer than expected.',
-      category: 'week',
-      paymentStatus: 'paid',
-      hasInvoice: true
-    },
-    {
-      id: '3',
-      customerName: 'Ananya Das',
-      customerPhoto: 'https://i.pravatar.cc/150?img=10',
-      service: 'Light Fitting',
-      description: 'Installed decorative lights in living room',
-      date: '2 Jan 2026',
-      time: '10:00 AM',
-      duration: '40 min',
-      earnings: 280,
-      customerRating: 5,
-      customerFeedback: 'Amazing work! Lights look beautiful.',
-      category: 'week',
-      paymentStatus: 'paid',
-      hasInvoice: true
-    },
-    {
-      id: '4',
-      customerName: 'Rajesh Kumar',
-      customerPhoto: 'https://i.pravatar.cc/150?img=12',
-      service: 'MCB Replacement',
-      description: 'Replaced faulty circuit breaker',
-      date: '30 Dec 2025',
-      time: '2:30 PM',
-      duration: '30 min',
-      earnings: 400,
-      customerRating: 4,
-      category: 'week',
-      paymentStatus: 'paid',
-      hasInvoice: true
-    },
-    {
-      id: '5',
-      customerName: 'Vikram Singh',
-      customerPhoto: 'https://i.pravatar.cc/150?img=15',
-      service: 'Electrical Inspection',
-      description: 'Complete house wiring inspection and testing',
-      date: '28 Dec 2025',
-      time: '11:00 AM',
-      duration: '90 min',
-      earnings: 650,
-      customerRating: 5,
-      customerFeedback: 'Very thorough inspection. Highly recommended!',
-      category: 'week',
-      paymentStatus: 'paid',
-      hasInvoice: true
-    },
-    {
-      id: '6',
-      customerName: 'Sneha Patel',
-      customerPhoto: 'https://i.pravatar.cc/150?img=20',
-      service: 'Socket Installation',
-      description: 'Installed 4 new power sockets',
-      date: '20 Dec 2025',
-      time: '3:00 PM',
-      duration: '50 min',
-      earnings: 320,
-      customerRating: 5,
-      category: 'month',
-      paymentStatus: 'paid',
-      hasInvoice: true
+  const fetchCompletedJobs = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      const response = await getProfessionalBookings({ status: 'completed' });
+      
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const weekAgo = new Date(today);
+      weekAgo.setDate(weekAgo.getDate() - 7);
+      const monthAgo = new Date(today);
+      monthAgo.setMonth(monthAgo.getMonth() - 1);
+      
+      const transformedJobs: CompletedJob[] = response.bookings.map((booking: Booking) => {
+        const bookingDate = new Date(booking.date);
+        bookingDate.setHours(0, 0, 0, 0);
+        
+        let category: 'today' | 'week' | 'month' | 'all' = 'all';
+        if (bookingDate.getTime() === today.getTime()) {
+          category = 'today';
+        } else if (bookingDate >= weekAgo) {
+          category = 'week';
+        } else if (bookingDate >= monthAgo) {
+          category = 'month';
+        }
+        
+        return {
+          id: booking.id,
+          customerName: booking.user?.name || 'Customer',
+          customerPhoto: `https://ui-avatars.com/api/?name=${encodeURIComponent(booking.user?.name || 'Customer')}&size=80&background=1E2A5E&color=fff`,
+          service: booking.service_name || booking.service_type,
+          description: booking.notes || 'Service completed',
+          date: booking.date,
+          time: booking.time,
+          duration: booking.started_at && booking.completed_at 
+            ? calculateDuration(booking.started_at, booking.completed_at)
+            : 'N/A',
+          earnings: booking.price,
+          customerRating: booking.rating || 0,
+          customerFeedback: booking.review || undefined,
+          category,
+          paymentStatus: 'paid' as const,
+          hasInvoice: true
+        };
+      });
+      
+      setCompletedJobs(transformedJobs);
+    } catch (err) {
+      console.error('Error fetching completed jobs:', err);
+      setError(err instanceof Error ? err.message : 'Failed to fetch completed jobs');
+    } finally {
+      setIsLoading(false);
     }
-  ];
+  }, []);
+
+  const calculateDuration = (start: string, end: string): string => {
+    const startDate = new Date(start);
+    const endDate = new Date(end);
+    const diffMs = endDate.getTime() - startDate.getTime();
+    const diffMins = Math.round(diffMs / (1000 * 60));
+    if (diffMins < 60) return `${diffMins} min`;
+    const hours = Math.floor(diffMins / 60);
+    const mins = diffMins % 60;
+    return `${hours}h ${mins}m`;
+  };
+
+  useEffect(() => {
+    fetchCompletedJobs();
+  }, [fetchCompletedJobs]);
 
   const filteredJobs = completedJobs.filter(job => {
     if (filterOption === 'today') return job.category === 'today';
@@ -159,6 +137,20 @@ export default function CompletedJobsPage() {
   const handleDownloadInvoice = (id: string) => {
     alert(`📄 Invoice #${id} will be downloaded`);
   };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-green-50 to-emerald-50">
+        <ProfessionalNavbar activeTab="bookings" />
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <div className="text-center">
+            <Loader2 className="w-12 h-12 animate-spin text-green-600 mx-auto mb-4" />
+            <p className="text-gray-600 font-medium">Loading completed jobs...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-green-50 to-emerald-50">

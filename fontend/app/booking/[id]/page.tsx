@@ -30,12 +30,15 @@ import {
   Package,
   Loader2,
   RefreshCw,
-  Info
+  Info,
+  Bell,
+  Key
 } from 'lucide-react';
 import Image from 'next/image';
 import { useRouter, useParams } from 'next/navigation';
 import { getBookingById, cancelBooking, rateBooking, Booking as APIBooking } from '@/utils/bookings';
 import { getAccessToken } from '@/utils/auth';
+import { useBookingUpdates } from '@/utils/BookingSocketContext';
 
 // API Base URL for images
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'http://localhost:8000';
@@ -48,7 +51,7 @@ interface Booking {
   bookingId: string;
   date: string;
   time: string;
-  status: 'scheduled' | 'confirmed' | 'assigned' | 'on-the-way' | 'ongoing' | 'completed' | 'cancelled';
+  status: 'scheduled' | 'confirmed' | 'accepted' | 'assigned' | 'on-the-way' | 'ongoing' | 'completed' | 'cancelled';
   otp: string;
   professional: {
     name: string;
@@ -111,6 +114,12 @@ export default function BookingDetailsPage() {
   const [rescheduleDate, setRescheduleDate] = useState('');
   const [rescheduleTime, setRescheduleTime] = useState('');
   const [isRescheduling, setIsRescheduling] = useState(false);
+  const [showOTPModal, setShowOTPModal] = useState(false);
+  const [realtimeOTP, setRealtimeOTP] = useState<string | null>(null);
+  
+  // Real-time booking updates
+  const bookingId = params.id as string;
+  const { status: realtimeStatus, otp: socketOTP, otpPending, isConnected } = useBookingUpdates(bookingId);
 
   // Fetch booking details
   useEffect(() => {
@@ -196,6 +205,33 @@ export default function BookingDetailsPage() {
     fetchBooking();
   }, [params.id]);
 
+  // Handle real-time status updates
+  useEffect(() => {
+    if (realtimeStatus && booking) {
+      // Map real-time status to booking status
+      const statusMapping: { [key: string]: Booking['status'] } = {
+        'confirmed': 'confirmed',
+        'accepted': 'confirmed',
+        'ongoing': 'ongoing',
+        'completed': 'completed',
+        'cancelled': 'cancelled',
+      };
+      
+      const mappedStatus = statusMapping[realtimeStatus];
+      if (mappedStatus && mappedStatus !== booking.status) {
+        setBooking(prev => prev ? { ...prev, status: mappedStatus, timeline: generateTimeline(realtimeStatus) } : null);
+      }
+    }
+  }, [realtimeStatus, booking]);
+
+  // Handle OTP request from professional
+  useEffect(() => {
+    if (otpPending && socketOTP) {
+      setRealtimeOTP(socketOTP);
+      setShowOTPModal(true);
+    }
+  }, [otpPending, socketOTP]);
+
   // Helper functions
   const formatDate = (dateStr: string) => {
     try {
@@ -210,6 +246,7 @@ export default function BookingDetailsPage() {
     const statusMap: { [key: string]: Booking['status'] } = {
       'pending': 'scheduled',
       'confirmed': 'confirmed',
+      'accepted': 'confirmed',
       'upcoming': 'scheduled',
       'ongoing': 'ongoing',
       'completed': 'completed',
@@ -220,9 +257,9 @@ export default function BookingDetailsPage() {
 
   const generateTimeline = (status: string) => {
     const stages = [
-      { stage: 'Booking Confirmed', completed: ['confirmed', 'upcoming', 'ongoing', 'completed'].includes(status) },
-      { stage: 'Professional Assigned', completed: ['upcoming', 'ongoing', 'completed'].includes(status) },
-      { stage: 'Professional on the Way', completed: ['ongoing', 'completed'].includes(status) },
+      { stage: 'Booking Confirmed', completed: ['confirmed', 'accepted', 'upcoming', 'ongoing', 'completed'].includes(status) },
+      { stage: 'Professional Accepted', completed: ['accepted', 'ongoing', 'completed'].includes(status) },
+      { stage: 'Professional Arrived (OTP)', completed: ['ongoing', 'completed'].includes(status) },
       { stage: 'Work Started', completed: ['ongoing', 'completed'].includes(status) },
       { stage: 'Work Completed', completed: status === 'completed' }
     ];
@@ -240,8 +277,9 @@ export default function BookingDetailsPage() {
     const badges: { [key: string]: { color: string; bg: string; label: string; emoji: string } } = {
       'scheduled': { color: 'text-yellow-700', bg: 'bg-yellow-100', label: 'Scheduled', emoji: '🟡' },
       'confirmed': { color: 'text-blue-700', bg: 'bg-blue-100', label: 'Confirmed', emoji: '🔵' },
+      'accepted': { color: 'text-cyan-700', bg: 'bg-cyan-100', label: 'Accepted', emoji: '✅' },
       'on-the-way': { color: 'text-purple-700', bg: 'bg-purple-100', label: 'On the Way', emoji: '🟣' },
-      'ongoing': { color: 'text-blue-700', bg: 'bg-blue-100', label: 'Ongoing', emoji: '🔵' },
+      'ongoing': { color: 'text-orange-700', bg: 'bg-orange-100', label: 'Work Started', emoji: '🔶' },
       'completed': { color: 'text-green-700', bg: 'bg-green-100', label: 'Completed', emoji: '🟢' },
       'cancelled': { color: 'text-red-700', bg: 'bg-red-100', label: 'Cancelled', emoji: '🔴' }
     };
@@ -1326,6 +1364,80 @@ export default function BookingDetailsPage() {
               fill
               className="object-contain"
             />
+          </div>
+        </div>
+      )}
+
+      {/* OTP Modal - Shown when professional arrives */}
+      {showOTPModal && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl animate-bounce-in">
+            <div className="text-center">
+              {/* Bell Icon Animation */}
+              <div className="w-20 h-20 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4 animate-pulse">
+                <Bell className="w-10 h-10 text-white" />
+              </div>
+              
+              <h3 className="text-2xl font-bold text-gray-900 mb-2">
+                Professional Has Arrived! 🎉
+              </h3>
+              <p className="text-gray-600 mb-6">
+                Share this OTP with the professional to start the work
+              </p>
+              
+              {/* OTP Display */}
+              <div className="bg-gradient-to-r from-blue-50 to-cyan-50 border-2 border-blue-200 rounded-2xl p-6 mb-6">
+                <p className="text-sm text-gray-500 mb-2">Your OTP Code</p>
+                <div className="flex justify-center gap-2">
+                  {(realtimeOTP || booking?.otp || '').split('').map((digit, index) => (
+                    <div
+                      key={index}
+                      className="w-12 h-14 bg-white border-2 border-blue-400 rounded-xl flex items-center justify-center shadow-lg"
+                    >
+                      <span className="text-2xl font-bold text-blue-600">{digit}</span>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-xs text-gray-500 mt-3 flex items-center justify-center gap-1">
+                  <Lock className="w-3 h-3" />
+                  Do not share with anyone except your professional
+                </p>
+              </div>
+              
+              {/* Real-time Connection Status */}
+              <div className="flex items-center justify-center gap-2 mb-4">
+                <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`} />
+                <span className="text-xs text-gray-500">
+                  {isConnected ? 'Connected - Live Updates' : 'Reconnecting...'}
+                </span>
+              </div>
+              
+              <button
+                onClick={() => setShowOTPModal(false)}
+                className="w-full bg-gradient-to-r from-blue-600 to-cyan-600 text-white py-3 rounded-xl font-semibold hover:from-blue-700 hover:to-cyan-700 transition-all"
+              >
+                Got it, Thanks!
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Real-time Status Banner */}
+      {isConnected && realtimeStatus && (
+        <div className="fixed bottom-20 left-4 right-4 md:left-auto md:right-4 md:w-96 bg-gradient-to-r from-green-500 to-emerald-600 text-white p-4 rounded-xl shadow-2xl z-40 animate-slide-up">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
+              <RefreshCw className="w-5 h-5 animate-spin" />
+            </div>
+            <div>
+              <p className="font-semibold">Status Updated</p>
+              <p className="text-sm text-white/80">
+                {realtimeStatus === 'accepted' && 'Professional has accepted your booking'}
+                {realtimeStatus === 'ongoing' && 'Work has started'}
+                {realtimeStatus === 'completed' && 'Work completed! Please rate your experience'}
+              </p>
+            </div>
           </div>
         </div>
       )}
