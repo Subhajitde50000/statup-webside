@@ -1,16 +1,16 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Filter, ChevronDown, MapPin, Star, Phone, CheckCircle, Truck, ShoppingBag, X, Heart, Navigation, Share2, Clock, Loader2 } from 'lucide-react';
 import StoreNavbar from '../Component/StoreNavbar';
 
-// Mock data for demonstration
-const MOCK_SHOPS = [
+// Electronics Shops Mock data
+const MOCK_ELECTRONICS_SHOPS = [
   {
     id: 1,
     name: 'Prime Electronics Store',
-    category: 'Electrical',
+    category: 'Electronics',
     rating: 4.7,
     reviews: 328,
     distance: 1.2,
@@ -28,7 +28,7 @@ const MOCK_SHOPS = [
   {
     id: 2,
     name: 'City Electrical Mart',
-    category: 'Electrical',
+    category: 'Electronics',
     rating: 4.5,
     reviews: 456,
     distance: 2.4,
@@ -45,25 +45,8 @@ const MOCK_SHOPS = [
   },
   {
     id: 3,
-    name: 'Kumar Plumbing Supply',
-    category: 'Plumbing',
-    rating: 4.8,
-    reviews: 234,
-    distance: 0.8,
-    isOpen: false,
-    verified: true,
-    delivery: true,
-    pickup: true,
-    minOrder: 250,
-    freeDeliveryAbove: 500,
-    phone: '+91 98765 43212',
-    coverImage: 'https://placehold.co/400x200',
-    logo: 'https://placehold.co/100x100'
-  },
-  {
-    id: 4,
     name: 'Modern Hardware Store',
-    category: 'Electrical',
+    category: 'Electronics',
     rating: 4.3,
     reviews: 567,
     distance: 3.1,
@@ -77,27 +60,9 @@ const MOCK_SHOPS = [
     logo: 'https://placehold.co/100x100'
   },
   {
-    id: 5,
-    name: 'Elite Plumbing Solutions',
-    category: 'Plumbing',
-    rating: 4.9,
-    reviews: 189,
-    distance: 1.5,
-    isOpen: true,
-    verified: true,
-    delivery: true,
-    pickup: true,
-    minOrder: 200,
-    freeDeliveryAbove: 450,
-    offer: 'Free installation on orders above ₹1000',
-    phone: '+91 98765 43214',
-    coverImage: 'https://placehold.co/400x200',
-    logo: 'https://placehold.co/100x100'
-  },
-  {
-    id: 6,
+    id: 4,
     name: 'Tech Electronics Hub',
-    category: 'Electrical',
+    category: 'Electronics',
     rating: 4.6,
     reviews: 423,
     distance: 2.8,
@@ -113,8 +78,106 @@ const MOCK_SHOPS = [
   },
 ];
 
+// Medical Shops Mock data
+const MOCK_MEDICAL_SHOPS = [
+  {
+    id: 101,
+    name: 'HealthPlus Pharmacy',
+    category: 'Medical',
+    rating: 4.8,
+    reviews: 892,
+    distance: 0.8,
+    isOpen: true,
+    verified: true,
+    delivery: true,
+    pickup: true,
+    minOrder: 150,
+    freeDeliveryAbove: 299,
+    offer: 'Flat 15% off on generic medicines',
+    phone: '+91 98765 43220',
+    coverImage: 'https://placehold.co/400x200',
+    logo: 'https://placehold.co/100x100'
+  },
+  {
+    id: 102,
+    name: 'MediCare Drugstore',
+    category: 'Medical',
+    rating: 4.7,
+    reviews: 654,
+    distance: 1.5,
+    isOpen: true,
+    verified: true,
+    delivery: true,
+    pickup: true,
+    minOrder: 200,
+    freeDeliveryAbove: 399,
+    offer: 'Buy 2 Get 1 on supplements',
+    phone: '+91 98765 43221',
+    coverImage: 'https://placehold.co/400x200',
+    logo: 'https://placehold.co/100x100'
+  },
+  {
+    id: 103,
+    name: 'Apollo Pharmacy',
+    category: 'Medical',
+    rating: 4.9,
+    reviews: 1234,
+    distance: 2.1,
+    isOpen: true,
+    verified: true,
+    delivery: true,
+    pickup: true,
+    minOrder: 100,
+    freeDeliveryAbove: 250,
+    offer: 'Free health checkup with orders above ₹1000',
+    phone: '+91 98765 43222',
+    coverImage: 'https://placehold.co/400x200',
+    logo: 'https://placehold.co/100x100'
+  },
+  {
+    id: 104,
+    name: 'Wellness Medical Store',
+    category: 'Medical',
+    rating: 4.6,
+    reviews: 543,
+    distance: 1.8,
+    isOpen: false,
+    verified: true,
+    delivery: true,
+    pickup: true,
+    minOrder: 150,
+    freeDeliveryAbove: 300,
+    phone: '+91 98765 43223',
+    coverImage: 'https://placehold.co/400x200',
+    logo: 'https://placehold.co/100x100'
+  },
+  {
+    id: 105,
+    name: 'MedPlus Pharmacy',
+    category: 'Medical',
+    rating: 4.5,
+    reviews: 789,
+    distance: 2.5,
+    isOpen: true,
+    verified: true,
+    delivery: true,
+    pickup: true,
+    minOrder: 180,
+    freeDeliveryAbove: 350,
+    offer: 'Cashback on first order',
+    phone: '+91 98765 43224',
+    coverImage: 'https://placehold.co/400x200',
+    logo: 'https://placehold.co/100x100'
+  },
+];
+
 export default function ShopsPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const storeType = searchParams.get('type') || 'electronics'; // 'electronics' or 'medical'
+  
+  const MOCK_SHOPS = storeType === 'medical' ? MOCK_MEDICAL_SHOPS : MOCK_ELECTRONICS_SHOPS;
+
   const [searchQuery, setSearchQuery] = useState('');
   const [location] = useState('Mumbai, Maharashtra');
   const [shops, setShops] = useState([]);
@@ -148,7 +211,7 @@ export default function ShopsPage() {
       }, 1000);
     };
     fetchShops();
-  }, []);
+  }, [storeType]);
 
   const handleCartClick = () => {
     router.push('/cart');
@@ -188,6 +251,17 @@ export default function ShopsPage() {
       navigator.clipboard.writeText(window.location.href);
       alert('Link copied to clipboard!');
     }
+  };
+
+  // Dynamic theme colors based on store type
+  const theme = storeType === 'medical' ? {
+    primary: '#60A5FA',
+    secondary: '#93C5FD',
+    name: 'Medical'
+  } : {
+    primary: '#00BFA6',
+    secondary: '#1E2A5E',
+    name: 'Electronics'
   };
 
   const getFilteredAndSortedShops = () => {
@@ -255,6 +329,7 @@ export default function ShopsPage() {
         setSearchQuery={setSearchQuery}
         cartItemCount={cartItemCount}
         onCartClick={handleCartClick}
+        storeType={storeType}
       />
 
       {/* Page Header */}
@@ -262,11 +337,14 @@ export default function ShopsPage() {
         <div className="max-w-7xl mx-auto px-4 py-6">
           <div className="flex items-start justify-between gap-4 mb-4">
             <div>
-              <h1 className="text-2xl md:text-3xl font-bold text-[#1F2937] mb-2">Stores Near You</h1>
+              <h1 className="text-2xl md:text-3xl font-bold text-[#1F2937] mb-2">
+                {theme.name} Stores Near You
+              </h1>
               <p className="text-sm md:text-base text-[#6B7280]">
-                Trusted electrical & plumbing stores around you
+                Trusted {theme.name.toLowerCase()} stores around you
                 {!loading && filteredShops.length > 0 && (
-                  <span className="ml-2 text-[#00BFA6] font-semibold">
+                  <span className="ml-2 font-semibold"
+                    style={{ color: theme.primary }}>
                     • {filteredShops.length} store{filteredShops.length !== 1 ? 's' : ''} found
                   </span>
                 )}
@@ -275,7 +353,13 @@ export default function ShopsPage() {
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setShowFilters(true)}
-                className="p-2 md:px-4 md:py-2 border-2 border-[#1E2A5E] text-[#1E2A5E] rounded-lg hover:bg-[#1E2A5E] hover:text-white transition flex items-center gap-2 active:scale-95"
+                className="p-2 md:px-4 md:py-2 border-2 rounded-lg hover:text-white transition flex items-center gap-2 active:scale-95"
+                style={{ 
+                  borderColor: theme.secondary,
+                  color: theme.secondary
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = theme.secondary}
+                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
               >
                 <Filter size={18} />
                 <span className="hidden md:inline font-semibold">Filters</span>

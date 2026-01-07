@@ -133,6 +133,134 @@ const MOCK_STORE_DATA = {
       { id: 4, url: 'https://placehold.co/800x600', caption: 'Wire & Cable Department' },
       { id: 5, url: 'https://placehold.co/800x600', caption: 'Billing Counter' }
     ]
+  },
+  101: {
+    id: 101,
+    name: 'HealthPlus Pharmacy',
+    category: 'Medical',
+    type: 'medical',
+    rating: 4.8,
+    reviews: 892,
+    description: 'Trusted Medical Store Since 2018',
+    bannerImage: 'https://placehold.co/1200x300',
+    logo: 'https://placehold.co/120x120',
+    verified: true,
+    since: '2018',
+    location: 'Andheri West, Mumbai',
+    isOpen: true,
+    openTime: '8:00 AM - 11:00 PM',
+    phone: '+91 98765 43220',
+    
+    stats: {
+      products: 1850,
+      orders: 24580,
+      avgDeliveryTime: '25 mins',
+      responseRate: '99%'
+    },
+    
+    services: {
+      delivery: true,
+      pickup: true,
+      sameDay: true,
+      installation: false
+    },
+    
+    highlights: [
+      { icon: '✔', title: 'Genuine Medicines', desc: '100% authentic products' },
+      { icon: '🚀', title: 'Fast Delivery', desc: 'Express delivery available' },
+      { icon: '👨‍⚕️', title: 'Pharmacist Available', desc: 'Expert consultation' },
+      { icon: '🔄', title: 'Easy Returns', desc: '7-day return policy' }
+    ],
+    
+    policies: {
+      return: 'Medicines can be returned within 7 days if unused and in original packaging. Prescription medicines are non-returnable.',
+      warranty: 'We ensure all products are within expiry date. Manufacturing defects are replaced immediately.',
+      delivery: 'We deliver within 10km radius. Free delivery on orders above ₹299. Express delivery in 25 minutes.',
+      cancellation: 'Orders can be cancelled within 1 hour of placement for full refund.'
+    },
+    
+    about: {
+      fullDescription: 'HealthPlus Pharmacy has been serving Mumbai with quality healthcare products since 2018. We are an authorized dealer for all major pharmaceutical brands. Our mission is to provide genuine medicines at affordable prices with excellent customer service.',
+      specialties: ['Generic Medicines', 'Health Devices', 'Supplements', 'Personal Care'],
+      paymentMethods: ['Cash', 'Card', 'UPI', 'Net Banking', 'Wallets'],
+      workingDays: 'Monday - Sunday',
+      established: '2018',
+      ownerName: 'Dr. Priya Sharma',
+      email: 'contact@healthpluspharmacy.com',
+      address: 'Shop No. 12, Ground Floor, Link Road, Andheri West, Mumbai - 400053'
+    },
+    
+    shopPhotos: [
+      { id: 1, url: 'https://placehold.co/800x600', caption: 'Store Front View' },
+      { id: 2, url: 'https://placehold.co/800x600', caption: 'Medicine Display' },
+      { id: 3, url: 'https://placehold.co/800x600', caption: 'Healthcare Products' },
+      { id: 4, url: 'https://placehold.co/800x600', caption: 'Consultation Area' },
+      { id: 5, url: 'https://placehold.co/800x600', caption: 'Billing Counter' },
+      { id: 6, url: 'https://placehold.co/800x600', caption: 'Storage Facility' }
+    ]
+  },
+  102: {
+    id: 102,
+    name: 'MediCare Drugstore',
+    category: 'Medical',
+    type: 'medical',
+    rating: 4.7,
+    reviews: 654,
+    description: 'Your Health Partner',
+    bannerImage: 'https://placehold.co/1200x300',
+    logo: 'https://placehold.co/120x120',
+    verified: true,
+    since: '2020',
+    location: 'Bandra East, Mumbai',
+    isOpen: true,
+    openTime: '7:00 AM - 10:00 PM',
+    phone: '+91 98765 43221',
+    
+    stats: {
+      products: 1450,
+      orders: 18920,
+      avgDeliveryTime: '30 mins',
+      responseRate: '97%'
+    },
+    
+    services: {
+      delivery: true,
+      pickup: true,
+      sameDay: true,
+      installation: false
+    },
+    
+    highlights: [
+      { icon: '✔', title: 'Authentic Products', desc: 'Verified medicines' },
+      { icon: '💊', title: 'Wide Range', desc: '1450+ products' },
+      { icon: '🚚', title: 'Quick Delivery', desc: '30-minute delivery' },
+      { icon: '💳', title: 'Easy Payment', desc: 'Multiple options' }
+    ],
+    
+    policies: {
+      return: 'Products can be returned within 7 days. Prescription items require valid prescription for return.',
+      warranty: 'We guarantee product quality and authenticity. Expired products are replaced free of cost.',
+      delivery: 'Free delivery within 8km on orders above ₹399. Same-day delivery available.',
+      cancellation: 'Cancel within 2 hours for full refund.'
+    },
+    
+    about: {
+      fullDescription: 'MediCare Drugstore provides comprehensive healthcare solutions with a wide range of medicines and health products. We focus on customer health and satisfaction.',
+      specialties: ['Prescription Medicines', 'OTC Products', 'Health Monitoring', 'Wellness Products'],
+      paymentMethods: ['Cash', 'Card', 'UPI', 'Net Banking'],
+      workingDays: 'Monday - Sunday',
+      established: '2020',
+      ownerName: 'Mr. Amit Patel',
+      email: 'info@medicaredrug.com',
+      address: 'Shop No. 5, Bandra Complex, Bandra East, Mumbai - 400051'
+    },
+    
+    shopPhotos: [
+      { id: 1, url: 'https://placehold.co/800x600', caption: 'Pharmacy Front' },
+      { id: 2, url: 'https://placehold.co/800x600', caption: 'Medicine Shelves' },
+      { id: 3, url: 'https://placehold.co/800x600', caption: 'Health Devices' },
+      { id: 4, url: 'https://placehold.co/800x600', caption: 'Customer Service' }
+    ]
   }
 };
 
@@ -198,6 +326,18 @@ export default function StoreViewPage() {
   const [showAboutShop, setShowAboutShop] = useState(false);
   const [showShopPhotos, setShowShopPhotos] = useState(false);
   const [selectedPhoto, setSelectedPhoto] = useState(null);
+
+  // Determine store type and theme
+  const storeType = store.type || (parseInt(storeId) >= 101 ? 'medical' : 'electronics');
+  const theme = storeType === 'medical' ? {
+    primary: '#60A5FA',
+    secondary: '#93C5FD',
+    accent: '#3B82F6'
+  } : {
+    primary: '#1E2A5E',
+    secondary: '#00BFA6',
+    accent: '#FF9F43'
+  };
 
   const categories = [
     'All Products',
@@ -269,6 +409,7 @@ export default function StoreViewPage() {
         setSearchQuery={() => {}}
         cartItemCount={0}
         onCartClick={() => router.push('/cart')}
+        storeType={storeType}
       />
 
       {/* Back Button */}
@@ -276,7 +417,10 @@ export default function StoreViewPage() {
         <div className="max-w-7xl mx-auto px-4 py-3">
           <button
             onClick={() => router.back()}
-            className="flex items-center gap-2 text-[#1E2A5E] hover:text-[#00BFA6] transition"
+            className="flex items-center gap-2 transition"
+            style={{ color: theme.primary }}
+            onMouseEnter={(e) => e.currentTarget.style.color = theme.secondary}
+            onMouseLeave={(e) => e.currentTarget.style.color = theme.primary}
           >
             <ArrowLeft size={20} />
             <span className="font-semibold">Back to Stores</span>
@@ -285,13 +429,19 @@ export default function StoreViewPage() {
       </div>
 
       {/* Store Header Banner */}
-      <div className="relative h-48 md:h-64 bg-gradient-to-r from-[#1E2A5E] to-[#2A3A7E] overflow-hidden">
+      <div className="relative h-48 md:h-64 overflow-hidden"
+        style={{
+          background: `linear-gradient(to right, ${theme.primary}, ${theme.secondary})`
+        }}>
         <img
           src={store.bannerImage}
           alt={store.name}
           className="w-full h-full object-cover opacity-40"
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-[#1E2A5E]/80 to-transparent"></div>
+        <div className="absolute inset-0"
+          style={{
+            background: `linear-gradient(to top, ${theme.primary}CC, transparent)`
+          }}></div>
         
         {/* Banner Text Overlay */}
         <div className="absolute bottom-4 left-4 right-4 text-white">
@@ -370,19 +520,31 @@ export default function StoreViewPage() {
           {/* Service Tags */}
           <div className="flex flex-wrap gap-2 mb-4">
             {store.services.delivery && (
-              <span className="px-2.5 py-1 bg-[#00BFA6]/10 text-[#00BFA6] rounded-full text-xs font-semibold flex items-center gap-1">
+              <span className="px-2.5 py-1 rounded-full text-xs font-semibold flex items-center gap-1"
+                style={{
+                  backgroundColor: `${theme.secondary}1A`,
+                  color: theme.secondary
+                }}>
                 <Truck size={11} />
                 <span className="hidden sm:inline">Delivery</span>
               </span>
             )}
             {store.services.pickup && (
-              <span className="px-2.5 py-1 bg-[#FF9F43]/10 text-[#FF9F43] rounded-full text-xs font-semibold flex items-center gap-1">
+              <span className="px-2.5 py-1 rounded-full text-xs font-semibold flex items-center gap-1"
+                style={{
+                  backgroundColor: `${theme.accent}1A`,
+                  color: theme.accent
+                }}>
                 <Package size={11} />
                 <span className="hidden sm:inline">Pickup</span>
               </span>
             )}
             {store.services.sameDay && (
-              <span className="px-2.5 py-1 bg-[#1E2A5E]/10 text-[#1E2A5E] rounded-full text-xs font-semibold flex items-center gap-1">
+              <span className="px-2.5 py-1 rounded-full text-xs font-semibold flex items-center gap-1"
+                style={{
+                  backgroundColor: `${theme.primary}1A`,
+                  color: theme.primary
+                }}>
                 <Timer size={11} />
                 <span className="hidden sm:inline">Same-Day</span>
               </span>
@@ -393,39 +555,86 @@ export default function StoreViewPage() {
           <div className="grid grid-cols-3 md:flex md:flex-wrap gap-2">
             <button
               onClick={handleChatStore}
-              className="col-span-3 md:col-span-1 px-4 py-2.5 bg-[#00BFA6] text-white rounded-lg font-semibold hover:bg-[#00A894] transition flex items-center justify-center gap-2 active:scale-95"
+              className="col-span-3 md:col-span-1 px-4 py-2.5 text-white rounded-lg font-semibold transition flex items-center justify-center gap-2 active:scale-95"
+              style={{ backgroundColor: theme.secondary }}
+              onMouseEnter={(e) => e.currentTarget.style.opacity = '0.9'}
+              onMouseLeave={(e) => e.currentTarget.style.opacity = '1'}
             >
               <MessageCircle size={18} />
               <span>Chat Store</span>
             </button>
             <button
               onClick={() => setIsFollowing(!isFollowing)}
-              className={`px-4 py-2.5 rounded-lg font-semibold transition flex items-center justify-center gap-2 active:scale-95 ${
-                isFollowing
-                  ? 'bg-[#EF4444]/10 text-[#EF4444] hover:bg-[#EF4444]/20'
-                  : 'border-2 border-[#1E2A5E] text-[#1E2A5E] hover:bg-[#1E2A5E] hover:text-white'
-              }`}
+              className="px-4 py-2.5 rounded-lg font-semibold transition flex items-center justify-center gap-2 active:scale-95"
+              style={{
+                backgroundColor: isFollowing ? '#EF444410' : 'transparent',
+                color: isFollowing ? '#EF4444' : theme.primary,
+                border: isFollowing ? 'none' : `2px solid ${theme.primary}`
+              }}
+              onMouseEnter={(e) => {
+                if (isFollowing) {
+                  e.currentTarget.style.backgroundColor = '#EF444420';
+                } else {
+                  e.currentTarget.style.backgroundColor = theme.primary;
+                  e.currentTarget.style.color = 'white';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (isFollowing) {
+                  e.currentTarget.style.backgroundColor = '#EF444410';
+                } else {
+                  e.currentTarget.style.backgroundColor = 'transparent';
+                  e.currentTarget.style.color = theme.primary;
+                }
+              }}
             >
               <Heart size={18} fill={isFollowing ? 'currentColor' : 'none'} />
               <span className="hidden md:inline">{isFollowing ? 'Following' : 'Follow'}</span>
             </button>
             <button
               onClick={handleShare}
-              className="p-2.5 border-2 border-gray-300 text-gray-700 rounded-lg hover:border-[#00BFA6] hover:text-[#00BFA6] transition active:scale-95 flex items-center justify-center"
+              className="p-2.5 border-2 rounded-lg transition active:scale-95 flex items-center justify-center"
+              style={{ borderColor: '#D1D5DB', color: '#374151' }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = theme.secondary;
+                e.currentTarget.style.color = theme.secondary;
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = '#D1D5DB';
+                e.currentTarget.style.color = '#374151';
+              }}
               title="Share Store"
             >
               <Share2 size={18} />
             </button>
             <button
               onClick={handleCallStore}
-              className="p-2.5 border-2 border-[#1E2A5E] text-[#1E2A5E] rounded-lg hover:bg-[#1E2A5E] hover:text-white transition active:scale-95 flex items-center justify-center"
+              className="p-2.5 border-2 rounded-lg transition active:scale-95 flex items-center justify-center"
+              style={{ borderColor: theme.primary, color: theme.primary, backgroundColor: 'transparent' }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = theme.primary;
+                e.currentTarget.style.color = 'white';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = 'transparent';
+                e.currentTarget.style.color = theme.primary;
+              }}
               title="Call Store"
             >
               <Phone size={18} />
             </button>
             <button
               onClick={handleGetDirections}
-              className="p-2.5 border-2 border-[#00BFA6] text-[#00BFA6] rounded-lg hover:bg-[#00BFA6] hover:text-white transition active:scale-95 flex items-center justify-center"
+              className="p-2.5 border-2 rounded-lg transition active:scale-95 flex items-center justify-center"
+              style={{ borderColor: theme.secondary, color: theme.secondary, backgroundColor: 'transparent' }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = theme.secondary;
+                e.currentTarget.style.color = 'white';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = 'transparent';
+                e.currentTarget.style.color = theme.secondary;
+              }}
               title="Get Directions"
             >
               <Navigation size={18} />
@@ -489,7 +698,7 @@ export default function StoreViewPage() {
                   </div>
 
                   <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
-                    <Phone size={18} className="text-[#1E2A5E] flex-shrink-0 mt-0.5" />
+                    <Phone size={18} className="flex-shrink-0 mt-0.5" style={{ color: theme.primary }} />
                     <div>
                       <p className="text-xs font-semibold text-[#1F2937] mb-1">Contact</p>
                       <p className="text-xs text-[#6B7280]">{store.phone}</p>
@@ -502,14 +711,18 @@ export default function StoreViewPage() {
                 <div className="space-y-3">
                   <div className="p-3 bg-gray-50 rounded-lg">
                     <p className="text-xs font-semibold text-[#1F2937] mb-2 flex items-center gap-2">
-                      <Star size={16} className="text-[#00BFA6]" />
+                      <Star size={16} style={{ color: theme.secondary }} />
                       Specialties
                     </p>
                     <div className="flex flex-wrap gap-2">
                       {store.about.specialties.map((specialty, idx) => (
                         <span
                           key={idx}
-                          className="px-2.5 py-1 bg-white text-[#1E2A5E] rounded-full text-xs font-semibold border border-[#1E2A5E]/20"
+                          className="px-2.5 py-1 bg-white rounded-full text-xs font-semibold"
+                          style={{ 
+                            color: theme.primary, 
+                            border: `1px solid ${theme.primary}33`
+                          }}
                         >
                           {specialty}
                         </span>
@@ -526,7 +739,11 @@ export default function StoreViewPage() {
                       {store.about.paymentMethods.map((method, idx) => (
                         <span
                           key={idx}
-                          className="px-2.5 py-1 bg-white text-[#00BFA6] rounded-full text-xs font-semibold border border-[#00BFA6]/20"
+                          className="px-2.5 py-1 bg-white rounded-full text-xs font-semibold"
+                          style={{ 
+                            color: theme.secondary, 
+                            border: `1px solid ${theme.secondary}33`
+                          }}
                         >
                           {method}
                         </span>
@@ -558,21 +775,40 @@ export default function StoreViewPage() {
               <div className="flex flex-wrap gap-2 pt-4 border-t border-gray-200">
                 <button
                   onClick={handleCallStore}
-                  className="flex-1 min-w-[140px] px-4 py-2.5 bg-[#1E2A5E] text-white rounded-lg font-semibold hover:bg-[#2A3A7E] transition flex items-center justify-center gap-2"
+                  className="flex-1 min-w-[140px] px-4 py-2.5 text-white rounded-lg font-semibold transition flex items-center justify-center gap-2"
+                  style={{ backgroundColor: theme.primary }}
+                  onMouseEnter={(e) => e.currentTarget.style.opacity = '0.9'}
+                  onMouseLeave={(e) => e.currentTarget.style.opacity = '1'}
                 >
                   <Phone size={16} />
                   Call Now
                 </button>
                 <button
                   onClick={handleGetDirections}
-                  className="flex-1 min-w-[140px] px-4 py-2.5 bg-[#00BFA6] text-white rounded-lg font-semibold hover:bg-[#00A894] transition flex items-center justify-center gap-2"
+                  className="flex-1 min-w-[140px] px-4 py-2.5 text-white rounded-lg font-semibold transition flex items-center justify-center gap-2"
+                  style={{ backgroundColor: theme.secondary }}
+                  onMouseEnter={(e) => e.currentTarget.style.opacity = '0.9'}
+                  onMouseLeave={(e) => e.currentTarget.style.opacity = '1'}
                 >
                   <Navigation size={16} />
                   Get Directions
                 </button>
                 <button
                   onClick={handleShare}
-                  className="flex-1 min-w-[140px] px-4 py-2.5 border-2 border-[#FF9F43] text-[#FF9F43] rounded-lg font-semibold hover:bg-[#FF9F43] hover:text-white transition flex items-center justify-center gap-2"
+                  className="flex-1 min-w-[140px] px-4 py-2.5 border-2 rounded-lg font-semibold transition flex items-center justify-center gap-2"
+                  style={{ 
+                    borderColor: theme.accent, 
+                    color: theme.accent,
+                    backgroundColor: 'transparent'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = theme.accent;
+                    e.currentTarget.style.color = 'white';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = 'transparent';
+                    e.currentTarget.style.color = theme.accent;
+                  }}
                 >
                   <Share2 size={16} />
                   Share Store
@@ -747,11 +983,21 @@ export default function StoreViewPage() {
               <button
                 key={category}
                 onClick={() => setActiveCategory(category)}
-                className={`px-4 py-2 rounded-lg font-semibold whitespace-nowrap transition-all ${
-                  activeCategory === category
-                    ? 'bg-[#1E2A5E] text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
+                className="px-4 py-2 rounded-lg font-semibold whitespace-nowrap transition-all"
+                style={{
+                  backgroundColor: activeCategory === category ? theme.primary : '#F3F4F6',
+                  color: activeCategory === category ? 'white' : '#374151'
+                }}
+                onMouseEnter={(e) => {
+                  if (activeCategory !== category) {
+                    e.currentTarget.style.backgroundColor = '#E5E7EB';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (activeCategory !== category) {
+                    e.currentTarget.style.backgroundColor = '#F3F4F6';
+                  }
+                }}
               >
                 {category}
               </button>
@@ -797,7 +1043,7 @@ export default function StoreViewPage() {
                   className="w-full h-40 md:h-48 object-cover group-hover:scale-105 transition-transform duration-300"
                 />
                 {product.discount > 0 && (
-                  <div className="absolute top-2 left-2 bg-[#FF9F43] text-white px-2 py-1 rounded-lg text-xs font-bold">
+                  <div className="absolute top-2 left-2 text-white px-2 py-1 rounded-lg text-xs font-bold" style={{ backgroundColor: theme.accent }}>
                     {product.discount}% OFF
                   </div>
                 )}
@@ -805,7 +1051,7 @@ export default function StoreViewPage() {
                   onClick={() => router.push(`/product/${product.id}`)}
                   className="absolute top-2 right-2 p-2 bg-white/90 rounded-full backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white"
                 >
-                  <Eye size={16} className="text-[#1E2A5E]" />
+                  <Eye size={16} style={{ color: theme.primary }} />
                 </button>
               </div>
 
@@ -841,7 +1087,18 @@ export default function StoreViewPage() {
                 <div className="flex gap-2">
                   <button
                     onClick={() => handleAddToCart(product)}
-                    className="flex-1 py-2 bg-[#00BFA6] text-white rounded-lg font-semibold hover:bg-[#00A894] transition text-sm flex items-center justify-center gap-1 active:scale-95"
+                    className="flex-1 py-2 text-white rounded-lg font-semibold transition text-sm flex items-center justify-center gap-1 active:scale-95"
+                    style={{ backgroundColor: product.stock === 'Out of Stock' ? '#9CA3AF' : theme.secondary }}
+                    onMouseEnter={(e) => {
+                      if (product.stock !== 'Out of Stock') {
+                        e.currentTarget.style.opacity = '0.9';
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (product.stock !== 'Out of Stock') {
+                        e.currentTarget.style.opacity = '1';
+                      }
+                    }}
                     disabled={product.stock === 'Out of Stock'}
                   >
                     <ShoppingCart size={14} />
@@ -849,7 +1106,20 @@ export default function StoreViewPage() {
                   </button>
                   <button
                     onClick={() => router.push(`/product/${product.id}`)}
-                    className="px-3 py-2 border-2 border-[#1E2A5E] text-[#1E2A5E] rounded-lg hover:bg-[#1E2A5E] hover:text-white transition active:scale-95"
+                    className="px-3 py-2 border-2 rounded-lg transition active:scale-95"
+                    style={{ 
+                      borderColor: theme.primary, 
+                      color: theme.primary,
+                      backgroundColor: 'transparent'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.backgroundColor = theme.primary;
+                      e.currentTarget.style.color = 'white';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = 'transparent';
+                      e.currentTarget.style.color = theme.primary;
+                    }}
                   >
                     <Eye size={14} />
                   </button>
@@ -868,7 +1138,12 @@ export default function StoreViewPage() {
           <div className="grid md:grid-cols-3 gap-6 mb-8">
             {/* Overall Rating */}
             <div className="md:col-span-1">
-              <div className="bg-gradient-to-br from-[#1E2A5E] to-[#2A3A7E] rounded-xl p-6 text-white text-center">
+              <div 
+                className="rounded-xl p-6 text-white text-center"
+                style={{
+                  background: `linear-gradient(to bottom right, ${theme.primary}, ${theme.secondary})`
+                }}
+              >
                 <div className="text-5xl font-bold mb-2">{store.rating}</div>
                 <div className="flex items-center justify-center gap-1 mb-2">
                   {[1, 2, 3, 4, 5].map((star) => (
@@ -895,8 +1170,8 @@ export default function StoreViewPage() {
                     </div>
                     <div className="flex-1 bg-gray-200 rounded-full h-2 overflow-hidden">
                       <div
-                        className="bg-[#FF9F43] h-full rounded-full transition-all"
-                        style={{ width: `${dist.percentage}%` }}
+                        className="h-full rounded-full transition-all"
+                        style={{ width: `${dist.percentage}%`, backgroundColor: theme.accent }}
                       ></div>
                     </div>
                     <span className="text-sm text-[#6B7280] w-12 text-right">{dist.count}</span>
@@ -912,7 +1187,10 @@ export default function StoreViewPage() {
             <select
               value={reviewSort}
               onChange={(e) => setReviewSort(e.target.value)}
-              className="px-3 py-2 border-2 border-gray-300 rounded-lg text-sm font-semibold focus:border-[#00BFA6] focus:outline-none"
+              className="px-3 py-2 border-2 border-gray-300 rounded-lg text-sm font-semibold focus:outline-none"
+              style={{ borderColor: '#D1D5DB' }}
+              onFocus={(e) => e.currentTarget.style.borderColor = theme.secondary}
+              onBlur={(e) => e.currentTarget.style.borderColor = '#D1D5DB'}
             >
               <option value="recent">Most Recent</option>
               <option value="rating">Highest Rated</option>
@@ -940,8 +1218,8 @@ export default function StoreViewPage() {
                           <Star
                             key={star}
                             size={14}
-                            fill={star <= review.rating ? '#FF9F43' : 'none'}
-                            className="text-[#FF9F43]"
+                            fill={star <= review.rating ? theme.accent : 'none'}
+                            style={{ color: theme.accent }}
                           />
                         ))}
                       </div>

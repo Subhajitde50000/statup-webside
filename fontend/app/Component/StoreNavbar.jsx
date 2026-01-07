@@ -9,10 +9,26 @@ export default function StoreNavbar({
     searchQuery,
     setSearchQuery,
     cartItemCount,
-    onCartClick
+    onCartClick,
+    storeType = 'electronics' // 'electronics' or 'medical'
 }) {
     const router = useRouter();
     const pathname = usePathname();
+
+    // Theme configuration based on store type
+    const theme = storeType === 'medical' ? {
+        primary: '#60A5FA', // soft blue
+        secondary: '#93C5FD', // light blue
+        name: 'MediCare Plus',
+        icon: '💊',
+        searchPlaceholder: 'Search medicines, supplements, healthcare products…'
+    } : {
+        primary: '#1E2A5E',
+        secondary: '#00BFA6',
+        name: 'ElectroParts',
+        icon: '⚡',
+        searchPlaceholder: 'Search bulbs, switches, wires, tools…'
+    };
 
     return (
         <>
@@ -23,33 +39,36 @@ export default function StoreNavbar({
                         {/* Left: Logo & Location */}
                         <div className="flex items-center gap-3">
                             <div
-                                className="text-2xl font-bold text-[#1E2A5E] cursor-pointer"
+                                className="text-2xl font-bold cursor-pointer flex items-center gap-2"
+                                style={{ color: theme.primary }}
                                 onClick={() => router.push('/')}
                             >
-                                ElectroParts
+                                <span>{theme.icon}</span>
+                                {theme.name}
                             </div>
                             <button className="flex items-center gap-1 px-3 py-1.5 bg-gray-100 rounded-full text-sm hover:bg-gray-200 transition">
-                                <MapPin size={14} className="text-[#00BFA6]" />
+                                <MapPin size={14} style={{ color: theme.secondary }} />
                                 <span className="text-gray-700">{location}</span>
                             </button>
                         </div>
 
                         <button
-                            onClick={() => router.push('/store')}
-                            className={`flex flex-col items-center justify-center gap-1 transition-all ${pathname === '/store' ? 'text-[#00BFA6]' : 'text-gray-600'
+                            onClick={() => router.push(`/store?type=${storeType}`)}
+                            className={`flex flex-col items-center justify-center gap-1 transition-all ${pathname === '/store' ? '' : 'text-gray-600'
                                 }`}
+                            style={pathname === '/store' ? { color: theme.secondary } : {}}
                         >
-                            <Package className={`w-5 h-5 ${pathname === '/store' ? 'fill-[#00BFA6]' : ''}`} />
+                            <Package className={`w-5 h-5`} style={pathname === '/store' ? { fill: theme.secondary } : {}} />
                             <span className="text-[10px] font-bold">Store</span>
                         </button>
 
                         <button
-                            onClick={() => router.push('/shops')}
-                            className={`flex flex-col items-center justify-center gap-1 transition-all ${pathname === '/shops' ? 'text-[#00BFA6]' : 'text-gray-600'
+                            onClick={() => router.push(`/shops?type=${storeType}`)}
+                            className={`flex flex-col items-center justify-center gap-1 transition-all ${pathname === '/shops' ? '' : 'text-gray-600'
                                 }`}
-
+                            style={pathname === '/shops' ? { color: theme.secondary } : {}}
                         >
-                            <Store className={`w-5 h-5 ${pathname === '/shops' ? 'fill-[#00BFA6]' : ''}`} />
+                            <Store className={`w-5 h-5`} style={pathname === '/shops' ? { fill: theme.secondary } : {}} />
                             {cartItemCount > 0 && (
                                 <span className="absolute top-2 right-1/2 translate-x-3 bg-[#FF9F43] text-white text-xs w-4 h-4 rounded-full flex items-center justify-center font-bold">
                                     {cartItemCount > 9 ? '9+' : cartItemCount}
@@ -64,8 +83,12 @@ export default function StoreNavbar({
                                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
                                 <input
                                     type="text"
-                                    placeholder="Search bulbs, switches, wires, tools…"
-                                    className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-gray-300 focus:outline-none focus:border-[#00BFA6] focus:ring-2 focus:ring-[#00BFA6]/20"
+                                    placeholder={theme.searchPlaceholder}
+                                    className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 transition-all"
+                                    style={{ 
+                                        borderColor: searchQuery ? theme.secondary : '',
+                                        '--tw-ring-color': `${theme.secondary}33`
+                                    }}
                                     value={searchQuery}
                                     onChange={(e) => setSearchQuery(e.target.value)}
                                 />
@@ -78,9 +101,10 @@ export default function StoreNavbar({
                                 onClick={onCartClick}
                                 className="relative p-2 hover:bg-gray-100 rounded-lg transition"
                             >
-                                <ShoppingCart size={24} className="text-[#1E2A5E]" />
+                                <ShoppingCart size={24} style={{ color: theme.primary }} />
                                 {cartItemCount > 0 && (
-                                    <span className="absolute -top-1 -right-1 bg-[#FF9F43] text-white text-xs w-5 h-5 rounded-full flex items-center justify-center font-bold">
+                                    <span className="absolute -top-1 -right-1 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center font-bold"
+                                        style={{ backgroundColor: theme.secondary }}>
                                         {cartItemCount}
                                     </span>
                                 )}
@@ -89,7 +113,7 @@ export default function StoreNavbar({
                                 onClick={() => router.push('/profile')}
                                 className="p-2 hover:bg-gray-100 rounded-lg transition"
                             >
-                                <User size={24} className="text-[#1E2A5E]" />
+                                <User size={24} style={{ color: theme.primary }} />
                             </button>
                         </div>
                     </div>
@@ -101,13 +125,15 @@ export default function StoreNavbar({
                 <div className="px-4 py-3">
                     <div className="flex items-center justify-between">
                         <div
-                            className="text-xl font-bold text-[#1E2A5E] cursor-pointer"
+                            className="text-xl font-bold cursor-pointer flex items-center gap-1"
+                            style={{ color: theme.primary }}
                             onClick={() => router.push('/')}
                         >
-                            ElectroParts
+                            <span>{theme.icon}</span>
+                            {theme.name}
                         </div>
                         <button className="flex items-center gap-1 px-3 py-1.5 bg-gray-100 rounded-full text-sm hover:bg-gray-200 transition">
-                            <MapPin size={14} className="text-[#00BFA6]" />
+                            <MapPin size={14} style={{ color: theme.secondary }} />
                             <span className="text-gray-700">{location}</span>
                         </button>
                         <div className="flex items-center gap-3">
@@ -115,9 +141,10 @@ export default function StoreNavbar({
                                 onClick={onCartClick}
                                 className="relative p-2"
                             >
-                                <ShoppingCart size={22} className="text-[#1E2A5E]" />
+                                <ShoppingCart size={22} style={{ color: theme.primary }} />
                                 {cartItemCount > 0 && (
-                                    <span className="absolute -top-1 -right-1 bg-[#FF9F43] text-white text-xs w-5 h-5 rounded-full flex items-center justify-center font-bold">
+                                    <span className="absolute -top-1 -right-1 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center font-bold"
+                                        style={{ backgroundColor: theme.secondary }}>
                                         {cartItemCount}
                                     </span>
                                 )}
@@ -139,27 +166,32 @@ export default function StoreNavbar({
                     </button>
 
                     <button
-                        onClick={() => router.push('/store')}
-                        className={`flex flex-col items-center justify-center gap-1 transition-all ${pathname === '/store' ? 'text-[#00BFA6]' : 'text-gray-600'
+                        onClick={() => router.push(`/store?type=${storeType}`)}
+                        className={`flex flex-col items-center justify-center gap-1 transition-all ${pathname === '/store' ? '' : 'text-gray-600'
                             }`}
+                        style={pathname === '/store' ? { color: theme.secondary } : {}}
                     >
-                        <Package className={`w-5 h-5 ${pathname === '/store' ? 'fill-[#00BFA6]' : ''}`} />
+                        <Package className={`w-5 h-5`} style={pathname === '/store' ? { fill: theme.secondary } : {}} />
                         <span className="text-[10px] font-bold">Store</span>
                     </button>
 
                     <div className="flex flex-col items-center justify-center gap-1 text-white relative">
-                        <div className="absolute -top-4 w-14 h-14 bg-gradient-to-r from-[#1E2A5E] to-[#00BFA6] rounded-full flex items-center justify-center shadow-xl">
+                        <div className="absolute -top-4 w-14 h-14 rounded-full flex items-center justify-center shadow-xl"
+                            style={{ 
+                                background: `linear-gradient(to right, ${theme.primary}, ${theme.secondary})`
+                            }}>
                             <Search className="w-6 h-6" />
                         </div>
                         <span className="text-[10px] font-bold text-gray-600 mt-6">Search</span>
                     </div>
 
                     <button
-                        onClick={() => router.push('/shops')}
-                        className={`flex flex-col items-center justify-center gap-1 transition-all ${pathname === '/shops' ? 'text-[#00BFA6]' : 'text-gray-600'
+                        onClick={() => router.push(`/shops?type=${storeType}`)}
+                        className={`flex flex-col items-center justify-center gap-1 transition-all ${pathname === '/shops' ? '' : 'text-gray-600'
                             }`}
+                        style={pathname === '/shops' ? { color: theme.secondary } : {}}
                     >
-                        <Store className={`w-5 h-5 ${pathname === '/shops' ? 'fill-[#00BFA6]' : ''}`} />
+                        <Store className={`w-5 h-5`} style={pathname === '/shops' ? { fill: theme.secondary } : {}} />
                         {cartItemCount > 0 && (
                             <span className="absolute top-2 right-1/2 translate-x-3 bg-[#FF9F43] text-white text-xs w-4 h-4 rounded-full flex items-center justify-center font-bold">
                                 {cartItemCount > 9 ? '9+' : cartItemCount}

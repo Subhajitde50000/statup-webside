@@ -1,12 +1,12 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { X, Filter, Star } from 'lucide-react';
 import StoreNavbar from '../Component/StoreNavbar';
 
-// Mock data for demonstration
-const CATEGORIES = [
+// Electronics Categories
+const ELECTRONICS_CATEGORIES = [
   { id: 1, name: 'Lighting', icon: '💡', subCategories: ['LED Bulbs', 'Tube Lights', 'Panel Lights', 'Emergency Lights'] },
   { id: 2, name: 'Switches', icon: '🔌', subCategories: ['Wall Switches', 'Modular Switches', 'Smart Switches', 'Dimmers'] },
   { id: 3, name: 'Wires', icon: '🧵', subCategories: ['House Wires', 'Flex Cables', 'Coaxial Cables', 'Specialty Wires'] },
@@ -16,13 +16,30 @@ const CATEGORIES = [
   { id: 7, name: 'Safety', icon: '🧯', subCategories: ['MCBs', 'RCCBs', 'Fire Alarms', 'Safety Gear'] },
 ];
 
-const OFFERS = [
+// Medical Categories
+const MEDICAL_CATEGORIES = [
+  { id: 1, name: 'Medicines', icon: '💊', subCategories: ['Tablets', 'Syrups', 'Injections', 'Ointments'] },
+  { id: 2, name: 'Supplements', icon: '🌿', subCategories: ['Vitamins', 'Minerals', 'Protein', 'Herbal'] },
+  { id: 3, name: 'Health Devices', icon: '🩺', subCategories: ['BP Monitors', 'Glucometers', 'Thermometers', 'Oximeters'] },
+  { id: 4, name: 'Personal Care', icon: '🧴', subCategories: ['Skincare', 'Haircare', 'Dental', 'Baby Care'] },
+  { id: 5, name: 'First Aid', icon: '🩹', subCategories: ['Bandages', 'Antiseptics', 'Pain Relief', 'Emergency Kits'] },
+  { id: 6, name: 'Wellness', icon: '💚', subCategories: ['Immunity Boosters', 'Digestive Health', 'Sleep Aids', 'Stress Relief'] },
+  { id: 7, name: 'Medical Supplies', icon: '💉', subCategories: ['Syringes', 'Masks', 'Gloves', 'Surgical Supplies'] },
+];
+
+const ELECTRONICS_OFFERS = [
   { id: 1, icon: '⚡', text: 'Save 10% on Wiring Items', color: '#FF9F43' },
   { id: 2, icon: '🛠️', text: 'Bulk discount on Switches', color: '#00BFA6' },
   { id: 3, icon: '🚚', text: 'Free delivery above ₹499', color: '#22C55E' },
 ];
 
-const MOCK_PRODUCTS = [
+const MEDICAL_OFFERS = [
+  { id: 1, icon: '💊', text: 'Flat 15% off on Generic Medicines', color: '#60A5FA' },
+  { id: 2, icon: '🌿', text: 'Buy 2 Get 1 Free on Supplements', color: '#93C5FD' },
+  { id: 3, icon: '🚚', text: 'Free delivery above ₹299', color: '#22C55E' },
+];
+
+const MOCK_ELECTRONICS_PRODUCTS = [
   { id: 1, name: 'Philips LED Bulb 9W Cool Day Light', brand: 'Philips', price: 129, mrp: 199, rating: 4.5, reviews: 1234, stock: 'In Stock', discount: 35, category: 'Lighting', image: 'https://placehold.co/200x200', bulkPrice: { quantity: 10, price: 115, savings: 140 } },
   { id: 2, name: 'Anchor Roma Classic 6A Switch', brand: 'Anchor', price: 45, mrp: 65, rating: 4.3, reviews: 856, stock: 'In Stock', discount: 30, category: 'Switches', image: 'https://placehold.co/200x200', bulkPrice: { quantity: 10, price: 40, savings: 50 } },
   { id: 3, name: 'Polycab 2.5 sqmm FR Wire 90m', brand: 'Polycab', price: 2499, mrp: 3200, rating: 4.7, reviews: 543, stock: 'In Stock', discount: 22, category: 'Wires', image: 'https://placehold.co/200x200', bulkPrice: { quantity: 5, price: 2350, savings: 745 } },
@@ -33,8 +50,26 @@ const MOCK_PRODUCTS = [
   { id: 8, name: 'V-Guard Voltage Stabilizer', brand: 'V-Guard', price: 1599, mrp: 2100, rating: 4.6, reviews: 321, stock: 'Out of Stock', discount: 24, category: 'Power', image: 'https://placehold.co/200x200' },
 ];
 
+const MOCK_MEDICAL_PRODUCTS = [
+  { id: 101, name: 'Paracetamol 500mg Tablets (Strip of 10)', brand: 'Generic', price: 15, mrp: 25, rating: 4.6, reviews: 2341, stock: 'In Stock', discount: 40, category: 'Medicines', image: 'https://placehold.co/200x200' },
+  { id: 102, name: 'Vitamin D3 60K Capsules', brand: 'HealthVit', price: 89, mrp: 150, rating: 4.5, reviews: 1876, stock: 'In Stock', discount: 41, category: 'Supplements', image: 'https://placehold.co/200x200', bulkPrice: { quantity: 3, price: 80, savings: 27 } },
+  { id: 103, name: 'Digital BP Monitor', brand: 'Omron', price: 1799, mrp: 2500, rating: 4.7, reviews: 987, stock: 'In Stock', discount: 28, category: 'Health Devices', image: 'https://placehold.co/200x200' },
+  { id: 104, name: 'Antiseptic Liquid 500ml', brand: 'Dettol', price: 125, mrp: 180, rating: 4.4, reviews: 3421, stock: 'In Stock', discount: 31, category: 'First Aid', image: 'https://placehold.co/200x200' },
+  { id: 105, name: 'Multivitamin Gummies (60 Count)', brand: 'Wellbeing', price: 349, mrp: 599, rating: 4.3, reviews: 1234, stock: 'In Stock', discount: 42, category: 'Supplements', image: 'https://placehold.co/200x200', bulkPrice: { quantity: 2, price: 320, savings: 58 } },
+  { id: 106, name: 'Glucometer with 25 Strips', brand: 'Accu-Chek', price: 899, mrp: 1200, rating: 4.8, reviews: 654, stock: 'Low Stock', discount: 25, category: 'Health Devices', image: 'https://placehold.co/200x200' },
+  { id: 107, name: 'Hand Sanitizer 500ml', brand: 'Lifebuoy', price: 99, mrp: 150, rating: 4.2, reviews: 2987, stock: 'In Stock', discount: 34, category: 'Personal Care', image: 'https://placehold.co/200x200' },
+  { id: 108, name: 'Immunity Booster Tablets (30 Count)', brand: 'Himalaya', price: 199, mrp: 299, rating: 4.5, reviews: 1543, stock: 'In Stock', discount: 33, category: 'Wellness', image: 'https://placehold.co/200x200', bulkPrice: { quantity: 3, price: 180, savings: 57 } },
+];
+
 export default function StorePage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const storeType = searchParams.get('type') || 'electronics'; // 'electronics' or 'medical'
+  
+  const CATEGORIES = storeType === 'medical' ? MEDICAL_CATEGORIES : ELECTRONICS_CATEGORIES;
+  const OFFERS = storeType === 'medical' ? MEDICAL_OFFERS : ELECTRONICS_OFFERS;
+  const MOCK_PRODUCTS = storeType === 'medical' ? MOCK_MEDICAL_PRODUCTS : MOCK_ELECTRONICS_PRODUCTS;
+
   const [searchQuery, setSearchQuery] = useState('');
   const [location, setLocation] = useState('Mumbai, Maharashtra');
   const [selectedCategory, setSelectedCategory] = useState(CATEGORIES[0]);
@@ -44,6 +79,11 @@ export default function StorePage() {
   const [activeFilter, setActiveFilter] = useState('all');
   const [dismissedOffers, setDismissedOffers] = useState([]);
   const [products, setProducts] = useState(MOCK_PRODUCTS);
+
+  useEffect(() => {
+    setProducts(MOCK_PRODUCTS);
+    setSelectedCategory(CATEGORIES[0]);
+  }, [storeType]);
 
   const cartItemCount = Object.values(cart).reduce((sum, qty) => sum + qty, 0);
   const cartTotal = Object.entries(cart).reduce((sum, [id, qty]) => {
@@ -103,6 +143,15 @@ export default function StorePage() {
     console.log('Cart clicked');
   };
 
+  // Dynamic theme colors based on store type
+  const theme = storeType === 'medical' ? {
+    primary: '#60A5FA',
+    secondary: '#93C5FD'
+  } : {
+    primary: '#00BFA6',
+    secondary: '#1E2A5E'
+  };
+
   return (
     <div className="min-h-screen bg-[#F6F7FB] pb-32 md:pb-24">
       {/* Store Navbar */}
@@ -112,6 +161,7 @@ export default function StorePage() {
         setSearchQuery={setSearchQuery}
         cartItemCount={cartItemCount}
         onCartClick={handleCartClick}
+        storeType={storeType}
       />
 
       {/* Category Navigation */}
@@ -128,14 +178,17 @@ export default function StorePage() {
                 }}
                 className={`flex flex-col items-center gap-2 px-6 py-2 rounded-lg transition-all whitespace-nowrap ${
                   selectedCategory.id === category.id
-                    ? 'bg-[#00BFA6]/10 border-b-2 border-[#00BFA6] scale-105'
+                    ? 'scale-105'
                     : 'hover:bg-gray-50'
                 }`}
+                style={selectedCategory.id === category.id ? {
+                  backgroundColor: `${theme.primary}1A`,
+                  borderBottom: `2px solid ${theme.primary}`
+                } : {}}
               >
                 <span className="text-2xl">{category.icon}</span>
-                <span className={`text-sm font-medium ${
-                  selectedCategory.id === category.id ? 'text-[#00BFA6]' : 'text-gray-700'
-                }`}>
+                <span className={`text-sm font-medium`}
+                  style={selectedCategory.id === category.id ? { color: theme.primary } : { color: '#374151' }}>
                   {category.name}
                 </span>
               </button>
@@ -147,11 +200,14 @@ export default function StorePage() {
             <div className="flex gap-2 overflow-x-auto pb-3 scrollbar-hide">
               <button
                 onClick={() => setSelectedSubCategory('All')}
-                className={`px-4 py-1.5 rounded-full text-sm font-medium transition whitespace-nowrap ${
-                  selectedSubCategory === 'All'
-                    ? 'bg-[#00BFA6] text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
+                className={`px-4 py-1.5 rounded-full text-sm font-medium transition whitespace-nowrap`}
+                style={selectedSubCategory === 'All' ? {
+                  backgroundColor: theme.primary,
+                  color: 'white'
+                } : {
+                  backgroundColor: '#F3F4F6',
+                  color: '#374151'
+                }}
               >
                 All
               </button>
@@ -159,11 +215,14 @@ export default function StorePage() {
                 <button
                   key={sub}
                   onClick={() => setSelectedSubCategory(sub)}
-                  className={`px-4 py-1.5 rounded-full text-sm font-medium transition whitespace-nowrap ${
-                    selectedSubCategory === sub
-                      ? 'bg-[#00BFA6] text-white'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
+                  className={`px-4 py-1.5 rounded-full text-sm font-medium transition whitespace-nowrap`}
+                  style={selectedSubCategory === sub ? {
+                    backgroundColor: theme.primary,
+                    color: 'white'
+                  } : {
+                    backgroundColor: '#F3F4F6',
+                    color: '#374151'
+                  }}
                 >
                   {sub}
                 </button>
@@ -202,51 +261,66 @@ export default function StorePage() {
         <div className="flex items-center gap-3 overflow-x-auto scrollbar-hide">
           <button
             onClick={() => setActiveFilter('all')}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition whitespace-nowrap ${
-              activeFilter === 'all'
-                ? 'bg-[#1E2A5E] text-white'
-                : 'bg-white text-gray-700 hover:bg-gray-50'
-            }`}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition whitespace-nowrap`}
+            style={activeFilter === 'all' ? {
+              backgroundColor: theme.secondary,
+              color: 'white'
+            } : {
+              backgroundColor: 'white',
+              color: '#374151'
+            }}
           >
             All Products
           </button>
           <button
             onClick={() => setActiveFilter('inStock')}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition whitespace-nowrap ${
-              activeFilter === 'inStock'
-                ? 'bg-[#1E2A5E] text-white'
-                : 'bg-white text-gray-700 hover:bg-gray-50'
-            }`}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition whitespace-nowrap`}
+            style={activeFilter === 'inStock' ? {
+              backgroundColor: theme.secondary,
+              color: 'white'
+            } : {
+              backgroundColor: 'white',
+              color: '#374151'
+            }}
           >
             In Stock
           </button>
           <button
             onClick={() => setActiveFilter('topRated')}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition whitespace-nowrap ${
-              activeFilter === 'topRated'
-                ? 'bg-[#1E2A5E] text-white'
-                : 'bg-white text-gray-700 hover:bg-gray-50'
-            }`}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition whitespace-nowrap`}
+            style={activeFilter === 'topRated' ? {
+              backgroundColor: theme.secondary,
+              color: 'white'
+            } : {
+              backgroundColor: 'white',
+              color: '#374151'
+            }}
           >
             ⭐ Top Rated
           </button>
           <button
             onClick={() => setActiveFilter('lowPrice')}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition whitespace-nowrap ${
-              activeFilter === 'lowPrice'
-                ? 'bg-[#1E2A5E] text-white'
-                : 'bg-white text-gray-700 hover:bg-gray-50'
-            }`}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition whitespace-nowrap`}
+            style={activeFilter === 'lowPrice' ? {
+              backgroundColor: theme.secondary,
+              color: 'white'
+            } : {
+              backgroundColor: 'white',
+              color: '#374151'
+            }}
           >
             Low Price
           </button>
           <button
             onClick={() => setActiveFilter('bulkDeals')}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition whitespace-nowrap ${
-              activeFilter === 'bulkDeals'
-                ? 'bg-[#1E2A5E] text-white'
-                : 'bg-white text-gray-700 hover:bg-gray-50'
-            }`}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition whitespace-nowrap`}
+            style={activeFilter === 'bulkDeals' ? {
+              backgroundColor: theme.secondary,
+              color: 'white'
+            } : {
+              backgroundColor: 'white',
+              color: '#374151'
+            }}
           >
             🎁 Bulk Deals
           </button>
@@ -284,7 +358,7 @@ export default function StorePage() {
               <div key={product.id} className="bg-white rounded-lg overflow-hidden shadow-sm hover:shadow-lg transition">
                 {/* Product Image */}
                 <div 
-                  onClick={() => router.push(`/product/${product.id}`)}
+                  onClick={() => router.push(`/store/${product.id}`)}
                   className="relative p-4 bg-gray-50 cursor-pointer"
                 >
                   <img
@@ -302,7 +376,7 @@ export default function StorePage() {
                 {/* Product Info */}
                 <div className="p-4">
                   <h3 
-                    onClick={() => router.push(`/product/${product.id}`)}
+                    onClick={() => router.push(`/store/${product.id}`)}
                     className="text-sm font-medium text-gray-800 line-clamp-2 mb-1 min-h-[40px] cursor-pointer hover:text-[#00BFA6]"
                   >
                     {product.name}

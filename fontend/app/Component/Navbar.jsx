@@ -269,9 +269,9 @@ export default function Navbar({ onNotificationClick, isNotificationsOpen }) {
           </button>
           
           {/* Desktop Only Partner Button */}
-          <button className="hidden lg:block px-4 lg:px-6 py-2.5 border-2 border-blue-600 text-blue-600 rounded-full font-bold hover:bg-gradient-to-r hover:from-blue-600 hover:to-purple-600 hover:text-white hover:border-transparent transition-all shadow-md hover:shadow-xl hover:scale-105 text-sm">
+          <Link href="/register/professional" className="hidden lg:block px-4 lg:px-6 py-2.5 border-2 border-blue-600 text-blue-600 rounded-full font-bold hover:bg-gradient-to-r hover:from-blue-600 hover:to-purple-600 hover:text-white hover:border-transparent transition-all shadow-md hover:shadow-xl hover:scale-105 text-sm">
             Become a Partner
-          </button>
+          </Link>
           
           {/* Mobile Menu Button - Removed */}
         </div>

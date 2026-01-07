@@ -352,14 +352,31 @@ export default function Home() {
               <p className="text-sm text-gray-600 leading-relaxed">Chauffeur, pickup-drop services</p>
             </div>
 
-            {/* Electronics Store */}
+            {/* Medical Store */}
             <div 
-              onClick={() => router.push('/store')}
-              className="group bg-gradient-to-br from-indigo-500 to-teal-500 rounded-[24px] p-8 shadow-md hover:shadow-2xl transition-all duration-300 cursor-pointer hover:-translate-y-3 border border-transparent relative overflow-hidden"
+              onClick={() => router.push('/store?type=medical')}
+              className="group bg-gradient-to-br from-blue-400 to-blue-300 rounded-[24px] p-8 shadow-md hover:shadow-2xl transition-all duration-300 cursor-pointer hover:-translate-y-3 border border-transparent relative overflow-hidden"
             >
               <div className="absolute top-0 right-0 w-32 h-32 bg-white opacity-10 rounded-full blur-3xl"></div>
               <div className="w-16 h-16 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center mb-5 group-hover:scale-110 transition-transform shadow-lg">
-                <span className="text-3xl">🛒</span>
+                <span className="text-3xl">💊</span>
+              </div>
+              <h3 className="text-xl font-bold text-white mb-2">Medical Store</h3>
+              <p className="text-sm text-white/90 leading-relaxed">Medicines, healthcare supplies</p>
+              <div className="mt-4 flex items-center gap-1 text-white/90">
+                <span className="text-xs font-bold">Shop Now</span>
+                <span className="group-hover:translate-x-1 transition-transform">→</span>
+              </div>
+            </div>
+
+            {/* Electronics Store */}
+            <div 
+              onClick={() => router.push('/store?type=electronics')}
+              className="group bg-gradient-to-br from-indigo-500 to-blue-500 rounded-[24px] p-8 shadow-md hover:shadow-2xl transition-all duration-300 cursor-pointer hover:-translate-y-3 border border-transparent relative overflow-hidden"
+            >
+              <div className="absolute top-0 right-0 w-32 h-32 bg-white opacity-10 rounded-full blur-3xl"></div>
+              <div className="w-16 h-16 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center mb-5 group-hover:scale-110 transition-transform shadow-lg">
+                <span className="text-3xl">⚡</span>
               </div>
               <h3 className="text-xl font-bold text-white mb-2">Electronics Store</h3>
               <p className="text-sm text-white/90 leading-relaxed">Bulbs, switches, wires & tools</p>
@@ -368,21 +385,62 @@ export default function Home() {
                 <span className="group-hover:translate-x-1 transition-transform">→</span>
               </div>
             </div>
+          </div>
+        </div>
+      </section>
 
-            {/* Stores Directory */}
+      {/* SHOP CATEGORIES SECTION - Medical & Electronics */}
+      <section className="py-12 md:py-16 bg-gradient-to-b from-white to-gray-50">
+        <div className="max-w-[1400px] mx-auto px-4 md:px-6">
+          <h2 className="text-3xl md:text-4xl lg:text-5xl font-extrabold text-gray-900 mb-3 md:mb-4 text-center tracking-tight">Shop From Our Stores</h2>
+          <p className="text-center text-gray-600 text-base md:text-lg mb-10 md:mb-12 max-w-2xl mx-auto">Browse medical supplies or electronics from trusted stores near you</p>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8 max-w-5xl mx-auto">
+            {/* Medical Shops Card */}
             <div 
-              onClick={() => router.push('/shops')}
-              className="group bg-gradient-to-br from-orange-500 to-pink-500 rounded-[24px] p-8 shadow-md hover:shadow-2xl transition-all duration-300 cursor-pointer hover:-translate-y-3 border border-transparent relative overflow-hidden"
+              onClick={() => router.push('/shops?type=medical')}
+              className="group bg-gradient-to-br from-blue-50 to-blue-100 rounded-3xl p-8 md:p-10 shadow-lg hover:shadow-2xl transition-all duration-300 cursor-pointer hover:-translate-y-2 border-2 border-blue-100 hover:border-blue-300 relative overflow-hidden"
             >
-              <div className="absolute top-0 right-0 w-32 h-32 bg-white opacity-10 rounded-full blur-3xl"></div>
-              <div className="w-16 h-16 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center mb-5 group-hover:scale-110 transition-transform shadow-lg">
-                <span className="text-3xl">🏪</span>
+              <div className="absolute top-0 right-0 w-40 h-40 bg-blue-200 opacity-20 rounded-full blur-3xl"></div>
+              <div className="relative z-10">
+                <div className="w-20 h-20 bg-gradient-to-br from-blue-400 to-blue-300 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform shadow-xl">
+                  <span className="text-5xl">🏥</span>
+                </div>
+                <h3 className="text-2xl md:text-3xl font-bold text-gray-900 mb-3 group-hover:text-blue-600 transition-colors">Medical Shops</h3>
+                <p className="text-gray-600 text-base md:text-lg mb-6 leading-relaxed">Browse pharmacies and medical stores for medicines, healthcare products, and wellness items</p>
+                <div className="flex flex-wrap gap-2 mb-6">
+                  <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-semibold">💊 Medicines</span>
+                  <span className="px-3 py-1 bg-blue-200 text-blue-800 rounded-full text-sm font-semibold">🩺 Healthcare</span>
+                  <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-semibold">🧴 Wellness</span>
+                </div>
+                <div className="flex items-center gap-2 text-blue-600 font-bold">
+                  <span>Browse Medical Shops</span>
+                  <span className="group-hover:translate-x-2 transition-transform text-xl">→</span>
+                </div>
               </div>
-              <h3 className="text-xl font-bold text-white mb-2">Browse Stores</h3>
-              <p className="text-sm text-white/90 leading-relaxed">Trusted shops near you</p>
-              <div className="mt-4 flex items-center gap-1 text-white/90">
-                <span className="text-xs font-bold">View All</span>
-                <span className="group-hover:translate-x-1 transition-transform">→</span>
+            </div>
+
+            {/* Electronics Shops Card */}
+            <div 
+              onClick={() => router.push('/shops?type=electronics')}
+              className="group bg-gradient-to-br from-indigo-50 to-blue-50 rounded-3xl p-8 md:p-10 shadow-lg hover:shadow-2xl transition-all duration-300 cursor-pointer hover:-translate-y-2 border-2 border-indigo-100 hover:border-indigo-300 relative overflow-hidden"
+            >
+              <div className="absolute top-0 right-0 w-40 h-40 bg-indigo-200 opacity-20 rounded-full blur-3xl"></div>
+              <div className="relative z-10">
+                <div className="w-20 h-20 bg-gradient-to-br from-indigo-400 to-blue-400 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform shadow-xl">
+                  <span className="text-5xl">🔌</span>
+                </div>
+                <h3 className="text-2xl md:text-3xl font-bold text-gray-900 mb-3 group-hover:text-indigo-600 transition-colors">Electronics Shops</h3>
+                <p className="text-gray-600 text-base md:text-lg mb-6 leading-relaxed">Find electrical supplies, tools, wires, switches, bulbs and more from trusted stores</p>
+                <div className="flex flex-wrap gap-2 mb-6">
+                  <span className="px-3 py-1 bg-indigo-100 text-indigo-700 rounded-full text-sm font-semibold">💡 Lighting</span>
+                  <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-semibold">🔌 Switches</span>
+                  <span className="px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-sm font-semibold">🧵 Wires</span>
+                </div>
+                <div className="flex items-center gap-2 text-indigo-600 font-bold">
+                  <span>Browse Electronics Shops</span>
+                  <span className="group-hover:translate-x-2 transition-transform text-xl">→</span>
+                </div>
               </div>
             </div>
           </div>
