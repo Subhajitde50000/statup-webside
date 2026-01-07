@@ -150,6 +150,7 @@ async def get_favorites(
             "city": approval_data.get("city", "N/A"),
             "pincode": approval_data.get("pincode", "N/A"),
             "hourly_rate": approval_data.get("hourly_rate"),
+            "visiting_charge": approval_data.get("visiting_charge"),
             "approval_status": professional.get("approval_status", "pending"),
             "is_favorited": True  # All items in this list are favorited
         })

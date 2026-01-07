@@ -82,6 +82,7 @@ export default function ProfessionalProfilePage() {
     subCategory: '',
     experience: '',
     hourlyRate: '',
+    visitingCharge: '',
     availability: 'full-time',
     languages: [] as string[],
     skills: [] as string[],
@@ -145,6 +146,7 @@ export default function ProfessionalProfilePage() {
         subCategory: approvalData.sub_category || '',
         experience: approvalData.experience || '',
         hourlyRate: approvalData.hourly_rate?.toString() || '',
+        visitingCharge: approvalData.visiting_charge?.toString() || '',
         availability: 'full-time',
         languages: approvalData.languages || [],
         skills: approvalData.skills || [],
@@ -231,6 +233,7 @@ export default function ProfessionalProfilePage() {
       if (profileData.bio) params.append('bio', profileData.bio);
       if (profileData.experience) params.append('experience', profileData.experience);
       if (profileData.hourlyRate) params.append('hourly_rate', profileData.hourlyRate);
+      if (profileData.visitingCharge) params.append('visiting_charge', profileData.visitingCharge);
       profileData.serviceAreas.forEach(area => params.append('service_areas', area));
       profileData.skills.forEach(skill => params.append('skills', skill));
       profileData.languages.forEach(lang => params.append('languages', lang));
@@ -451,6 +454,7 @@ export default function ProfessionalProfilePage() {
           subCategory: '',
           experience: '',
           hourlyRate: '',
+          visitingCharge: '',
           availability: 'full-time',
           languages: [],
           skills: [],
@@ -609,7 +613,7 @@ export default function ProfessionalProfilePage() {
                         </select>
                       </div>
                       <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-2">Hourly Rate (₹)</label>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">Service Charge (₹)</label>
                         <div className="relative">
                           <IndianRupee className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                           <input
@@ -620,6 +624,21 @@ export default function ProfessionalProfilePage() {
                             className="w-full pl-12 pr-4 py-3 text-gray-900 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-teal-500"
                           />
                         </div>
+                        <p className="text-xs text-gray-500 mt-1">Fixed charge for your services</p>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">Visiting Charge (₹/hour)</label>
+                        <div className="relative">
+                          <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                          <input
+                            type="number"
+                            value={profileData.visitingCharge}
+                            onChange={(e) => setProfileData({ ...profileData, visitingCharge: e.target.value })}
+                            placeholder="e.g., 100"
+                            className="w-full pl-12 pr-4 py-3 text-gray-900 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-teal-500"
+                          />
+                        </div>
+                        <p className="text-xs text-gray-500 mt-1">Hourly charge for visiting customer</p>
                       </div>
                     </div>
                   </div>
@@ -1357,7 +1376,7 @@ export default function ProfessionalProfilePage() {
                     <div className="bg-gradient-to-br from-[#2563EB]/10 to-[#1E40AF]/10 p-2 rounded-lg">
                       <IndianRupee className="w-4 h-4 text-[#2563EB]" />
                     </div>
-                    <span>Hourly Rate (₹)</span>
+                    <span>Service Charge (₹)</span>
                   </label>
                   <input
                     type="text"
@@ -1367,6 +1386,26 @@ export default function ProfessionalProfilePage() {
                     placeholder="500"
                     className="w-full px-5 py-4 border-2 border-[#CBD5E1] rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:bg-[#F1F5F9] disabled:text-[#64748B] transition-all duration-200 text-base"
                   />
+                  <p className="text-xs text-gray-500 mt-1">Fixed charge for your services</p>
+                </div>
+
+                {/* Visiting Charge */}
+                <div>
+                  <label className="block text-sm font-bold text-[#1E293B] mb-3 flex items-center space-x-2">
+                    <div className="bg-gradient-to-br from-[#10B981]/10 to-[#059669]/10 p-2 rounded-lg">
+                      <MapPin className="w-4 h-4 text-[#10B981]" />
+                    </div>
+                    <span>Visiting Charge (₹/hour)</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={profileData.visitingCharge}
+                    onChange={(e) => handleInputChange('visitingCharge', e.target.value.replace(/\D/g, '').slice(0, 5))}
+                    disabled={!isEditing}
+                    placeholder="100"
+                    className="w-full px-5 py-4 border-2 border-[#CBD5E1] rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:bg-[#F1F5F9] disabled:text-[#64748B] transition-all duration-200 text-base"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Hourly charge for visiting customer location</p>
                 </div>
 
                 {/* Availability */}

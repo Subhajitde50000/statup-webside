@@ -15,9 +15,11 @@ import {
 } from 'lucide-react';
 import { getMyOffers, cancelOffer, PriceOffer } from '@/utils/offers';
 import Navbar from '../Component/Navbar';
+import { useOfferSocket } from '@/utils/OfferSocketContext';
 
 export default function MyOffersPage() {
   const router = useRouter();
+  const { acceptedOffers, rejectedOffers, revokedOffers, isConnected, joinOffersRoom, leaveOffersRoom, clearOfferEvent } = useOfferSocket();
   const [offers, setOffers] = useState<PriceOffer[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -27,7 +29,53 @@ export default function MyOffersPage() {
 
   useEffect(() => {
     fetchOffers();
-  }, [filterStatus]);
+    // Join offers room for real-time updates
+    joinOffersRoom();
+    
+    return () => {
+      leaveOffersRoom();
+    };
+  }, [filterStatus, joinOffersRoom, leaveOffersRoom]);
+
+  // Listen for accepted offers in real-time
+  useEffect(() => {
+    if (acceptedOffers.length > 0) {
+      const latestAccepted = acceptedOffers[acceptedOffers.length - 1];
+      // Update the offer status in the list
+      setOffers(prev => prev.map(o => 
+        o.id === latestAccepted.offer.id ? latestAccepted.offer : o
+      ));
+      console.log('Offer accepted:', latestAccepted);
+      clearOfferEvent(latestAccepted.offer.id);
+    }
+  }, [acceptedOffers, clearOfferEvent]);
+
+  // Listen for rejected offers in real-time
+  useEffect(() => {
+    if (rejectedOffers.length > 0) {
+      const latestRejected = rejectedOffers[rejectedOffers.length - 1];
+      // Update the offer status in the list
+      setOffers(prev => prev.map(o => 
+        o.id === latestRejected.offer.id ? latestRejected.offer : o
+      ));
+      console.log('Offer rejected:', latestRejected);
+      clearOfferEvent(latestRejected.offer.id);
+    }
+  }, [rejectedOffers, clearOfferEvent]);
+
+  // Listen for revoked offers in real-time
+  useEffect(() => {
+    if (revokedOffers.length > 0) {
+      const latestRevoked = revokedOffers[revokedOffers.length - 1];
+      // Update the offer status in the list (status becomes 'expired')
+      setOffers(prev => prev.map(o => 
+        o.id === latestRevoked.offer.id ? latestRevoked.offer : o
+      ));
+      console.log('Offer revoked:', latestRevoked);
+      alert('The professional has revoked an accepted offer.');
+      clearOfferEvent(latestRevoked.offer.id);
+    }
+  }, [revokedOffers, clearOfferEvent]);
 
   const fetchOffers = async () => {
     try {
@@ -189,7 +237,7 @@ export default function MyOffersPage() {
           <div className="grid gap-4">
             {offers.map((offer) => (
               <div
-                key={offer._id}
+                key={offer.id}
                 className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow"
               >
                 <div className="flex justify-between items-start mb-4">
@@ -203,13 +251,10 @@ export default function MyOffersPage() {
                     </div>
                     
                     {/* Professional Details */}
-                    {offer.professional_details && (
+                    {offer.professional_name && (
                       <div className="flex items-center gap-2 text-sm text-gray-600 mb-3">
                         <User className="w-4 h-4" />
-                        <span>{offer.professional_details.full_name}</span>
-                        {offer.professional_details.phone && (
-                          <span className="text-gray-400">• {offer.professional_details.phone}</span>
-                        )}
+                        <span>{offer.professional_name}</span>
                       </div>
                     )}
 
@@ -245,12 +290,12 @@ export default function MyOffersPage() {
                   {/* Actions */}
                   {offer.status === 'pending' && (
                     <button
-                      onClick={() => handleCancelOffer(offer._id)}
-                      disabled={cancelingId === offer._id}
+                      onClick={() => handleCancelOffer(offer.id)}
+                      disabled={cancelingId === offer.id}
                       className="ml-4 p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
                       title="Cancel offer"
                     >
-                      {cancelingId === offer._id ? (
+                      {cancelingId === offer.id ? (
                         <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-red-600"></div>
                       ) : (
                         <Trash2 className="w-5 h-5" />

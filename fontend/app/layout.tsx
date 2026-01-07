@@ -5,6 +5,7 @@ import { AuthProvider } from "@/utils/AuthContext";
 import { NotificationProvider } from "@/utils/NotificationContext";
 import { BookingSocketProvider } from "@/utils/BookingSocketContext";
 import { MessageSocketProvider } from "@/utils/MessageSocketContext";
+import { OfferSocketProvider } from "@/utils/OfferSocketContext";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -48,7 +49,9 @@ export default function RootLayout({
           <NotificationProvider>
             <BookingSocketProvider>
               <MessageSocketProvider>
-                {children}
+                <OfferSocketProvider>
+                  {children}
+                </OfferSocketProvider>
               </MessageSocketProvider>
             </BookingSocketProvider>
           </NotificationProvider>

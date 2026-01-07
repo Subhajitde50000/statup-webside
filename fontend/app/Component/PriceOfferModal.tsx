@@ -1,14 +1,22 @@
 'use client';
 
 import React, { useState } from 'react';
-import { X, DollarSign, FileText, Tag } from 'lucide-react';
+import { X, DollarSign, FileText, Tag, ChevronDown } from 'lucide-react';
 import { createOffer } from '@/utils/offers';
+
+interface ServiceOption {
+  id: string;
+  name: string;
+  price: number;
+  price_type: string;
+}
 
 interface PriceOfferModalProps {
   isOpen: boolean;
   onClose: () => void;
   professionalId: string;
   professionalName: string;
+  services?: ServiceOption[];
 }
 
 export default function PriceOfferModal({
@@ -16,6 +24,7 @@ export default function PriceOfferModal({
   onClose,
   professionalId,
   professionalName,
+  services = [],
 }: PriceOfferModalProps) {
   const [serviceType, setServiceType] = useState('');
   const [description, setDescription] = useState('');
@@ -91,14 +100,40 @@ export default function PriceOfferModal({
               <Tag className="inline-block w-4 h-4 mr-2" />
               Service Type *
             </label>
-            <input
-              type="text"
-              required
-              value={serviceType}
-              onChange={(e) => setServiceType(e.target.value)}
-              placeholder="e.g., Home Repair, Plumbing, Electrical"
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
+            {services.length > 0 ? (
+              <div className="relative">
+                <select
+                  required
+                  value={serviceType}
+                  onChange={(e) => {
+                    setServiceType(e.target.value);
+                    // Auto-fill suggested price based on selected service
+                    const selectedService = services.find(s => s.name === e.target.value);
+                    if (selectedService && !offeredPrice) {
+                      setOfferedPrice(selectedService.price.toString());
+                    }
+                  }}
+                  className="w-full text-gray-900 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none bg-white"
+                >
+                  <option value="">Select a service...</option>
+                  {services.map((service) => (
+                    <option key={service.id} value={service.name}>
+                      {service.name} - ₹{service.price} ({service.price_type === 'hourly' ? 'per hour' : service.price_type === 'starting_from' ? 'starting' : 'fixed'})
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
+              </div>
+            ) : (
+              <input
+                type="text"
+                required
+                value={serviceType}
+                onChange={(e) => setServiceType(e.target.value)}
+                placeholder="e.g., Home Repair, Plumbing, Electrical"
+                className="w-full text-gray-900 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            )}
           </div>
 
           {/* Description */}
@@ -113,7 +148,7 @@ export default function PriceOfferModal({
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Describe the service you need..."
               rows={4}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+              className="w-full text-gray-900 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
             />
           </div>
 
@@ -131,7 +166,7 @@ export default function PriceOfferModal({
               value={offeredPrice}
               onChange={(e) => setOfferedPrice(e.target.value)}
               placeholder="Enter your price offer"
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full text-gray-900 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
           </div>
 

@@ -230,7 +230,7 @@ export default function Professional() {
                         <span className="inline-flex items-center gap-2 bg-blue-100 text-blue-700 px-4 py-1.5 rounded-full">
                           <Briefcase className="w-4 h-4" />
                           <span className="font-bold text-sm">{professional.category}</span>
-                        </span>
+                          </span>
                       )}
                       {professional.emergency_available && (
                         <span className="inline-flex items-center gap-2 bg-red-100 text-red-700 px-4 py-1.5 rounded-full">
@@ -537,6 +537,14 @@ export default function Professional() {
         onClose={() => setIsPriceOfferModalOpen(false)}
         professionalId={professionalId}
         professionalName={professional?.name || 'Professional'}
+        services={services.map(s => ({
+          id: s.id,
+          name: s.name,
+          price: s.price,
+          price_type: s.price_type
+        }))}
+        hourlyRate={professional?.hourly_rate}
+        visitingCharge={professional?.visiting_charge}
       />
     </div>
   );

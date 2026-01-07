@@ -24,6 +24,7 @@ import {
   getAccessToken
 } from '../../../utils/auth';
 import { createBooking } from '../../../utils/bookings';
+import { checkAcceptedOffer, PriceOffer } from '../../../utils/offers';
 
 // Premium Color Palette
 const colors = {
@@ -55,6 +56,9 @@ export default function BookingFlowPage() {
   const searchParams = useSearchParams();
   const professionalId = params.id as string;
   const serviceIdFromUrl = searchParams.get('serviceId');
+  const offerIdFromUrl = searchParams.get('offer_id');
+  const offerPriceFromUrl = searchParams.get('price');
+  const offerServiceFromUrl = searchParams.get('service');
 
   const [currentStep, setCurrentStep] = useState(1);
   const [loading, setLoading] = useState(true);
@@ -97,11 +101,17 @@ export default function BookingFlowPage() {
   const [showAllOffers, setShowAllOffers] = useState(false);
   const [pricing, setPricing] = useState({
     serviceCost: 0,
+    visitingCharge: 0,
+    estimatedHours: 1,
     discount: 0,
     platformFee: 50,
     tax: 0,
     total: 0,
   });
+
+  // Accepted Price Offer
+  const [acceptedOffer, setAcceptedOffer] = useState<PriceOffer | null>(null);
+  const [hasAcceptedOffer, setHasAcceptedOffer] = useState(false);
 
   // Step 4: Payment
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<string>('');
@@ -142,6 +152,9 @@ export default function BookingFlowPage() {
           const services = servicesResponse.services || [];
           setProfessionalServices(services);
           
+          const visitingCharge = data.professional.visiting_charge || 0;
+          const estimatedHours = 1;
+          
           // If serviceId is provided in URL, auto-select that service
           if (serviceIdFromUrl) {
             const preSelectedService = services.find((s: Service) => s.id === serviceIdFromUrl);
@@ -149,50 +162,68 @@ export default function BookingFlowPage() {
               setSelectedService(preSelectedService);
               // Update pricing based on selected service
               const baseCost = preSelectedService.price || data.professional.hourly_rate || 500;
-              const tax = baseCost * 0.18;
+              const visitingTotal = visitingCharge * estimatedHours;
+              const subtotal = baseCost + visitingTotal;
+              const tax = subtotal * 0.18;
               setPricing({
                 serviceCost: baseCost,
+                visitingCharge: visitingCharge,
+                estimatedHours: estimatedHours,
                 discount: 0,
                 platformFee: 50,
                 tax: tax,
-                total: baseCost + 50 + tax,
+                total: subtotal + 50 + tax,
               });
             }
           } else if (services.length === 1) {
             // Auto-select if only one service
             setSelectedService(services[0]);
             const baseCost = services[0].price || data.professional.hourly_rate || 500;
-            const tax = baseCost * 0.18;
+            const visitingTotal = visitingCharge * estimatedHours;
+            const subtotal = baseCost + visitingTotal;
+            const tax = subtotal * 0.18;
             setPricing({
               serviceCost: baseCost,
+              visitingCharge: visitingCharge,
+              estimatedHours: estimatedHours,
               discount: 0,
               platformFee: 50,
               tax: tax,
-              total: baseCost + 50 + tax,
+              total: subtotal + 50 + tax,
             });
           } else {
             // Default pricing
             const baseCost = data.professional.hourly_rate || 500;
-            const tax = baseCost * 0.18;
+            const visitingTotal = visitingCharge * estimatedHours;
+            const subtotal = baseCost + visitingTotal;
+            const tax = subtotal * 0.18;
             setPricing({
               serviceCost: baseCost,
+              visitingCharge: visitingCharge,
+              estimatedHours: estimatedHours,
               discount: 0,
               platformFee: 50,
               tax: tax,
-              total: baseCost + 50 + tax,
+              total: subtotal + 50 + tax,
             });
           }
         } catch (serviceErr) {
           console.error('Error fetching services:', serviceErr);
           // Continue without services
           const baseCost = data.professional.hourly_rate || 500;
-          const tax = baseCost * 0.18;
+          const visitingCharge = data.professional.visiting_charge || 0;
+          const estimatedHours = 1;
+          const visitingTotal = visitingCharge * estimatedHours;
+          const subtotal = baseCost + visitingTotal;
+          const tax = subtotal * 0.18;
           setPricing({
             serviceCost: baseCost,
+            visitingCharge: visitingCharge,
+            estimatedHours: estimatedHours,
             discount: 0,
             platformFee: 50,
             tax: tax,
-            total: baseCost + 50 + tax,
+            total: subtotal + 50 + tax,
           });
         } finally {
           setLoadingServices(false);
@@ -210,6 +241,74 @@ export default function BookingFlowPage() {
     fetchOffers();
     fetchUserAddresses();
   }, [professionalId, serviceIdFromUrl]);
+
+  // Check and apply accepted price offer
+  useEffect(() => {
+    const fetchAcceptedOffer = async () => {
+      if (!professionalId) return;
+
+      try {
+        // If offer_id and price are passed in URL, use them directly
+        if (offerIdFromUrl && offerPriceFromUrl) {
+          const offerPrice = parseFloat(offerPriceFromUrl);
+          setHasAcceptedOffer(true);
+          setAcceptedOffer({
+            id: offerIdFromUrl,
+            professional_id: professionalId,
+            offered_price: offerPrice,
+            service_type: offerServiceFromUrl ? decodeURIComponent(offerServiceFromUrl) : 'Service',
+            status: 'accepted',
+          } as PriceOffer);
+          
+          // Apply offer price to pricing
+          const visitingCharge = professional?.visiting_charge || 0;
+          const estimatedHours = 1;
+          const visitingTotal = visitingCharge * estimatedHours;
+          const subtotal = offerPrice + visitingTotal;
+          const tax = subtotal * 0.18;
+          setPricing(prev => ({
+            ...prev,
+            serviceCost: offerPrice,
+            visitingCharge: visitingCharge,
+            discount: 0,
+            tax: tax,
+            total: subtotal + 50 + tax,
+          }));
+          return;
+        }
+
+        // Otherwise, check via API
+        const result = await checkAcceptedOffer(professionalId);
+        if (result.has_accepted_offer && result.offer) {
+          setHasAcceptedOffer(true);
+          setAcceptedOffer(result.offer);
+          
+          // Apply accepted offer price
+          const offerPrice = result.offer.offered_price;
+          const visitingCharge = professional?.visiting_charge || 0;
+          const estimatedHours = 1;
+          const visitingTotal = visitingCharge * estimatedHours;
+          const subtotal = offerPrice + visitingTotal;
+          const tax = subtotal * 0.18;
+          setPricing(prev => ({
+            ...prev,
+            serviceCost: offerPrice,
+            visitingCharge: visitingCharge,
+            discount: 0,
+            tax: tax,
+            total: subtotal + 50 + tax,
+          }));
+        }
+      } catch (err) {
+        console.error('Error checking accepted offer:', err);
+      }
+    };
+
+    // Fetch after professional data is loaded
+    if (professional) {
+      fetchAcceptedOffer();
+    }
+  }, [professionalId, professional, offerIdFromUrl, offerPriceFromUrl, offerServiceFromUrl]);
 
   // Fetch available offers
   const fetchOffers = async () => {
@@ -286,8 +385,9 @@ export default function BookingFlowPage() {
   // Apply offer
   const applyOffer = (offer: any) => {
     setSelectedOffer(offer);
-    const discount = Math.min(offer.savings, pricing.serviceCost);
-    const newTotal = pricing.serviceCost - discount + pricing.platformFee + pricing.tax;
+    const subtotal = pricing.serviceCost + (pricing.visitingCharge * pricing.estimatedHours);
+    const discount = Math.min(offer.savings, subtotal);
+    const newTotal = subtotal - discount + pricing.platformFee + pricing.tax;
     setPricing({
       ...pricing,
       discount,
@@ -340,6 +440,9 @@ export default function BookingFlowPage() {
         price: pricing.total,
         payment_method: selectedPaymentMethod,
         notes: notes || '',
+        // Include accepted offer details if present
+        offer_id: acceptedOffer?.id || null,
+        offer_price: hasAcceptedOffer ? acceptedOffer?.offered_price : null,
       };
 
       const response = await createBooking(bookingData);
@@ -627,6 +730,29 @@ export default function BookingFlowPage() {
                       )}
                     </div>
                   </div>
+                  
+                  {/* Accepted Offer Banner */}
+                  {hasAcceptedOffer && acceptedOffer && (
+                    <div className="mt-4 p-4 rounded-xl border-2 border-orange-300 bg-gradient-to-r from-orange-50 to-amber-50">
+                      <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 rounded-full bg-orange-500 flex items-center justify-center flex-shrink-0">
+                          <Gift className="w-6 h-6 text-white" />
+                        </div>
+                        <div className="flex-1">
+                          <h4 className="font-bold text-orange-600">🎉 Accepted Price Offer</h4>
+                          <p className="text-sm text-orange-700">
+                            Your price of <span className="font-black">₹{acceptedOffer.offered_price}</span>
+                            {acceptedOffer.service_type && ` for ${acceptedOffer.service_type}`} has been accepted!
+                          </p>
+                          {acceptedOffer.accepted_price_valid_until && (
+                            <p className="text-xs text-orange-500 mt-1">
+                              Valid until: {new Date(acceptedOffer.accepted_price_valid_until).toLocaleDateString()}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Service Selection - Only show if professional has services */}
@@ -648,15 +774,23 @@ export default function BookingFlowPage() {
                             key={service.id}
                             onClick={() => {
                               setSelectedService(service);
-                              // Update pricing based on selected service
-                              const baseCost = service.price || professional.hourly_rate || 500;
-                              const tax = baseCost * 0.18;
+                              // Update pricing - preserve accepted offer price if present
+                              const baseCost = hasAcceptedOffer && acceptedOffer 
+                                ? acceptedOffer.offered_price 
+                                : (service.price || professional.hourly_rate || 500);
+                              const visitingCharge = professional.visiting_charge || 0;
+                              const estimatedHours = pricing.estimatedHours || 1;
+                              const visitingTotal = visitingCharge * estimatedHours;
+                              const subtotal = baseCost + visitingTotal;
+                              const tax = subtotal * 0.18;
                               setPricing({
                                 serviceCost: baseCost,
+                                visitingCharge: visitingCharge,
+                                estimatedHours: estimatedHours,
                                 discount: selectedOffer ? (selectedOffer.discount || 0) : 0,
                                 platformFee: 50,
                                 tax: tax,
-                                total: baseCost + 50 + tax - (selectedOffer ? (selectedOffer.discount || 0) : 0),
+                                total: subtotal + 50 + tax - (selectedOffer ? (selectedOffer.discount || 0) : 0),
                               });
                             }}
                             className="p-4 rounded-xl border-2 cursor-pointer transition-all hover:shadow-md"
@@ -1278,10 +1412,11 @@ export default function BookingFlowPage() {
                       <button
                         onClick={() => {
                           setSelectedOffer(null);
+                          const subtotal = pricing.serviceCost + (pricing.visitingCharge * pricing.estimatedHours);
                           setPricing({
                             ...pricing,
                             discount: 0,
-                            total: pricing.serviceCost + pricing.platformFee + pricing.tax,
+                            total: subtotal + pricing.platformFee + pricing.tax,
                           });
                         }}
                         className="px-4 py-2 rounded-xl font-bold transition-all"
@@ -1616,11 +1751,38 @@ export default function BookingFlowPage() {
                 )}
 
                 <h4 className="font-bold mb-4" style={{ color: colors.textMain }}>Price Details</h4>
+                
+                {/* Accepted Offer Badge */}
+                {hasAcceptedOffer && acceptedOffer && (
+                  <div className="mb-4 p-3 rounded-xl border-2 border-orange-300" style={{ backgroundColor: '#FFF7ED' }}>
+                    <div className="flex items-center gap-2">
+                      <Gift className="w-5 h-5 text-orange-500" />
+                      <div>
+                        <p className="font-bold text-orange-600 text-sm">Accepted Price Offer Applied!</p>
+                        <p className="text-xs text-orange-500">
+                          Special price: ₹{acceptedOffer.offered_price} 
+                          {acceptedOffer.service_type && ` for ${acceptedOffer.service_type}`}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                
                 <div className="space-y-4 mb-6">
                   <div className="flex items-center justify-between">
-                    <span style={{ color: colors.textMuted }}>Service Cost</span>
+                    <span style={{ color: colors.textMuted }}>Service Charge</span>
                     <span className="font-bold" style={{ color: colors.textMain }}>₹{pricing.serviceCost.toFixed(2)}</span>
                   </div>
+                  {pricing.visitingCharge > 0 && (
+                    <div className="flex items-center justify-between">
+                      <span style={{ color: colors.textMuted }}>
+                        Visiting Charge ({pricing.estimatedHours} hr × ₹{pricing.visitingCharge})
+                      </span>
+                      <span className="font-bold" style={{ color: colors.textMain }}>
+                        ₹{(pricing.visitingCharge * pricing.estimatedHours).toFixed(2)}
+                      </span>
+                    </div>
+                  )}
                   {pricing.discount > 0 && (
                     <div className="flex items-center justify-between">
                       <span style={{ color: colors.success }}>Discount</span>

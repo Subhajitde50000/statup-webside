@@ -7,7 +7,7 @@ import {
   MapPin, Award, Briefcase, Zap, Shield, User, Loader2, AlertCircle,
   Globe, BadgeCheck, ChevronRight, Wrench, IndianRupee, DollarSign, Share2,
   Mail, Building, CalendarDays, TrendingUp, ThumbsUp, FileText, Camera,
-  MapPinned
+  MapPinned, Tag
 } from 'lucide-react';
 import Link from 'next/link';
 import Navbar from '../Component/Navbar';
@@ -16,6 +16,8 @@ import Notifications from '../Component/Notifications';
 import PriceOfferModal from '../Component/PriceOfferModal';
 import FavoriteButton from '../Component/FavoriteButton';
 import { getProfessionalPublicProfile } from '../../utils/services';
+import { checkAcceptedOffer, PriceOffer } from '../../utils/offers';
+import { useOfferSocket } from '../../utils/OfferSocketContext';
 
 const SKILL_ICONS = {
   'Wiring': Zap,
@@ -39,6 +41,7 @@ const getSkillIcon = (skillName: string) => {
 export default function ProfessionalPublic() {
   const searchParams = useSearchParams();
   const professionalId = searchParams.get('id');
+  const { acceptedOffers, revokedOffers, clearOfferEvent } = useOfferSocket();
   
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -47,6 +50,7 @@ export default function ProfessionalPublic() {
   const [services, setServices] = useState<any[]>([]);
   const [isPriceOfferModalOpen, setIsPriceOfferModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'about' | 'services' | 'reviews'>('about');
+  const [acceptedOffer, setAcceptedOffer] = useState<PriceOffer | null>(null);
 
   useEffect(() => {
     const fetchProfessionalData = async () => {
@@ -72,6 +76,16 @@ export default function ProfessionalPublic() {
         } catch (err) {
           console.error('Error fetching services:', err);
         }
+
+        // Check for accepted offer
+        try {
+          const acceptedOfferResult = await checkAcceptedOffer(professionalId);
+          if (acceptedOfferResult.has_accepted_offer && acceptedOfferResult.offer) {
+            setAcceptedOffer(acceptedOfferResult.offer);
+          }
+        } catch (err) {
+          console.error('Error checking accepted offer:', err);
+        }
         
       } catch (err: any) {
         console.error('Error fetching professional:', err);
@@ -83,6 +97,33 @@ export default function ProfessionalPublic() {
 
     fetchProfessionalData();
   }, [professionalId]);
+
+  // Listen for accepted offers in real-time
+  useEffect(() => {
+    if (acceptedOffers.length > 0 && professionalId) {
+      const latestAccepted = acceptedOffers[acceptedOffers.length - 1];
+      // Check if this offer is for the current professional
+      if (latestAccepted.offer.professional_id === professionalId) {
+        setAcceptedOffer(latestAccepted.offer);
+        console.log('Offer accepted in real-time:', latestAccepted);
+        clearOfferEvent(latestAccepted.offer.id);
+      }
+    }
+  }, [acceptedOffers, professionalId, clearOfferEvent]);
+
+  // Listen for revoked offers in real-time
+  useEffect(() => {
+    if (revokedOffers.length > 0 && professionalId) {
+      const latestRevoked = revokedOffers[revokedOffers.length - 1];
+      // Check if this revoked offer was for the current professional
+      if (latestRevoked.offer.professional_id === professionalId && acceptedOffer?.id === latestRevoked.offer.id) {
+        setAcceptedOffer(null); // Remove the accepted offer
+        console.log('Offer revoked in real-time:', latestRevoked);
+        alert('The professional has revoked the accepted offer.');
+        clearOfferEvent(latestRevoked.offer.id);
+      }
+    }
+  }, [revokedOffers, professionalId, acceptedOffer, clearOfferEvent]);
 
   if (loading) {
     return (
@@ -345,13 +386,28 @@ export default function ProfessionalPublic() {
                       <Share2 className="w-5 h-5" />
                       <span className="text-sm">Share</span>
                     </button>
-                    <button
-                      onClick={() => setIsPriceOfferModalOpen(true)}
-                      className="flex flex-col md:flex-row items-center justify-center gap-2 px-4 py-3 border-2 border-orange-600 rounded-xl hover:bg-orange-600 hover:text-white transition-all font-bold text-orange-600 col-span-2 md:col-span-5"
-                    >
-                      <DollarSign className="w-5 h-5" />
-                      <span>Make Price Offer</span>
-                    </button>
+                    {acceptedOffer ? (
+                      <Link
+                        href={`/booking-flow/${professionalId}?offer_id=${acceptedOffer.id}&price=${acceptedOffer.offered_price}&service=${encodeURIComponent(acceptedOffer.service_type)}`}
+                        className="flex flex-col md:flex-row items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-orange-500 to-orange-600 rounded-xl hover:from-orange-600 hover:to-orange-700 transition-all font-bold text-white col-span-2 md:col-span-5 shadow-lg"
+                      >
+                        <Tag className="w-5 h-5" />
+                        <span>Book at ₹{acceptedOffer.offered_price}</span>
+                        {acceptedOffer.accepted_price_valid_until && (
+                          <span className="text-xs opacity-80">
+                            (Valid until {new Date(acceptedOffer.accepted_price_valid_until).toLocaleDateString()})
+                          </span>
+                        )}
+                      </Link>
+                    ) : (
+                      <button
+                        onClick={() => setIsPriceOfferModalOpen(true)}
+                        className="flex flex-col md:flex-row items-center justify-center gap-2 px-4 py-3 border-2 border-orange-600 rounded-xl hover:bg-orange-600 hover:text-white transition-all font-bold text-orange-600 col-span-2 md:col-span-5"
+                      >
+                        <DollarSign className="w-5 h-5" />
+                        <span>Make Price Offer</span>
+                      </button>
+                    )}
                     <Link
                       href={`/booking-flow/${professionalId}`}
                       className="flex items-center justify-center gap-2 px-6 py-4 bg-gradient-to-r from-teal-600 to-green-600 text-white rounded-xl hover:from-teal-700 hover:to-green-700 transition-all font-bold shadow-lg hover:shadow-xl col-span-2 md:col-span-5 text-lg"
@@ -881,6 +937,12 @@ export default function ProfessionalPublic() {
         onClose={() => setIsPriceOfferModalOpen(false)}
         professionalId={professionalId}
         professionalName={professional?.name || 'Professional'}
+        services={services.map(s => ({
+          id: s.id,
+          name: s.name,
+          price: s.price,
+          price_type: s.price_type
+        }))}
       />
     </div>
   );

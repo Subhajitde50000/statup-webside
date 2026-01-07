@@ -504,3 +504,114 @@ async def emit_user_online_status(user_id: str, is_online: bool):
     
     # Broadcast to all connected users (they can filter relevant ones)
     await sio.emit('user_online_status', event_data)
+
+
+# ============================================
+# PRICE OFFER REAL-TIME EVENTS
+# ============================================
+
+@sio.event
+async def join_offers_room(sid, data):
+    """Allow professional to join their offers room for real-time updates"""
+    session = await sio.get_session(sid)
+    user_id = session.get('user_id') if session else None
+    
+    if user_id:
+        room = f"offers_{user_id}"
+        await sio.enter_room(sid, room)
+        print(f"Session {sid} joined offers room {room}")
+        await sio.emit('joined_offers_room', {
+            'message': f'Joined offers room for user {user_id}'
+        }, room=sid)
+
+
+@sio.event
+async def leave_offers_room(sid, data):
+    """Allow user to leave their offers room"""
+    session = await sio.get_session(sid)
+    user_id = session.get('user_id') if session else None
+    
+    if user_id:
+        room = f"offers_{user_id}"
+        await sio.leave_room(sid, room)
+        print(f"Session {sid} left offers room {room}")
+
+
+async def emit_new_offer(professional_id: str, user_id: str, offer_data: dict):
+    """Emit when a new price offer is created - notify professional"""
+    event_data = {
+        'type': 'new_offer',
+        'offer': offer_data,
+        'message': 'You received a new price offer',
+        'timestamp': datetime.utcnow().isoformat()
+    }
+    
+    # Notify professional
+    await sio.emit('new_offer', event_data, room=f"user_{professional_id}")
+    await sio.emit('new_offer', event_data, room=f"offers_{professional_id}")
+    
+    print(f"New offer from user {user_id} to professional {professional_id}")
+
+
+async def emit_offer_accepted(user_id: str, professional_id: str, offer_data: dict):
+    """Emit when professional accepts an offer - notify user"""
+    event_data = {
+        'type': 'offer_accepted',
+        'offer': offer_data,
+        'message': 'Your price offer has been accepted!',
+        'timestamp': datetime.utcnow().isoformat()
+    }
+    
+    # Notify user
+    await sio.emit('offer_accepted', event_data, room=f"user_{user_id}")
+    await sio.emit('offer_accepted', event_data, room=f"offers_{user_id}")
+    
+    print(f"Offer accepted by professional {professional_id} for user {user_id}")
+
+
+async def emit_offer_rejected(user_id: str, professional_id: str, offer_data: dict):
+    """Emit when professional rejects an offer - notify user"""
+    event_data = {
+        'type': 'offer_rejected',
+        'offer': offer_data,
+        'message': 'Your price offer has been rejected',
+        'timestamp': datetime.utcnow().isoformat()
+    }
+    
+    # Notify user
+    await sio.emit('offer_rejected', event_data, room=f"user_{user_id}")
+    await sio.emit('offer_rejected', event_data, room=f"offers_{user_id}")
+    
+    print(f"Offer rejected by professional {professional_id} for user {user_id}")
+
+
+async def emit_offer_cancelled(user_id: str, professional_id: str, offer_data: dict):
+    """Emit when user cancels an offer - notify professional"""
+    event_data = {
+        'type': 'offer_cancelled',
+        'offer': offer_data,
+        'message': 'A price offer has been cancelled',
+        'timestamp': datetime.utcnow().isoformat()
+    }
+    
+    # Notify professional
+    await sio.emit('offer_cancelled', event_data, room=f"user_{professional_id}")
+    await sio.emit('offer_cancelled', event_data, room=f"offers_{professional_id}")
+    
+    print(f"Offer cancelled by user {user_id} to professional {professional_id}")
+
+
+async def emit_offer_revoked(user_id: str, professional_id: str, offer_data: dict):
+    """Emit when professional revokes an accepted offer - notify user"""
+    event_data = {
+        'type': 'offer_revoked',
+        'offer': offer_data,
+        'message': 'The professional has revoked the accepted price offer',
+        'timestamp': datetime.utcnow().isoformat()
+    }
+    
+    # Notify user
+    await sio.emit('offer_revoked', event_data, room=f"user_{user_id}")
+    await sio.emit('offer_revoked', event_data, room=f"offers_{user_id}")
+    
+    print(f"Offer revoked by professional {professional_id} for user {user_id}")

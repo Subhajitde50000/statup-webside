@@ -384,6 +384,7 @@ async def update_professional_profile(
     bio: Optional[str] = None,
     experience: Optional[str] = None,
     hourly_rate: Optional[float] = None,
+    visiting_charge: Optional[float] = None,
     service_areas: Optional[List[str]] = None,
     skills: Optional[List[str]] = None,
     languages: Optional[List[str]] = None,
@@ -417,6 +418,8 @@ async def update_professional_profile(
         approval_data["experience"] = experience
     if hourly_rate is not None:
         approval_data["hourly_rate"] = hourly_rate
+    if visiting_charge is not None:
+        approval_data["visiting_charge"] = visiting_charge
     if service_areas is not None:
         approval_data["service_areas"] = service_areas
     if skills is not None:

@@ -1,24 +1,30 @@
 """
 Offer Routes - Price negotiation between users and professionals
 """
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Body
 from typing import List, Optional
 from datetime import datetime, timedelta
 from bson import ObjectId
+from pydantic import BaseModel
 
 from app.database import db
 from app.middleware.rbac import get_current_user
 from app.models.offer import offer_helper
+from app.socket_manager import emit_new_offer, emit_offer_accepted, emit_offer_rejected, emit_offer_cancelled, emit_offer_revoked
 
 router = APIRouter()
 
 
+class CreateOfferRequest(BaseModel):
+    professional_id: str
+    service_type: str
+    description: str
+    offered_price: float
+
+
 @router.post("/create")
 async def create_price_offer(
-    professional_id: str,
-    service_type: str,
-    description: str,
-    offered_price: float,
+    request: CreateOfferRequest,
     current_user: dict = Depends(get_current_user)
 ):
     """Create a new price offer from user to professional"""
@@ -30,7 +36,7 @@ async def create_price_offer(
         
         # Check if professional exists
         professional = await users_collection.find_one({
-            "_id": ObjectId(professional_id),
+            "_id": ObjectId(request.professional_id),
             "role": "professional"
         })
         
@@ -40,10 +46,10 @@ async def create_price_offer(
         # Create offer
         offer_data = {
             "user_id": user_id,
-            "professional_id": professional_id,
-            "service_type": service_type,
-            "description": description,
-            "offered_price": offered_price,
+            "professional_id": request.professional_id,
+            "service_type": request.service_type,
+            "description": request.description,
+            "offered_price": request.offered_price,
             "status": "pending",
             "created_at": datetime.utcnow(),
             "updated_at": datetime.utcnow(),
@@ -55,9 +61,16 @@ async def create_price_offer(
         result = await offers_collection.insert_one(offer_data)
         new_offer = await offers_collection.find_one({"_id": result.inserted_id})
         
+        # Emit real-time event to professional
+        offer_dict = offer_helper(new_offer)
+        # Add user details
+        offer_dict["user_name"] = current_user.get("name")
+        offer_dict["user_image"] = current_user.get("profile_image")
+        await emit_new_offer(request.professional_id, user_id, offer_dict)
+        
         return {
             "message": "Offer sent successfully",
-            "offer": offer_helper(new_offer)
+            "offer": offer_dict
         }
     except HTTPException:
         raise
@@ -140,16 +153,58 @@ async def get_received_offers(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.get("/check-accepted/{professional_id}")
+async def check_accepted_offer(
+    professional_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """Check if user has an accepted/valid offer with a professional"""
+    try:
+        offers_collection = db.db.get_collection("offers")
+        users_collection = db.db.get_collection("users")
+        
+        user_id = str(current_user["_id"])
+        
+        # Find accepted offer that is still valid
+        offer = await offers_collection.find_one({
+            "user_id": user_id,
+            "professional_id": professional_id,
+            "status": "accepted",
+            "$or": [
+                {"accepted_price_valid_until": {"$gt": datetime.utcnow()}},
+                {"accepted_price_valid_until": None}
+            ]
+        })
+        
+        if not offer:
+            return {"has_accepted_offer": False, "offer": None}
+        
+        offer_dict = offer_helper(offer)
+        
+        # Get professional details
+        professional = await users_collection.find_one({"_id": ObjectId(professional_id)})
+        if professional:
+            offer_dict["professional_name"] = professional.get("name")
+            offer_dict["professional_image"] = professional.get("profile_image")
+        
+        return {
+            "has_accepted_offer": True,
+            "offer": offer_dict
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.post("/accept/{offer_id}")
 async def accept_offer(
     offer_id: str,
     response_message: Optional[str] = None,
+    validity_hours: Optional[int] = Query(default=168, description="Validity in hours for accepted price (default 7 days = 168 hours)"),
     current_user: dict = Depends(get_current_user)
 ):
-    """Accept a price offer and create booking"""
+    """Accept a price offer - sets validity for the accepted price"""
     try:
         offers_collection = db.db.get_collection("offers")
-        bookings_collection = db.db.get_collection("bookings")
         
         professional_id = str(current_user["_id"])
         
@@ -171,24 +226,10 @@ async def accept_offer(
             )
             raise HTTPException(status_code=400, detail="Offer has expired")
         
-        # Create booking
-        booking_data = {
-            "user_id": offer["user_id"],
-            "professional_id": professional_id,
-            "service_type": offer["service_type"],
-            "description": offer["description"],
-            "price": offer["offered_price"],
-            "status": "confirmed",
-            "payment_status": "pending",
-            "created_at": datetime.utcnow(),
-            "updated_at": datetime.utcnow(),
-            "offer_id": offer_id,
-        }
+        # Calculate validity until
+        accepted_price_valid_until = datetime.utcnow() + timedelta(hours=validity_hours)
         
-        booking_result = await bookings_collection.insert_one(booking_data)
-        booking_id = str(booking_result.inserted_id)
-        
-        # Update offer status
+        # Update offer status (no booking created - user will book at this price)
         await offers_collection.update_one(
             {"_id": ObjectId(offer_id)},
             {
@@ -196,17 +237,26 @@ async def accept_offer(
                     "status": "accepted",
                     "updated_at": datetime.utcnow(),
                     "response_message": response_message,
-                    "booking_id": booking_id,
+                    "accepted_price_valid_until": accepted_price_valid_until,
                 }
             }
         )
         
         updated_offer = await offers_collection.find_one({"_id": ObjectId(offer_id)})
+        offer_dict = offer_helper(updated_offer)
+        
+        # Emit real-time event to user
+        users_collection = db.db.get_collection("users")
+        professional_data = await users_collection.find_one({"_id": ObjectId(professional_id)})
+        if professional_data:
+            offer_dict["professional_name"] = professional_data.get("name")
+            offer_dict["professional_image"] = professional_data.get("profile_image")
+        await emit_offer_accepted(offer["user_id"], professional_id, offer_dict)
         
         return {
-            "message": "Offer accepted and booking created",
-            "offer": offer_helper(updated_offer),
-            "booking_id": booking_id
+            "message": "Offer accepted",
+            "offer": offer_dict,
+            "valid_until": accepted_price_valid_until.isoformat()
         }
     except HTTPException:
         raise
@@ -249,10 +299,19 @@ async def reject_offer(
         )
         
         updated_offer = await offers_collection.find_one({"_id": ObjectId(offer_id)})
+        offer_dict = offer_helper(updated_offer)
+        
+        # Emit real-time event to user
+        users_collection = db.db.get_collection("users")
+        professional_data = await users_collection.find_one({"_id": ObjectId(professional_id)})
+        if professional_data:
+            offer_dict["professional_name"] = professional_data.get("name")
+            offer_dict["professional_image"] = professional_data.get("profile_image")
+        await emit_offer_rejected(offer["user_id"], professional_id, offer_dict)
         
         return {
             "message": "Offer rejected",
-            "offer": offer_helper(updated_offer)
+            "offer": offer_dict
         }
     except HTTPException:
         raise
@@ -282,9 +341,82 @@ async def cancel_offer(
             raise HTTPException(status_code=404, detail="Offer not found or cannot be cancelled")
         
         # Delete offer
+        # Get offer data before deletion for socket event
+        offer_dict = offer_helper(offer)
+        
         await offers_collection.delete_one({"_id": ObjectId(offer_id)})
         
+        # Emit real-time event to professional
+        users_collection = db.db.get_collection("users")
+        user_data = await users_collection.find_one({"_id": ObjectId(user_id)})
+        if user_data:
+            offer_dict["user_name"] = user_data.get("name")
+            offer_dict["user_image"] = user_data.get("profile_image")
+        await emit_offer_cancelled(user_id, offer["professional_id"], offer_dict)
+        
         return {"message": "Offer cancelled successfully"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/revoke/{offer_id}")
+async def revoke_accepted_offer(
+    offer_id: str,
+    response_message: Optional[str] = None,
+    current_user: dict = Depends(get_current_user)
+):
+    """Revoke an accepted offer (professional only) - expires the offer before validity ends"""
+    try:
+        offers_collection = db.db.get_collection("offers")
+        users_collection = db.db.get_collection("users")
+        
+        professional_id = str(current_user["_id"])
+        
+        # Check if user is professional
+        if current_user.get("role") != "professional":
+            raise HTTPException(status_code=403, detail="Only professionals can revoke offers")
+        
+        # Get offer
+        offer = await offers_collection.find_one({
+            "_id": ObjectId(offer_id),
+            "professional_id": professional_id,
+            "status": "accepted"
+        })
+        
+        if not offer:
+            raise HTTPException(status_code=404, detail="Accepted offer not found")
+        
+        # Update offer status to expired/revoked
+        await offers_collection.update_one(
+            {"_id": ObjectId(offer_id)},
+            {
+                "$set": {
+                    "status": "expired",
+                    "updated_at": datetime.utcnow(),
+                    "response_message": response_message or "Offer revoked by professional",
+                    "accepted_price_valid_until": datetime.utcnow(),  # Expire immediately
+                }
+            }
+        )
+        
+        updated_offer = await offers_collection.find_one({"_id": ObjectId(offer_id)})
+        offer_dict = offer_helper(updated_offer)
+        
+        # Add professional details
+        professional_data = await users_collection.find_one({"_id": ObjectId(professional_id)})
+        if professional_data:
+            offer_dict["professional_name"] = professional_data.get("name")
+            offer_dict["professional_image"] = professional_data.get("profile_image")
+        
+        # Emit real-time event to user
+        await emit_offer_revoked(offer["user_id"], professional_id, offer_dict)
+        
+        return {
+            "message": "Offer revoked successfully",
+            "offer": offer_dict
+        }
     except HTTPException:
         raise
     except Exception as e:
